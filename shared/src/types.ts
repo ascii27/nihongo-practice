@@ -36,6 +36,7 @@ export const ItemRecord = z.object({
   prompt: VocabPrompt,           // Phase 1: vocab only
   answer: VocabAnswer,
   source: Source,
+  external_id: z.string().nullable().optional(),
   tags: z.array(z.string()),
   created_at: z.string(),        // ISO
 });
@@ -60,7 +61,7 @@ export const StartSessionResponse = z.object({ id: z.string().uuid() });
 export type StartSessionResponse = z.infer<typeof StartSessionResponse>;
 
 export const EndSessionRequest = z.object({
-  ended_at: z.string(),  // ISO
+  ended_at: z.string().datetime(),  // ISO
 });
 export type EndSessionRequest = z.infer<typeof EndSessionRequest>;
 
@@ -72,14 +73,14 @@ export type ReviewResult = z.infer<typeof ReviewResult>;
 export const SubmitReviewRequest = z.object({
   item_id: z.string().uuid(),
   result: ReviewResult,
-  reviewed_at: z.string(),       // ISO, client-supplied
+  reviewed_at: z.string().datetime(),       // ISO, client-supplied
   session_id: z.string().uuid().optional(),
 });
 export type SubmitReviewRequest = z.infer<typeof SubmitReviewRequest>;
 
 export const ReviewStateResponse = z.object({
   box: z.number().int().min(1).max(5),
-  next_review_at: z.string(),    // ISO
+  next_review_at: z.string().datetime(),    // ISO
   total_reviews: z.number().int().nonnegative(),
   total_missed: z.number().int().nonnegative(),
 });
