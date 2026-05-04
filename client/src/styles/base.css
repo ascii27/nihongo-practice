@@ -1,0 +1,922 @@
+/**
+ * Nihongo Practice — Base Styles
+ * Concept: "Ink & Stone"
+ *
+ * Import order in your entry point:
+ *   1. tokens.css  (custom properties)
+ *   2. base.css    (this file — reset + global defaults + screen classes)
+ *
+ * This file NEVER hard-codes colors or sizes — it always references tokens.
+ */
+
+@import './tokens.css';
+
+/* ─────────────────────────────────────────────
+   BOX MODEL RESET
+   ───────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─────────────────────────────────────────────
+   ROOT + BODY
+   ───────────────────────────────────────────── */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%; /* prevent iOS auto-zoom on rotate */
+  scroll-behavior: smooth;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-normal);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+
+  /* iOS safe-area insets — notch + home indicator */
+  padding-top:    env(safe-area-inset-top);
+  padding-right:  env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left:   env(safe-area-inset-left);
+
+  min-height: 100%;
+  min-height: 100dvh; /* dynamic viewport height — critical for iOS Safari */
+  overflow-x: hidden;
+
+  /* Tap highlight: suppress iOS blue flash */
+  -webkit-tap-highlight-color: transparent;
+
+  /* Font rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  /* Subtle grain texture via SVG filter — "ink wash" quality */
+  position: relative;
+}
+
+/* CSS-only grain overlay — applied as a pseudo-element so it never
+   interferes with pointer events or z-index stacking. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-grain);
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
+/* ─────────────────────────────────────────────
+   APP ROOT
+   ───────────────────────────────────────────── */
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* ─────────────────────────────────────────────
+   TYPOGRAPHY DEFAULTS
+   ───────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-tight);
+  color: var(--color-fg);
+}
+
+p {
+  line-height: var(--line-height-relaxed);
+}
+
+/* ─────────────────────────────────────────────
+   RUBY / FURIGANA
+   Critical for legibility — rt should sit close
+   to kanji without crowding the line below it.
+   ───────────────────────────────────────────── */
+ruby {
+  ruby-align: center;
+  display: inline;
+  line-height: var(--line-height-ruby);
+}
+
+rt {
+  font-family: var(--font-body);
+  font-size: calc(1em * var(--ruby-scale)); /* 0.55em by default */
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg-secondary);
+  line-height: 1.2;
+  text-align: center;
+  letter-spacing: 0.01em;
+  /* Override browser default which can be too small */
+  ruby-position: over;
+}
+
+/* High-contrast furigana variant — use on dark cards */
+.ruby-hi-contrast rt {
+  color: var(--color-fg);
+}
+
+rp {
+  display: none; /* hide parentheses fallback when ruby is supported */
+}
+
+/* ─────────────────────────────────────────────
+   LINKS
+   ───────────────────────────────────────────── */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover,
+a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ─────────────────────────────────────────────
+   BUTTONS — base reset
+   Styled components will add visual treatment.
+   ───────────────────────────────────────────── */
+button {
+  font-family: var(--font-ui);
+  font-size: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* no double-tap zoom on buttons */
+}
+
+/* ─────────────────────────────────────────────
+   INPUTS
+   ───────────────────────────────────────────── */
+input,
+textarea,
+select {
+  font-family: var(--font-body);
+  font-size: var(--font-size-3);
+  color: var(--color-fg);
+  background: var(--color-bg-raised);
+  border: var(--border-base);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+input::placeholder {
+  color: var(--color-fg-tertiary);
+}
+
+/* ─────────────────────────────────────────────
+   IMAGES + MEDIA
+   ───────────────────────────────────────────── */
+img,
+video,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* ─────────────────────────────────────────────
+   FOCUS STYLES (accessibility)
+   ───────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* Remove focus ring when using mouse/touch */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─────────────────────────────────────────────
+   UTILITY CLASSES
+   ───────────────────────────────────────────── */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─────────────────────────────────────────────
+   SCREEN LAYOUT
+   The fundamental full-height screen container.
+   Every route renders inside a .screen.
+   ───────────────────────────────────────────── */
+.screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  width: 100%;
+  max-width: 100vw;
+  min-height: 0; /* allow flex children to scroll */
+  overflow-y: auto;
+  /* Bottom tab bar offset — content doesn't hide behind nav */
+  /* body already applies env(safe-area-inset-bottom); don't double-count */
+  padding-bottom: calc(var(--tab-bar-height));
+}
+
+/* Centered variant: used for auth screens, empty states, loading */
+.screen--centered {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding-top: var(--space-8);
+  padding-bottom: calc(var(--tab-bar-height) + var(--space-8));
+  gap: var(--space-5);
+}
+
+/* Session/practice mode — no tab bar, full bleed card */
+.screen--session {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ─────────────────────────────────────────────
+   TOPBAR
+   Slim navigation header for inner screens.
+   ───────────────────────────────────────────── */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--topbar-height);
+  padding: 0 var(--space-4);
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+  background: var(--color-bg);
+  border-bottom: var(--border-base);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  /* subtle backdrop blur — feels native iOS */
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+  background: rgba(20, 18, 16, 0.85);
+}
+
+@media (prefers-color-scheme: light) {
+  .topbar {
+    background: rgba(250, 247, 242, 0.88);
+  }
+}
+
+.topbar__title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  letter-spacing: -0.01em;
+}
+
+.topbar__action {
+  font-size: var(--font-size-2);
+  color: var(--color-accent);
+  cursor: pointer;
+  min-height: 44px; /* iOS minimum tap target */
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─────────────────────────────────────────────
+   HERO
+   The primary content area of a screen —
+   usually the top section before the CTA.
+   ───────────────────────────────────────────── */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-5) var(--space-6);
+  text-align: center;
+}
+
+.hero__title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-5);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  letter-spacing: -0.02em;
+}
+
+.hero__subtitle {
+  font-size: var(--font-size-3);
+  color: var(--color-fg-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* ─────────────────────────────────────────────
+   BIG-NUMBER
+   The hero stat — due count, streak, score.
+   Rendered in DM Mono for tabular feel.
+   ───────────────────────────────────────────── */
+.big-number {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-7);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  /* Ink-wash glow: accent shimmer on the number */
+  text-shadow: 0 0 40px var(--color-accent-muted);
+
+  /* Entrance animation */
+  animation: number-drop var(--duration-slow) var(--ease-spring) both;
+}
+
+.big-number--accent {
+  color: var(--color-accent);
+  text-shadow: 0 0 40px var(--color-accent-glow);
+}
+
+.big-number__label {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-fg-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-top: var(--space-2);
+  text-shadow: none;
+}
+
+@keyframes number-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   MUTED
+   Secondary / de-emphasized text.
+   ───────────────────────────────────────────── */
+.muted {
+  color: var(--color-muted);
+  font-size: var(--font-size-2);
+}
+
+/* ─────────────────────────────────────────────
+   ERROR
+   Inline error messages — form validation,
+   auth failures, network issues.
+   ───────────────────────────────────────────── */
+.error {
+  color: var(--color-error);
+  font-size: var(--font-size-2);
+  background: var(--color-error-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid rgba(232, 76, 61, 0.2);
+
+  /* Shake animation on error entry */
+  animation: error-shake var(--duration-slow) var(--ease-out) both;
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(5px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(3px); }
+}
+
+/* ─────────────────────────────────────────────
+   LINK
+   In-content text links with underline.
+   ───────────────────────────────────────────── */
+.link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.link:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ─────────────────────────────────────────────
+   PASSCODE FORM
+   Passcode entry screen — the first thing a
+   user sees. Centered, calm, authoritative.
+
+   Visual treatment:
+   - Screen fills viewport, centered column layout
+   - App name in display serif, letterpress feel
+   - Six dot indicators for passcode digits
+   - Subtle animated glow on the active dot
+   - PIN-pad style number grid or text input
+   ───────────────────────────────────────────── */
+.passcode-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 320px;
+  padding: var(--space-5);
+
+  /* Fade-up entrance */
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.passcode-form__lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.passcode-form__app-name {
+  font-family: var(--font-display);
+  font-size: var(--font-size-6);
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg);
+  letter-spacing: -0.03em;
+  /* Kanji-inspired refined stroke feel */
+  line-height: 1;
+}
+
+.passcode-form__app-name em {
+  font-style: normal;
+  color: var(--color-accent);
+}
+
+.passcode-form__subtitle {
+  font-size: var(--font-size-2);
+  color: var(--color-fg-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* The row of dots indicating input progress */
+.passcode-form__dots {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  height: 48px;
+}
+
+.passcode-form__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border-strong);
+  background: transparent;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.passcode-form__dot--filled {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  transform: scale(1.1);
+}
+
+/* The actual input is visually hidden; JS drives dot state */
+.passcode-form__input-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Submit button */
+.passcode-form__btn {
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  min-height: 52px; /* thumb-friendly */
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow: var(--shadow-2);
+}
+
+.passcode-form__btn:hover {
+  background: var(--color-accent-hover);
+}
+
+.passcode-form__btn:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-1);
+}
+
+/* ─────────────────────────────────────────────
+   TODAY SCREEN SPECIFIC
+   The hub screen: streak, due count, start CTA.
+
+   Visual treatment:
+   - Vertically spaced: header > big number > CTA
+   - "日本語" watermark text behind the number
+   - Start button lives in the lower thumb zone
+   ───────────────────────────────────────────── */
+.today-screen {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--space-5);
+  padding-bottom: calc(var(--tab-bar-height) + var(--space-5));
+  gap: var(--space-6);
+}
+
+.today-screen__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+}
+
+.today-screen__greeting {
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  letter-spacing: -0.01em;
+}
+
+.today-screen__date {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2);
+  color: var(--color-fg-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.today-screen__stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  flex: 1;
+  align-content: start;
+}
+
+.stat-card {
+  background: var(--color-bg-raised);
+  border: var(--border-base);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  box-shadow: var(--shadow-1);
+
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.stat-card:nth-child(2) { animation-delay: 60ms; }
+.stat-card:nth-child(3) { animation-delay: 120ms; }
+.stat-card:nth-child(4) { animation-delay: 180ms; }
+
+.stat-card--primary {
+  grid-column: 1 / -1;
+  background: var(--color-accent-muted);
+  border-color: rgba(232, 76, 61, 0.25);
+}
+
+.stat-card__label {
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-fg-tertiary);
+}
+
+.stat-card__value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-6);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.stat-card--primary .stat-card__value {
+  color: var(--color-accent);
+}
+
+/* The primary CTA — pinned toward the bottom */
+.today-screen__cta {
+  margin-top: auto;
+}
+
+.btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-xl);
+  border: none;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  min-height: 60px; /* very thumb-friendly — primary action */
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow:
+    var(--shadow-2),
+    0 0 24px var(--color-accent-muted);
+
+  animation: fade-up var(--duration-slower) var(--ease-spring) 250ms both;
+}
+
+.btn-primary:hover {
+  background: var(--color-accent-hover);
+  box-shadow:
+    var(--shadow-3),
+    0 0 32px var(--color-accent-glow);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  background: var(--color-border);
+  color: var(--color-fg-tertiary);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Secondary ghost button */
+.btn-ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+  background: transparent;
+  color: var(--color-fg-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-regular);
+  border-radius: var(--radius-lg);
+  border: var(--border-strong);
+  cursor: pointer;
+  min-height: 52px;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+}
+
+.btn-ghost:hover {
+  background: var(--color-bg-raised);
+  color: var(--color-fg);
+}
+
+.btn-ghost:active {
+  transform: scale(0.98);
+}
+
+/* ─────────────────────────────────────────────
+   BOTTOM TAB BAR
+   Five-tab navigation pinned to the bottom.
+   Safe-area aware.
+   ───────────────────────────────────────────── */
+.tab-bar {
+  display: flex;
+  align-items: stretch;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(20, 18, 16, 0.92);
+  border-top: var(--border-base);
+  z-index: var(--z-nav);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+}
+
+@media (prefers-color-scheme: light) {
+  .tab-bar {
+    background: rgba(250, 247, 242, 0.92);
+  }
+}
+
+.tab-bar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 3px;
+  cursor: pointer;
+  color: var(--color-fg-tertiary);
+  font-size: var(--font-size-1);
+  font-family: var(--font-ui);
+  letter-spacing: 0.04em;
+  min-height: var(--tab-bar-height);
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+}
+
+.tab-bar__item:active {
+  transform: scale(0.9);
+}
+
+.tab-bar__item--active {
+  color: var(--color-accent);
+}
+
+.tab-bar__icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.tab-bar__label {
+  line-height: 1;
+}
+
+/* ─────────────────────────────────────────────
+   PRACTICE CARD
+   The core session component shell.
+   Individual card types (FlipCard, MultipleChoice,
+   TypedInput) will extend this.
+   ───────────────────────────────────────────── */
+.practice-card {
+  background: var(--color-bg-raised);
+  border: var(--border-base);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.practice-card__skill-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-accent);
+  background: var(--color-accent-muted);
+  border-radius: var(--radius-full);
+  padding: var(--space-1) var(--space-3);
+  align-self: flex-start;
+}
+
+.practice-card__sentence {
+  font-size: var(--font-size-5);
+  line-height: var(--line-height-ruby);
+  color: var(--color-fg);
+  font-family: var(--font-body);
+  letter-spacing: 0.02em;
+}
+
+.practice-card__hint {
+  font-size: var(--font-size-3);
+  color: var(--color-fg-secondary);
+  line-height: var(--line-height-relaxed);
+  font-style: italic;
+}
+
+/* ─────────────────────────────────────────────
+   SHARED ANIMATIONS
+   ───────────────────────────────────────────── */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--color-accent-glow); }
+  50%       { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* ─────────────────────────────────────────────
+   REDUCE MOTION
+   Respect user's OS motion preference.
+   ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   EMPTY STATE
+   "All caught up" screen, offline state, etc.
+   ───────────────────────────────────────────── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-5);
+  text-align: center;
+  color: var(--color-fg-secondary);
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+.empty-state__glyph {
+  font-family: var(--font-display);
+  font-size: 64px;
+  line-height: 1;
+  color: var(--color-border-strong);
+  font-weight: var(--font-weight-light);
+}
+
+.empty-state__title {
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+}
+
+.empty-state__body {
+  font-size: var(--font-size-3);
+  line-height: var(--line-height-relaxed);
+  max-width: 260px;
+}

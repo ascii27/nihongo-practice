@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nihongo
+      POSTGRES_PASSWORD: nihongo
+      POSTGRES_DB: nihongo
+    ports:
+      - "5432:5432"
+    volumes:
+      - nihongo_pg_data:/var/lib/postgresql/data
+
+volumes:
+  nihongo_pg_data:

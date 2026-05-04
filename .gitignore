@@ -1,0 +1,17 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+.env.local
+.DS_Store
+playwright-report/
+test-results/
+*.log
+
+# TypeScript incremental build artifacts
+*.tsbuildinfo
+
+# Generated from tsc -b on tsconfig.node.json (vite.config.ts emit)
+client/vite.config.d.ts
+client/vite.config.js
