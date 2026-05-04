@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "engines": { "node": ">=24" },
-  "workspaces": ["shared", "server", "client", "e2e"],
+  "workspaces": ["shared", "server", "client", "e2e", "seed"],
   "scripts": {
     "dev": "npm --workspace server run dev & npm --workspace client run dev",
     "build": "npm --workspace shared run build && npm --workspace server run build && npm --workspace client run build",

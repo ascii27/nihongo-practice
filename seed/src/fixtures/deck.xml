@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<deck name="Personal study">
+  <fields>
+    <field name="Japanese" />
+    <field name="Meaning" />
+  </fields>
+  <cards>
+    <card id="card-001">
+      <japanese>食べる</japanese>
+      <text name="Meaning">to eat</text>
+    </card>
+    <card id="card-002">
+      <japanese>水</japanese>
+      <text name="Meaning">water</text>
+    </card>
+    <card id="card-003">
+      <japanese>美味しい</japanese>
+      <text name="Meaning">delicious</text>
+    </card>
+  </cards>
+</deck>
