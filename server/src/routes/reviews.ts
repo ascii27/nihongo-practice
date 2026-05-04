@@ -11,7 +11,7 @@ export const reviewsRouter = Router();
 const Body = z.object({
   item_id: z.string().uuid(),
   result: z.enum(["got_it", "missed"]),
-  reviewed_at: z.string(),
+  reviewed_at: z.string().datetime(),
   session_id: z.string().uuid().optional(),
 });
 
