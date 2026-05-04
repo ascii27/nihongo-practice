@@ -7,6 +7,7 @@ import { authRouter } from "./routes/auth.js";
 import { queueRouter } from "./routes/queue.js";
 import { sessionsRouter } from "./routes/sessions.js";
 import { reviewsRouter } from "./routes/reviews.js";
+import { statsRouter } from "./routes/stats.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../../client/dist");
@@ -20,6 +21,7 @@ export function createApp() {
   app.use("/api/queue", queueRouter);
   app.use("/api/sessions", sessionsRouter);
   app.use("/api/reviews", reviewsRouter);
+  app.use("/api/stats", statsRouter);
 
   if (env.NODE_ENV === "production") {
     app.use(express.static(clientDist));
