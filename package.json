@@ -1,0 +1,16 @@
+{
+  "name": "nihongo-practice",
+  "private": true,
+  "version": "0.0.0",
+  "engines": { "node": ">=24" },
+  "workspaces": ["shared", "server", "client", "e2e"],
+  "scripts": {
+    "dev": "npm --workspace server run dev & npm --workspace client run dev",
+    "build": "npm --workspace shared run build && npm --workspace server run build && npm --workspace client run build",
+    "test": "npm --workspace server test",
+    "e2e": "npm --workspace e2e test",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:migrate": "npm --workspace server run db:migrate"
+  }
+}
