@@ -68,7 +68,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  z-index: var(--z-overlay);
+  z-index: var(--z-grain);
   pointer-events: none;
   opacity: var(--grain-opacity);
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
@@ -175,7 +175,6 @@ select {
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   width: 100%;
-  outline: none;
   appearance: none;
   -webkit-appearance: none;
   transition:
@@ -183,11 +182,12 @@ select {
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: var(--color-border-strong);
-  box-shadow: var(--shadow-accent);
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
 }
 
 input::placeholder {
@@ -249,7 +249,8 @@ svg {
   min-height: 0; /* allow flex children to scroll */
   overflow-y: auto;
   /* Bottom tab bar offset — content doesn't hide behind nav */
-  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  /* body already applies env(safe-area-inset-bottom); don't double-count */
+  padding-bottom: calc(var(--tab-bar-height));
 }
 
 /* Centered variant: used for auth screens, empty states, loading */
@@ -258,7 +259,7 @@ svg {
   align-items: center;
   text-align: center;
   padding-top: var(--space-8);
-  padding-bottom: calc(var(--tab-bar-height) + var(--space-8) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--tab-bar-height) + var(--space-8));
   gap: var(--space-5);
 }
 
@@ -575,7 +576,7 @@ svg {
   flex-direction: column;
   flex: 1;
   padding: var(--space-5);
-  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-5));
+  padding-bottom: calc(var(--tab-bar-height) + var(--space-5));
   gap: var(--space-6);
 }
 

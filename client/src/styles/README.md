@@ -254,8 +254,10 @@ Fixed elements must independently handle safe-area insets:
 ## Cautions for Future Contributors
 
 1. **Don't hard-code colors.** Always use a `--color-*` token. Adding a one-off hex is how design systems break down.
-2. **The grain overlay** (`body::before`) is `pointer-events: none` and `z-index: var(--z-overlay)`. Do not create elements with `z-index` between `--z-overlay` and `--z-modal` unless intentional.
+2. **The grain overlay** (`body::before`) is `pointer-events: none` and `z-index: var(--z-grain)` (`-1`). `--z-grain` is the floor of the z-index scale — it sits below all content but above the body background. Do not place elements at `-1` assuming it is unoccupied. The full layer order from bottom to top is: `--z-grain (-1)` → `--z-base (0)` → `--z-raised (10)` → `--z-overlay (100)` → `--z-modal (200)` → `--z-toast (300)` → `--z-nav (400)`.
 3. **Furigana line-height is fragile.** Changing `--line-height-ruby` affects all body text that contains `<ruby>` tags — test on actual Japanese content before tweaking.
 4. **Touch targets.** Minimum 44×44px per Apple HIG. All interactive elements in `base.css` enforce `min-height: 44px`. Don't override this without compensating with padding.
 5. **The font stack assumes Noto Serif JP is loaded.** It's imported at the top of `tokens.css` via Google Fonts. If offline support is added (service worker), pre-cache these font files or the UI will fall back to Georgia/Hiragino.
 6. **`@import` in `tokens.css`** pulls Noto Serif JP + DM Mono. In production, move the `<link rel="preconnect">` and font `<link>` tags to `index.html` for fastest render — Vite won't automatically do this from a CSS `@import`.
+7. **Input focus rings use `:focus-visible`.** `input`, `textarea`, and `select` do not suppress `outline` globally — they rely on `:focus-visible` so mouse/touch users see no ring while keyboard users get a clear accent border + glow. Do not add `outline: none` to these elements unconditionally.
+8. **Safe-area insets are applied once on `body`.** Screen layout classes (`.screen`, `.screen--centered`, `.today-screen`) must not add `env(safe-area-inset-bottom)` to their own padding-bottom — `body` already provides this clearance. Only `position: fixed` elements (`.tab-bar`, `.topbar`) should reference safe-area insets directly.

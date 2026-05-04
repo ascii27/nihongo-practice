@@ -128,6 +128,7 @@
   --border-strong: var(--border-width) var(--border-style) var(--color-border-strong);
 
   /* ── Z-index layers ── */
+  --z-grain:   -1;   /* grain overlay — below all content, above body bg */
   --z-base:    0;
   --z-raised:  10;
   --z-overlay: 100;
