@@ -1,0 +1,492 @@
+/**
+ * Nihongo Practice — Component Styles
+ * "Ink & Stone" — Phase 1 additions
+ *
+ * Covers:
+ *   1. FlipCard   — tap-to-reveal vocab review card
+ *   2. Today hero — screen modifiers, CTA, layout helpers
+ *   3. Bottom tab bar — .tabs / .tabs__btn (JSX names from BottomTabs.tsx)
+ *
+ * Only consumes var(--token) from tokens.css — zero new hex values,
+ * zero new font sizes, zero new spacing.
+ */
+
+/* ─────────────────────────────────────────────
+   APP ROOT
+   Wraps screen + tab bar; pads for tab bar height.
+   ───────────────────────────────────────────── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  min-height: 100dvh;
+  /* Push content above fixed tab bar + iOS home indicator */
+  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+}
+
+/* ─────────────────────────────────────────────
+   SCREEN MODIFIERS
+   Extend base .screen from base.css.
+   ───────────────────────────────────────────── */
+
+/* Placeholder / skeleton state — centres content like --centered
+   but retains the full-height flex column so the CTA can anchor low */
+.screen--placeholder {
+  justify-content: flex-start;
+  gap: var(--space-6);
+  padding: var(--space-5);
+  padding-bottom: calc(var(--tab-bar-height) + var(--space-5));
+}
+
+/* Active practice screen — no tab bar visible, full bleed card area */
+.screen--practice {
+  padding-bottom: env(safe-area-inset-bottom);
+  gap: 0;
+}
+
+/* ─────────────────────────────────────────────
+   TODAY SCREEN HELPERS
+   Layout utilities for TodayScreen.tsx.
+   ───────────────────────────────────────────── */
+
+/* Vertically centred text block — used for "0 cards due" caption */
+.center {
+  text-align: center;
+}
+
+/* Primary CTA — "Start review" button anchored toward the bottom.
+   The .cta wrapper uses margin-top: auto to push the button low
+   when inside a flex column. */
+.cta {
+  margin-top: auto;
+  padding: 0 var(--space-5);
+  padding-bottom: var(--space-5);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* The button itself — mirrors .btn-primary styling from base.css
+   but bound to the .cta class name the JSX uses */
+.cta > button,
+.cta > a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-5) var(--space-6);
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-xl);
+  border: none;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  min-height: 60px;
+  text-decoration: none;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  box-shadow:
+    var(--shadow-2),
+    0 0 24px var(--color-accent-muted);
+  animation: fade-up var(--duration-slower) var(--ease-spring) 250ms both;
+}
+
+.cta > button:hover,
+.cta > a:hover {
+  background: var(--color-accent-hover);
+  box-shadow:
+    var(--shadow-3),
+    0 0 32px var(--color-accent-glow);
+}
+
+.cta > button:active,
+.cta > a:active {
+  transform: scale(0.98);
+}
+
+.cta > button:disabled {
+  background: var(--color-border);
+  color: var(--color-fg-tertiary);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ─────────────────────────────────────────────
+   BOTTOM TAB BAR — .tabs / .tabs__btn
+   JSX uses these names (BottomTabs.tsx).
+   base.css has .tab-bar which uses icon slots;
+   this version is text-label-only, minimal.
+   ───────────────────────────────────────────── */
+.tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: stretch;
+  height: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: rgba(20, 18, 16, 0.92);
+  border-top: var(--border-base);
+  z-index: var(--z-nav);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+}
+
+@media (prefers-color-scheme: light) {
+  .tabs {
+    background: rgba(250, 247, 242, 0.92);
+  }
+}
+
+.tabs__btn {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-1);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-fg-tertiary);
+  cursor: pointer;
+  min-height: var(--tab-bar-height);
+  border: none;
+  background: none;
+  position: relative;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+}
+
+.tabs__btn:active {
+  transform: scale(0.9);
+}
+
+/* Active tab: vermillion top rule — like a hanko stamp line */
+.tabs__btn.is-active {
+  color: var(--color-accent);
+}
+
+.tabs__btn.is-active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--color-accent);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  animation: tab-indicator var(--duration-normal) var(--ease-spring) both;
+}
+
+@keyframes tab-indicator {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   FLIPCARD
+   The core review card. Uses CSS 3D flip from
+   prompt face to answer face. No JS required for
+   the animation — the .is-revealed modifier
+   (toggled by React state) drives the transform.
+   ───────────────────────────────────────────── */
+
+/* Outer container — scoped to screen width */
+.flipcard {
+  position: relative;
+  width: calc(100% - var(--space-5) * 2);
+  max-width: var(--card-max-width);
+  margin: var(--space-5) auto 0;
+
+  /* Preserve 3D context for child face flip */
+  perspective: 1200px;
+
+  /* Entrance */
+  animation: fade-up var(--duration-slow) var(--ease-out) both;
+}
+
+/* The inner wrapper that rotates */
+.flipcard__inner {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform var(--duration-normal) var(--ease-card-flip);
+}
+
+/* Flipped state — rotate inner to reveal answer face */
+.flipcard.is-revealed .flipcard__inner {
+  transform: rotateY(180deg);
+}
+
+/* Each face — absolutely stacked, backface hidden */
+.flipcard__face {
+  background: var(--color-bg-raised);
+  border: var(--border-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-3);
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Prompt (front) face — shown by default */
+.flipcard__face--prompt {
+  padding: var(--space-7) var(--space-5) var(--space-5);
+  gap: var(--space-6);
+  min-height: 60vh;
+  position: relative;
+}
+
+/* Answer (back) face — rotated 180° so it appears after flip */
+.flipcard__face--answer {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  padding: var(--space-5);
+  gap: var(--space-4);
+  min-height: 60vh;
+}
+
+/* ── Sentence — main Japanese text with furigana ── */
+.flipcard__sentence {
+  font-family: var(--font-body);
+  font-size: var(--font-size-5);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-ruby);
+  color: var(--color-fg);
+  letter-spacing: 0.02em;
+  text-align: center;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+}
+
+/* High-contrast furigana on the card surface */
+.flipcard__sentence rt {
+  color: var(--color-fg-secondary);
+}
+
+/* ── Secondary sentence — smaller reprise on answer face ── */
+.flipcard__sentence-secondary {
+  font-family: var(--font-body);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-light);
+  line-height: var(--line-height-ruby);
+  color: var(--color-fg-secondary);
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 var(--space-3);
+  padding-top: var(--space-3);
+  border-top: var(--border-base);
+}
+
+.flipcard__sentence-secondary rt {
+  color: var(--color-fg-tertiary);
+}
+
+/* ── Answer block — vocab word + meaning + English ── */
+.flipcard__answer-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+}
+
+/* The bare vocab word — large, prominent */
+.flipcard__target {
+  font-family: var(--font-body);
+  font-size: var(--font-size-6);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-ruby);
+  color: var(--color-fg);
+  letter-spacing: -0.01em;
+  text-align: center;
+  /* Subtle vermillion glow — like ink on paper */
+  text-shadow: 0 0 32px var(--color-accent-muted);
+}
+
+.flipcard__target rt {
+  color: var(--color-fg-secondary);
+  font-size: calc(1em * var(--ruby-scale));
+}
+
+/* English meaning — primary definition */
+.flipcard__meaning {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-fg);
+  text-align: center;
+  letter-spacing: -0.01em;
+}
+
+/* English example sentence — lighter, smaller */
+.flipcard__english {
+  font-family: var(--font-body);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg-tertiary);
+  text-align: center;
+  line-height: var(--line-height-relaxed);
+  font-style: italic;
+  max-width: 28ch;
+}
+
+/* ── Reveal button — bottom of prompt face ── */
+.flipcard__reveal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.02em;
+  border: none;
+  border-top: 1px solid rgba(232, 76, 61, 0.2);
+  cursor: pointer;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-out);
+
+  /* Subtle breathing pulse to invite interaction */
+  animation: reveal-pulse 3s var(--ease-in-out) 1s infinite;
+}
+
+.flipcard__reveal:hover {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.flipcard__reveal:active {
+  transform: scale(0.98);
+}
+
+@keyframes reveal-pulse {
+  0%, 100% { background: var(--color-accent-muted); }
+  50%       { background: rgba(232, 76, 61, 0.22); }
+}
+
+/* Stop pulse when card is revealed — parent state modifier */
+.flipcard.is-revealed .flipcard__reveal {
+  animation: none;
+}
+
+/* ── Action buttons row — Got it / Missed ── */
+.flipcard__actions {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  width: 100%;
+  /* Anchor to lower thumb zone */
+  margin-top: auto;
+}
+
+/* Base button — applies to both Got it and Missed */
+.flipcard__btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: var(--space-4) var(--space-3);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    transform var(--duration-instant) var(--ease-spring),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.flipcard__btn:active {
+  transform: scale(0.96);
+}
+
+/* Missed — danger/secondary tone, left thumb reach */
+.flipcard__btn--missed {
+  background: var(--color-error-muted);
+  color: var(--color-error);
+  border: 1px solid rgba(232, 76, 61, 0.25);
+}
+
+.flipcard__btn--missed:hover {
+  background: rgba(232, 76, 61, 0.2);
+}
+
+.flipcard__btn--missed:active {
+  box-shadow: 0 0 0 3px var(--color-accent-glow);
+}
+
+/* Got it — success/primary tone, right thumb reach */
+.flipcard__btn--got {
+  background: var(--color-success-muted);
+  color: var(--color-success);
+  border: 1px solid rgba(90, 158, 111, 0.25);
+}
+
+.flipcard__btn--got:hover {
+  background: rgba(90, 158, 111, 0.22);
+}
+
+.flipcard__btn--got:active {
+  box-shadow: 0 0 0 3px rgba(90, 158, 111, 0.3);
+}
+
+/* ─────────────────────────────────────────────
+   FLIPCARD WITHIN PRACTICE SCREEN
+   When inside .screen--practice, the card
+   expands to fill available vertical space so
+   the actions sit near the bottom of the screen.
+   ───────────────────────────────────────────── */
+.screen--practice .flipcard {
+  margin-top: var(--space-4);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen--practice .flipcard__inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.screen--practice .flipcard__face--prompt,
+.screen--practice .flipcard__face--answer {
+  flex: 1;
+  min-height: 0;
+}
