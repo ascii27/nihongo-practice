@@ -47,7 +47,7 @@ describe("generateBatch", () => {
     const result = await generateBatch(cards, { client: fakeClient as never });
     expect(result.sentences.map((s) => s.external_id)).toEqual(["a", "b"]);
     expect(create).toHaveBeenCalledOnce();
-    const arg = create.mock.calls[0][0];
+    const arg = create.mock.calls[0]![0];
     expect(arg.model).toMatch(/sonnet/);
     expect(typeof arg.system).toBe("string");
     expect(arg.messages[0].content).toContain("本");

@@ -66,8 +66,7 @@ export async function generateBatch(
       totalInput += resp.usage.input_tokens;
       totalOutput += resp.usage.output_tokens;
       const text = resp.content
-        .filter((b: { type: string }) => b.type === "text")
-        .map((b: { text: string }) => b.text)
+        .flatMap((b) => (b.type === "text" ? [b.text] : []))
         .join("");
       const sentences = parseBatchResponse(text);
       return {
