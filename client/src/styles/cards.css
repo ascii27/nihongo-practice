@@ -200,10 +200,9 @@
 
 /* ─────────────────────────────────────────────
    FLIPCARD
-   The core review card. Uses CSS 3D flip from
-   prompt face to answer face. No JS required for
-   the animation — the .is-revealed modifier
-   (toggled by React state) drives the transform.
+   The core review card. Prompt face shows by
+   default; answer face is conditionally rendered
+   by React when the .is-revealed modifier is set.
    ───────────────────────────────────────────── */
 
 /* Outer container — scoped to screen width */
@@ -213,27 +212,11 @@
   max-width: var(--card-max-width);
   margin: var(--space-5) auto 0;
 
-  /* Preserve 3D context for child face flip */
-  perspective: 1200px;
-
   /* Entrance */
   animation: fade-up var(--duration-slow) var(--ease-out) both;
 }
 
-/* The inner wrapper that rotates */
-.flipcard__inner {
-  position: relative;
-  width: 100%;
-  transform-style: preserve-3d;
-  transition: transform var(--duration-normal) var(--ease-card-flip);
-}
-
-/* Flipped state — rotate inner to reveal answer face */
-.flipcard.is-revealed .flipcard__inner {
-  transform: rotateY(180deg);
-}
-
-/* Each face — absolutely stacked, backface hidden */
+/* Each face — stacked, only one visible at a time via React conditional render */
 .flipcard__face {
   background: var(--color-bg-raised);
   border: var(--border-base);
@@ -242,8 +225,6 @@
   display: flex;
   flex-direction: column;
   width: 100%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   overflow: hidden;
 }
 
@@ -255,11 +236,8 @@
   position: relative;
 }
 
-/* Answer (back) face — rotated 180° so it appears after flip */
+/* Answer (back) face — shown after reveal via React conditional render */
 .flipcard__face--answer {
-  position: absolute;
-  inset: 0;
-  transform: rotateY(180deg);
   padding: var(--space-5);
   gap: var(--space-4);
   min-height: 60vh;
@@ -401,6 +379,7 @@
   animation: none;
 }
 
+
 /* ── Action buttons row — Got it / Missed ── */
 .flipcard__actions {
   display: flex;
@@ -474,12 +453,6 @@
    ───────────────────────────────────────────── */
 .screen--practice .flipcard {
   margin-top: var(--space-4);
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.screen--practice .flipcard__inner {
   flex: 1;
   display: flex;
   flex-direction: column;
