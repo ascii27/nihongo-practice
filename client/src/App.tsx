@@ -1,28 +1,39 @@
 import { useEffect, useState } from "react";
 import { auth } from "./auth";
-import { api, AuthError } from "./api";
+import { api } from "./api";
 import { PasscodeScreen } from "./screens/PasscodeScreen";
 import { TodayScreen } from "./screens/TodayScreen";
+import { PracticeScreen } from "./screens/PracticeScreen";
+import { BrowseScreen } from "./screens/BrowseScreen";
+import { StatsScreen } from "./screens/StatsScreen";
+import { BottomTabs, type Tab } from "./components/BottomTabs";
 
-type State = "checking" | "needs-auth" | "authed";
+type AuthState = "checking" | "needs-auth" | "authed";
 
 export default function App() {
-  const [state, setState] = useState<State>("checking");
+  const [authState, setAuthState] = useState<AuthState>("checking");
+  const [tab, setTab] = useState<Tab>("today");
 
   useEffect(() => {
-    if (!auth.get()) {
-      setState("needs-auth");
-      return;
-    }
+    if (!auth.get()) { setAuthState("needs-auth"); return; }
     api("/api/auth/check", { method: "POST", body: "{}" })
-      .then(() => setState("authed"))
-      .catch((err) => {
-        if (err instanceof AuthError) setState("needs-auth");
-        else setState("needs-auth"); // fall back to passcode screen on any failure
-      });
+      .then(() => setAuthState("authed"))
+      .catch(() => setAuthState("needs-auth"));
   }, []);
 
-  if (state === "checking") return <main className="screen screen--centered">Loading…</main>;
-  if (state === "needs-auth") return <PasscodeScreen onAuthed={() => setState("authed")} />;
-  return <TodayScreen onSignOut={() => setState("needs-auth")} />;
+  if (authState === "checking") return <main className="screen screen--centered">Loading…</main>;
+  if (authState === "needs-auth") return <PasscodeScreen onAuthed={() => setAuthState("authed")} />;
+
+  let active;
+  if (tab === "today")    active = <TodayScreen onSignOut={() => setAuthState("needs-auth")} onStartReview={() => setTab("practice")} />;
+  else if (tab === "practice") active = <PracticeScreen onDone={() => setTab("today")} />;
+  else if (tab === "browse")   active = <BrowseScreen />;
+  else                        active = <StatsScreen />;
+
+  return (
+    <div className="app">
+      {active}
+      <BottomTabs active={tab} onChange={setTab} />
+    </div>
+  );
 }

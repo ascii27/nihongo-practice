@@ -12,9 +12,11 @@
     "build": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "sanitize-html": "^2.13.0"
   },
   "devDependencies": {
+    "@types/sanitize-html": "^2.13.0",
     "typescript": "^5.6.0"
   }
 }
