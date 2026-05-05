@@ -20,6 +20,16 @@ describe("parseBatchResponse", () => {
     expect(() => parseBatchResponse("not json")).toThrow();
   });
 
+  it("strips ```json code fences before parsing", () => {
+    const inner = JSON.stringify({
+      sentences: [{ external_id: "a", sentence_japanese: "本。", sentence_english: "A book." }],
+    });
+    const fenced = "```json\n" + inner + "\n```";
+    expect(parseBatchResponse(fenced)).toHaveLength(1);
+    const bareFenced = "```\n" + inner + "\n```";
+    expect(parseBatchResponse(bareFenced)).toHaveLength(1);
+  });
+
   it("throws when entries are missing required fields", () => {
     const raw = JSON.stringify({ sentences: [{ external_id: "a" }] });
     expect(() => parseBatchResponse(raw)).toThrow();

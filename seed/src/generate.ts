@@ -32,8 +32,14 @@ function buildUserPrompt(cards: CardInput[]): string {
   ].join("\n");
 }
 
+function stripFences(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fenced ? fenced[1].trim() : trimmed;
+}
+
 export function parseBatchResponse(raw: string): SentenceOutput[] {
-  const parsed = JSON.parse(raw);
+  const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;
   if (!Array.isArray(sentences)) throw new Error("response missing 'sentences' array");
   for (const s of sentences) {
