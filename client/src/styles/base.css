@@ -107,7 +107,10 @@ p {
    ───────────────────────────────────────────── */
 ruby {
   ruby-align: center;
-  display: inline;
+  /* Must remain a ruby formatting context so <rt> renders above the base.
+     Setting display:inline (or anything other than ruby) breaks furigana,
+     completely on iOS Safari and visibly on Chrome. */
+  display: ruby;
   line-height: var(--line-height-ruby);
 }
 
