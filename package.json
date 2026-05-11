@@ -3,11 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "engines": { "node": ">=24" },
-  "workspaces": ["shared", "server", "client", "e2e", "seed"],
+  "workspaces": ["shared", "gen", "server", "client", "e2e", "seed"],
   "scripts": {
     "dev": "npm --workspace server run dev & npm --workspace client run dev",
     "build": "npm --workspace shared run build && npm --workspace server run build && npm --workspace client run build",
-    "test": "npm --workspace server test",
+    "test": "npm --workspace shared test --if-present && npm --workspace gen test && npm --workspace seed test && npm --workspace server test",
     "e2e": "npm --workspace e2e test",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
