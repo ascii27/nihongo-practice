@@ -1,0 +1,33 @@
+export type CardInput = {
+  external_id: string;
+  japanese: string;
+  english: string;
+};
+
+export type PromptPair = { system: string; user: string };
+
+const VOCAB_SYSTEM = `You generate beginner-to-intermediate Japanese vocabulary cards. For each card, output one common word and one short natural example sentence (under 20 syllables) that uses it. Vary parts of speech (nouns, verbs, adjectives) across the batch unless the user's hint constrains otherwise.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "target": "<word>", "sentence_japanese": "<JA>", "sentence_english": "<EN>" } ] }`;
+
+export function buildVocabPrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} vocabulary cards.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  return { system: VOCAB_SYSTEM, user: lines.join("\n") };
+}
+
+const SENTENCES_FOR_CARDS_SYSTEM = `You write a single natural everyday Japanese example sentence for each vocabulary word given.
+The sentence MUST contain the target word verbatim. Keep it short (under 20 syllables) and use common modern Japanese.
+Reply ONLY with valid JSON matching this exact schema:
+{ "sentences": [ { "external_id": "<id>", "sentence_japanese": "<JA>", "sentence_english": "<EN>" } ] }
+No commentary. No code fences.`;
+
+export function buildSentencesForCardsPrompt(cards: CardInput[]): PromptPair {
+  const user = [
+    "Generate one example sentence per word:",
+    ...cards.map((c) => `- id=${c.external_id}: ${c.japanese} (${c.english})`),
+  ].join("\n");
+  return { system: SENTENCES_FOR_CARDS_SYSTEM, user };
+}
