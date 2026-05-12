@@ -92,3 +92,57 @@ export const StreakResponse = z.object({
   days: z.number().int().nonnegative(),
 });
 export type StreakResponse = z.infer<typeof StreakResponse>;
+
+// ----- API: generate -----
+
+export const GenerateRequest = z.object({
+  skill: z.literal("vocab"),
+  count: z.number().int().min(1).max(50),
+  weakness_hint: z.string().max(200).optional(),
+});
+export type GenerateRequest = z.infer<typeof GenerateRequest>;
+
+export const GenerateSuccess = z.object({
+  generation_id: z.string().uuid(),
+  status: z.enum(["success", "partial"]),
+  items_created: z.number().int().nonnegative(),
+  cost_usd: z.number().nonnegative(),
+  items: z.array(ItemRecord),
+});
+export type GenerateSuccess = z.infer<typeof GenerateSuccess>;
+
+export const GenerateFailure = z.object({
+  generation_id: z.string().uuid(),
+  status: z.literal("failed"),
+  items_created: z.literal(0),
+  cost_usd: z.number().nonnegative(),
+  error: z.string(),
+});
+export type GenerateFailure = z.infer<typeof GenerateFailure>;
+
+// ----- API: generations list -----
+
+export const GenerationSummary = z.object({
+  id: z.string().uuid(),
+  requested_at: z.string(),       // ISO
+  skill: z.string(),
+  count_requested: z.number().int().nonnegative(),
+  count_inserted: z.number().int().nonnegative(),
+  weakness_hint: z.string().nullable(),
+  cost_usd: z.number().nonnegative(),
+  status: z.enum(["success", "partial", "failed"]),
+  error: z.string().nullable(),
+});
+export type GenerationSummary = z.infer<typeof GenerationSummary>;
+
+export const GenerationsResponse = z.object({
+  generations: z.array(GenerationSummary),
+});
+export type GenerationsResponse = z.infer<typeof GenerationsResponse>;
+
+// ----- API: settings status -----
+
+export const SettingsStatusResponse = z.object({
+  ai_key_configured: z.boolean(),
+});
+export type SettingsStatusResponse = z.infer<typeof SettingsStatusResponse>;
