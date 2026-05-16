@@ -15,7 +15,7 @@ import {
   type GrammarItem,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 const MAX_TOKENS = 2000;
