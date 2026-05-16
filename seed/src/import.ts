@@ -1,9 +1,13 @@
 import "dotenv/config";
 import { readFileSync } from "node:fs";
 import pg from "pg";
-import { parseDeckXml, type CardInput } from "./parse-xml.js";
-import { generateBatch } from "./generate.js";
-import { toRubyHtml, readingFor } from "./furigana.js";
+import {
+  generateSentencesForCards,
+  toRubyHtml,
+  readingFor,
+  computeCost,
+} from "@nihongo/gen";
+import { parseDeckXml } from "./parse-xml.js";
 import { insertSeedItems, type InsertItem } from "./insert.js";
 
 const BATCH_SIZE = 20;
@@ -23,7 +27,6 @@ async function main() {
 
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 
-  // Skip cards already seeded.
   const existingRes = await pool.query<{ external_id: string }>(
     `SELECT external_id FROM items WHERE source='seed' AND external_id = ANY($1::text[])`,
     [allCards.map((c) => c.external_id)],
@@ -43,8 +46,8 @@ async function main() {
     const totalBatches = Math.ceil(cards.length / BATCH_SIZE);
     console.log(`batch ${batchNum}/${totalBatches} (${batch.length} cards)…`);
     try {
-      const result = await generateBatch(batch);
-      totalCost += result.cost_usd;
+      const result = await generateSentencesForCards(batch);
+      totalCost += computeCost(result.usage);
 
       const items: InsertItem[] = [];
       const byId = new Map(result.sentences.map((s) => [s.external_id, s]));
@@ -63,10 +66,7 @@ async function main() {
             target: card.japanese,
             sentence_english: sent.sentence_english,
           },
-          answer: {
-            meaning: card.english,
-            reading,
-          },
+          answer: { meaning: card.english, reading },
         });
       }
       const ins = await insertSeedItems(pool, items);

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { auth } from "../auth";
+import { useCallback, useEffect, useState } from "react";
 import { fetchQueue, fetchStreak } from "../api-hooks";
+import { GenerateForm } from "../components/GenerateForm";
 
 type Props = {
-  onSignOut: () => void;
   onStartReview: () => void;
+  onOpenSettings: () => void;
 };
 
 type State = {
@@ -15,14 +15,12 @@ type State = {
   error: string | null;
 };
 
-export function TodayScreen({ onSignOut, onStartReview }: Props) {
+export function TodayScreen({ onStartReview, onOpenSettings }: Props) {
   const [s, setS] = useState<State>({ loading: true, due: 0, newCount: 0, streak: 0, error: null });
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
     Promise.all([fetchQueue(), fetchStreak()])
       .then(([queue, streak]) => {
-        if (cancelled) return;
         setS({
           loading: false,
           due: queue.due.length,
@@ -32,16 +30,11 @@ export function TodayScreen({ onSignOut, onStartReview }: Props) {
         });
       })
       .catch((err) => {
-        if (cancelled) return;
         setS((prev) => ({ ...prev, loading: false, error: err instanceof Error ? err.message : "load failed" }));
       });
-    return () => { cancelled = true; };
   }, []);
 
-  function signOut() {
-    auth.clear();
-    onSignOut();
-  }
+  useEffect(() => { load(); }, [load]);
 
   const totalReady = s.due + s.newCount;
 
@@ -49,7 +42,7 @@ export function TodayScreen({ onSignOut, onStartReview }: Props) {
     <main className="screen">
       <header className="topbar">
         <h1>Today</h1>
-        <button onClick={signOut} className="link">Sign out</button>
+        <button onClick={onOpenSettings} className="link">Settings</button>
       </header>
 
       {s.loading ? (
@@ -71,7 +64,10 @@ export function TodayScreen({ onSignOut, onStartReview }: Props) {
               Start review
             </button>
           ) : (
-            <p className="muted center">All caught up — come back tomorrow.</p>
+            <section className="empty-state">
+              <p className="center">✓ All caught up</p>
+              <GenerateForm mode="compact" onSuccess={load} />
+            </section>
           )}
         </>
       )}

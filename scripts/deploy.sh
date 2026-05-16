@@ -27,15 +27,15 @@ npm ci --prefer-offline
 echo "-- Building client"
 npm --workspace client run build
 
-echo "-- Building server"
+echo "-- Type-checking server"
 npm --workspace server run build
 
 echo "-- Running migrations"
 set -a && source $APP_DIR/.env && set +a
 npm --workspace server run db:migrate
 
-echo "-- Restarting app"
-pm2 restart nihongo --update-env
+echo "-- Reloading PM2"
+pm2 startOrReload ecosystem.config.cjs --update-env
 
 echo "-- Waiting for healthz"
 for i in \$(seq 1 10); do

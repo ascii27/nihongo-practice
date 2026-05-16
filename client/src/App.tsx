@@ -6,13 +6,15 @@ import { TodayScreen } from "./screens/TodayScreen";
 import { PracticeScreen } from "./screens/PracticeScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
 import { StatsScreen } from "./screens/StatsScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 import { BottomTabs, type Tab } from "./components/BottomTabs";
 
 type AuthState = "checking" | "needs-auth" | "authed";
+type Route = Tab | "settings";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("checking");
-  const [tab, setTab] = useState<Tab>("today");
+  const [route, setRoute] = useState<Route>("today");
 
   useEffect(() => {
     if (!auth.get()) { setAuthState("needs-auth"); return; }
@@ -25,15 +27,34 @@ export default function App() {
   if (authState === "needs-auth") return <PasscodeScreen onAuthed={() => setAuthState("authed")} />;
 
   let active;
-  if (tab === "today")    active = <TodayScreen onSignOut={() => setAuthState("needs-auth")} onStartReview={() => setTab("practice")} />;
-  else if (tab === "practice") active = <PracticeScreen onDone={() => setTab("today")} />;
-  else if (tab === "browse")   active = <BrowseScreen />;
-  else                        active = <StatsScreen />;
+  if (route === "today") {
+    active = (
+      <TodayScreen
+        onStartReview={() => setRoute("practice")}
+        onOpenSettings={() => setRoute("settings")}
+      />
+    );
+  } else if (route === "practice") {
+    active = <PracticeScreen onDone={() => setRoute("today")} />;
+  } else if (route === "browse") {
+    active = <BrowseScreen />;
+  } else if (route === "stats") {
+    active = <StatsScreen />;
+  } else {
+    active = (
+      <SettingsScreen
+        onSignOut={() => setAuthState("needs-auth")}
+        onBack={() => setRoute("today")}
+      />
+    );
+  }
+
+  const tab: Tab = route === "settings" ? "today" : route;
 
   return (
     <div className="app">
       {active}
-      <BottomTabs active={tab} onChange={setTab} />
+      <BottomTabs active={tab} onChange={(t) => setRoute(t)} />
     </div>
   );
 }

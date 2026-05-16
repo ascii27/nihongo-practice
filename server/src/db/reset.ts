@@ -4,7 +4,7 @@ import { pool } from "./pool.js";
 // pgmigrations is left alone so the schema stays migrated.
 export async function resetDb(): Promise<void> {
   await pool.query(`
-    TRUNCATE TABLE reviews, review_state, items, sessions
+    TRUNCATE TABLE reviews, review_state, items, sessions, generations
     RESTART IDENTITY CASCADE
   `);
 }

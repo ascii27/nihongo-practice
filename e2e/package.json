@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "playwright test",
-    "install-browsers": "playwright install --with-deps chromium"
+    "install-browsers": "playwright install --with-deps webkit"
   },
   "devDependencies": {
     "@playwright/test": "^1.48.0"

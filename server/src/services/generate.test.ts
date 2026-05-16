@@ -1,0 +1,88 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { resetDb } from "../db/reset.js";
+import { pool } from "../db/pool.js";
+import { runVocabGeneration } from "./generate.js";
+
+beforeEach(() => resetDb());
+
+function fakeGenClient(items: Array<{ target: string; sentence_japanese: string; sentence_english: string }>) {
+  return {
+    messages: {
+      create: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: JSON.stringify({ items }) }],
+        usage: { input_tokens: 100, output_tokens: 50 },
+      }),
+    },
+  };
+}
+
+describe("runVocabGeneration", () => {
+  it("inserts one item per parsed entry, writes a success row, returns inserted items", async () => {
+    const client = fakeGenClient([
+      { target: "本", sentence_japanese: "本を読む。", sentence_english: "Read a book." },
+      { target: "水", sentence_japanese: "水を飲む。", sentence_english: "Drink water." },
+    ]);
+    const r = await runVocabGeneration({ count: 2, client });
+    expect(r.status).toBe("success");
+    expect(r.items_created).toBe(2);
+    expect(r.items).toHaveLength(2);
+    expect(r.cost_usd).toBeGreaterThan(0);
+
+    const items = await pool.query("SELECT source, prompt, answer FROM items");
+    expect(items.rowCount).toBe(2);
+    expect(items.rows[0].source).toBe("ai");
+    expect(items.rows[0].prompt.sentence_ruby).toContain("<ruby>");
+    expect(items.rows[0].answer.reading).toMatch(/^[ぁ-ゖー]+$/);
+
+    const gens = await pool.query("SELECT status, count_requested, count_inserted, cost_usd, response, prompt FROM generations");
+    expect(gens.rowCount).toBe(1);
+    expect(gens.rows[0].status).toBe("success");
+    expect(gens.rows[0].count_requested).toBe(2);
+    expect(gens.rows[0].count_inserted).toBe(2);
+    expect(gens.rows[0].response).not.toBeNull();
+    expect(gens.rows[0].prompt).toMatchObject({ count: 2 });
+  });
+
+  it("marks status=partial when fewer items are returned than requested", async () => {
+    const client = fakeGenClient([
+      { target: "本", sentence_japanese: "本。", sentence_english: "A book." },
+    ]);
+    const r = await runVocabGeneration({ count: 3, client });
+    expect(r.status).toBe("partial");
+    expect(r.items_created).toBe(1);
+    const gens = await pool.query("SELECT status FROM generations");
+    expect(gens.rows[0].status).toBe("partial");
+  });
+
+  it("writes a failed row and rethrows when generation fails", async () => {
+    const client = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: "garbage" }],
+          usage: { input_tokens: 10, output_tokens: 5 },
+        }),
+      },
+    };
+    let err: unknown;
+    try { await runVocabGeneration({ count: 2, client }); } catch (e) { err = e; }
+    expect(err).toBeDefined();
+    const items = await pool.query("SELECT count(*)::int AS c FROM items");
+    expect(items.rows[0].c).toBe(0);
+    const gens = await pool.query("SELECT status, count_inserted, error, response, input_tokens FROM generations");
+    expect(gens.rowCount).toBe(1);
+    expect(gens.rows[0].status).toBe("failed");
+    expect(gens.rows[0].count_inserted).toBe(0);
+    expect(gens.rows[0].input_tokens).toBe(30); // 3 attempts × 10 tokens
+    expect(gens.rows[0].error).toBeTruthy();
+    expect(gens.rows[0].response).toMatchObject({ text: "garbage" });
+  });
+
+  it("stores the weakness_hint when provided", async () => {
+    const client = fakeGenClient([
+      { target: "本", sentence_japanese: "本。", sentence_english: "A book." },
+    ]);
+    await runVocabGeneration({ count: 1, weakness_hint: "particles", client });
+    const gens = await pool.query("SELECT weakness_hint FROM generations");
+    expect(gens.rows[0].weakness_hint).toBe("particles");
+  });
+});

@@ -5,18 +5,20 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json --noEmit",
+    "start": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "tsx src/db/migrate.ts up"
   },
   "dependencies": {
     "@nihongo/shared": "*",
+    "@nihongo/gen": "*",
     "express": "^4.21.0",
     "pg": "^8.13.0",
     "zod": "^3.23.8",
-    "node-pg-migrate": "^7.6.1"
+    "node-pg-migrate": "^7.6.1",
+    "tsx": "^4.19.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
@@ -24,7 +26,6 @@
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "supertest": "^7.0.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }

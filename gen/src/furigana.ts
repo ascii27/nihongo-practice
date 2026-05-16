@@ -6,7 +6,7 @@ import kuromoji from "kuromoji";
 type Tokenizer = {
   tokenize(text: string): Array<{
     surface_form: string;
-    reading?: string;          // katakana
+    reading?: string;
     pos?: string;
   }>;
 };
@@ -32,7 +32,6 @@ const KATAKANA_TO_HIRAGANA = (s: string): string =>
 
 const HAS_KANJI = /[一-龯]/;
 
-// Wraps each kanji-containing surface form in <ruby><rt>kana</rt></ruby>.
 export async function toRubyHtml(text: string): Promise<string> {
   const tok = await getTokenizer();
   const tokens = tok.tokenize(text);
@@ -48,7 +47,6 @@ export async function toRubyHtml(text: string): Promise<string> {
   return out;
 }
 
-// Returns the hiragana reading for a single word. Used to populate items.answer.reading.
 export async function readingFor(word: string): Promise<string> {
   const tok = await getTokenizer();
   const tokens = tok.tokenize(word);
