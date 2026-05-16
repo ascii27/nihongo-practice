@@ -5,6 +5,11 @@ import type {
   ReviewStateResponse,
   StreakResponse,
   ReviewResult,
+  GenerateRequest,
+  GenerateSuccess,
+  GenerateFailure,
+  GenerationsResponse,
+  SettingsStatusResponse,
 } from "@nihongo/shared";
 
 export function fetchQueue(): Promise<QueueResponse> {
@@ -40,4 +45,19 @@ export function submitReview(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function generateItems(input: GenerateRequest): Promise<GenerateSuccess | GenerateFailure> {
+  return api<GenerateSuccess | GenerateFailure>("/api/generate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchGenerations(limit = 10): Promise<GenerationsResponse> {
+  return api<GenerationsResponse>(`/api/generations?limit=${limit}`);
+}
+
+export function fetchSettingsStatus(): Promise<SettingsStatusResponse> {
+  return api<SettingsStatusResponse>("/api/settings/status");
 }
