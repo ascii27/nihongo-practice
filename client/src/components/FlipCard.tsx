@@ -45,7 +45,6 @@ function PromptFace({ item, muted }: { item: ItemRecord; muted?: boolean }) {
         <div className={`flipcard__prompt ${muted ? "is-muted" : ""}`}>
           <RubyText html={p.sentence_ruby} className="flipcard__sentence" />
           <p className="flipcard__target">{p.target}</p>
-          <p className="flipcard__sentence-en">{p.sentence_english}</p>
         </div>
       );
     }
@@ -67,11 +66,13 @@ function PromptFace({ item, muted }: { item: ItemRecord; muted?: boolean }) {
 function AnswerFace({ item }: { item: ItemRecord }) {
   switch (item.skill) {
     case "vocab": {
+      const p = item.prompt as VocabPrompt;
       const a = item.answer as VocabAnswer;
       return (
         <div className="flipcard__answer">
           <p className="flipcard__reading">{a.reading}</p>
           <p className="flipcard__meaning">{a.meaning}</p>
+          <p className="flipcard__sentence-en">{p.sentence_english}</p>
           {a.notes && <p className="flipcard__notes">{a.notes}</p>}
         </div>
       );
