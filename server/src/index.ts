@@ -8,6 +8,9 @@ import { queueRouter } from "./routes/queue.js";
 import { sessionsRouter } from "./routes/sessions.js";
 import { reviewsRouter } from "./routes/reviews.js";
 import { statsRouter } from "./routes/stats.js";
+import { generateRouter } from "./routes/generate.js";
+import { generationsRouter } from "./routes/generations.js";
+import { settingsRouter } from "./routes/settings.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../../client/dist");
@@ -22,10 +25,12 @@ export function createApp() {
   app.use("/api/sessions", sessionsRouter);
   app.use("/api/reviews", reviewsRouter);
   app.use("/api/stats", statsRouter);
+  app.use("/api/generate", generateRouter);
+  app.use("/api/generations", generationsRouter);
+  app.use("/api/settings", settingsRouter);
 
   if (env.NODE_ENV === "production") {
     app.use(express.static(clientDist));
-    // SPA fallback: any non-/api GET returns index.html
     app.get(/^(?!\/api).*/, (_req, res) => {
       res.sendFile(path.join(clientDist, "index.html"));
     });
