@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ItemRecord, ReviewResult } from "@nihongo/shared";
+import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
 import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
 
@@ -7,9 +7,10 @@ type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 
 type Props = {
   onDone: () => void;
+  skill?: Skill;        // optional filter; undefined = mixed
 };
 
-export function PracticeScreen({ onDone }: Props) {
+export function PracticeScreen({ onDone, skill }: Props) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
@@ -21,7 +22,7 @@ export function PracticeScreen({ onDone }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        const [{ id }, queue] = await Promise.all([startSession(), fetchQueue()]);
+        const [{ id }, queue] = await Promise.all([startSession(skill), fetchQueue(skill)]);
         if (cancelled) return;
         sessionIdRef.current = id;
         const all = [...queue.due, ...queue.new];
@@ -34,14 +35,12 @@ export function PracticeScreen({ onDone }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [skill]);
 
   function handleAnswer(result: ReviewResult) {
     const item = items[index];
     if (!item) return;
     setCounts((c) => result === "got_it" ? { ...c, got: c.got + 1 } : { ...c, missed: c.missed + 1 });
-
-    // Optimistically advance.
     const reviewedAt = new Date().toISOString();
     void retryingSubmit({
       item_id: item.id,
@@ -49,7 +48,6 @@ export function PracticeScreen({ onDone }: Props) {
       reviewed_at: reviewedAt,
       session_id: sessionIdRef.current ?? undefined,
     });
-
     if (index + 1 >= items.length) {
       void finishSession();
     } else {
@@ -59,7 +57,7 @@ export function PracticeScreen({ onDone }: Props) {
 
   async function finishSession() {
     if (sessionIdRef.current) {
-      try { await endSession(sessionIdRef.current); } catch { /* tolerate failure; UI moves on */ }
+      try { await endSession(sessionIdRef.current); } catch { /* tolerate failure */ }
     }
     setPhase("summary");
   }
