@@ -52,10 +52,10 @@ jobs:
     env:
       DATABASE_URL: postgres://nihongo:nihongo@localhost:5432/nihongo
       PASSCODE: test
-      NODE_ENV: production
       VITE_API_BASE: http://localhost:3001
       E2E_BASE_URL: http://localhost:3001
       E2E_PASSCODE: test
+      NIHONGO_FAKE_AI: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,6 +66,8 @@ jobs:
       - run: npm --workspace server run build
       - run: npm --workspace e2e run install-browsers
       - name: Start server
+        env:
+          NODE_ENV: production
         run: |
           npm --workspace server start &
           npx wait-on http://localhost:3001/healthz --timeout 30000
