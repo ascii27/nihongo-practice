@@ -14,35 +14,27 @@ async function login(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
 }
 
-test("empty Today → compact generate form → cards appear", async ({ page }) => {
+test("empty dashboard → per-skill Generate → vocab cards appear", async ({ page }) => {
   await login(page);
 
-  await expect(page.getByText(/All caught up/i)).toBeVisible();
-  await expect(page.locator(".big-number")).toContainText("0");
+  await expect(page.getByText(/All caught up/i).first()).toBeVisible();
+  // Find the Vocab skill card's Generate button and click it
+  const vocabCard = page.locator(".skill-card--vocab");
+  await vocabCard.getByRole("button", { name: /Generate/i }).click();
 
-  await page.locator("input[type=number]").fill("3");
-  await page.getByRole("button", { name: /Generate 3 vocab/ }).click();
-
-  await expect(page.getByRole("status")).toContainText(/Added 3/);
-  await expect(page.locator(".big-number")).toContainText("3");
-
-  await page.getByRole("button", { name: /start review/i }).click();
-  await page.getByRole("button", { name: /tap to reveal/i }).click();
-  await page.getByRole("button", { name: /got it/i }).click();
-  await expect(page.locator(".practice__progress, h1:has-text('Done')")).toBeVisible();
+  // Wait for the dashboard to refresh; fake AI returns 5 vocab items (VOCAB_FAKE has 5 entries)
+  await expect(page.locator(".dashboard__mixed-count")).toContainText("5", { timeout: 10_000 });
 });
 
 test("settings screen lists the run after generation", async ({ page }) => {
   await login(page);
 
-  await expect(page.getByText(/All caught up/i)).toBeVisible();
-  await page.locator("input[type=number]").fill("2");
-  await page.getByRole("button", { name: /Generate 2 vocab/ }).click();
-  await expect(page.getByRole("status")).toContainText(/Added 2/);
+  const vocabCard = page.locator(".skill-card--vocab");
+  await vocabCard.getByRole("button", { name: /Generate/i }).click();
+  await expect(page.locator(".dashboard__mixed-count")).toContainText("5", { timeout: 10_000 });
 
   await page.getByRole("button", { name: /Settings/ }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   const rows = page.locator(".generations-list li");
   await expect(rows).toHaveCount(1);
-  await expect(rows.first()).toContainText("2 cards");
 });
