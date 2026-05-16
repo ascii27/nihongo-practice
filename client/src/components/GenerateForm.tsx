@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { Skill } from "@nihongo/shared";
 import { generateItems } from "../api-hooks";
 import { ApiError } from "../api";
 
@@ -12,10 +13,21 @@ type Status =
 type Props = {
   mode: Mode;
   defaultCount?: number;
+  defaultSkill?: Skill;
+  lockedSkill?: Skill;          // if set, skill picker is hidden and forced to this value
   onSuccess?: () => void;
 };
 
-export function GenerateForm({ mode, defaultCount = 10, onSuccess }: Props) {
+const SKILL_LABELS: Record<Skill, string> = {
+  vocab: "Vocabulary",
+  grammar: "Grammar",
+  reading: "Reading",
+  conjugation: "Conjugation",
+  particle: "Particles",
+};
+
+export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", lockedSkill, onSuccess }: Props) {
+  const [skill, setSkill] = useState<Skill>(lockedSkill ?? defaultSkill);
   const [count, setCount] = useState(defaultCount);
   const [hint, setHint] = useState("");
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -24,14 +36,14 @@ export function GenerateForm({ mode, defaultCount = 10, onSuccess }: Props) {
   const estimateLabel = `~$0.${estimatedCents.toString().padStart(2, "0")}`;
   const buttonLabel = status.kind === "submitting"
     ? "Generating…"
-    : `Generate ${count} vocab (${estimateLabel})`;
+    : `Generate ${count} ${SKILL_LABELS[skill].toLowerCase()} (${estimateLabel})`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setStatus({ kind: "submitting" });
     try {
       const r = await generateItems({
-        skill: "vocab",
+        skill,
         count,
         weakness_hint: mode === "full" && hint.trim() ? hint.trim() : undefined,
       });
@@ -47,7 +59,18 @@ export function GenerateForm({ mode, defaultCount = 10, onSuccess }: Props) {
 
   return (
     <form className={`generate-form generate-form--${mode}`} onSubmit={submit}>
-      {mode === "full" && <h2>Generate vocab</h2>}
+      {mode === "full" && <h2>Generate practice</h2>}
+
+      {mode === "full" && !lockedSkill && (
+        <label className="generate-form__skill">
+          <span>Skill</span>
+          <select value={skill} onChange={(e) => setSkill(e.target.value as Skill)} disabled={submitting}>
+            {(Object.keys(SKILL_LABELS) as Skill[]).map((s) => (
+              <option key={s} value={s}>{SKILL_LABELS[s]}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
       <label className="generate-form__count">
         <span>Count</span>
@@ -75,9 +98,7 @@ export function GenerateForm({ mode, defaultCount = 10, onSuccess }: Props) {
         </label>
       )}
 
-      <button type="submit" disabled={submitting}>
-        {buttonLabel}
-      </button>
+      <button type="submit" disabled={submitting}>{buttonLabel}</button>
 
       {status.kind === "success" && (
         <p role="status" className="generate-form__status">
