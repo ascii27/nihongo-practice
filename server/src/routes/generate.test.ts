@@ -84,3 +84,18 @@ describe("POST /api/generate", () => {
     }
   });
 });
+
+describe("POST /api/generate (grammar)", () => {
+  it("inserts grammar items when skill=grammar", async () => {
+    const res = await request(app)
+      .post("/api/generate")
+      .set("X-Passcode", PASSCODE)
+      .send({ skill: "grammar", count: 2 });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("success");
+    expect(res.body.items_created).toBe(2);
+
+    const r = await pool.query("SELECT count(*)::int AS c FROM items WHERE skill='grammar' AND source='ai'");
+    expect(r.rows[0].c).toBe(2);
+  });
+});
