@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildVocabPrompt, buildSentencesForCardsPrompt } from "./prompt.js";
+import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt } from "./prompt.js";
 
 describe("buildVocabPrompt", () => {
   it("asks for the requested count and returns strict JSON instructions", () => {
@@ -31,5 +31,23 @@ describe("buildSentencesForCardsPrompt", () => {
     expect(user).toContain("id=x1");
     expect(user).toContain("本");
     expect(user).toContain("water");
+  });
+});
+
+describe("buildGrammarPrompt", () => {
+  it("asks for the requested count and returns strict JSON instructions", () => {
+    const { system, user } = buildGrammarPrompt({ count: 4 });
+    expect(system).toMatch(/JSON/i);
+    expect(system).toContain('"items"');
+    expect(system).toContain('"pattern"');
+    expect(system).toContain('"sentence_japanese"');
+    expect(system).toContain('"sentence_english"');
+    expect(system).toContain('"explanation"');
+    expect(user).toContain("4");
+  });
+
+  it("includes the weakness hint when provided", () => {
+    const { user } = buildGrammarPrompt({ count: 2, weakness_hint: "te-form connectives" });
+    expect(user).toContain("te-form connectives");
   });
 });
