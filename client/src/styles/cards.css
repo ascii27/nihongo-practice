@@ -463,3 +463,99 @@
   flex: 1;
   min-height: 0;
 }
+
+/* Phase 2: pattern chip used by grammar FlipCard */
+.flipcard__chip {
+  display: inline-block;
+  margin: var(--space-2) 0;
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+}
+
+.flipcard__explanation,
+.flipcard__another {
+  margin-top: var(--space-3);
+  color: var(--color-fg-secondary);
+  line-height: var(--line-height-relaxed);
+}
+
+/* Phase 2: new class names introduced by skill-dispatched FlipCard */
+
+/* Wrapper for prompt content in both vocab and grammar variants */
+.flipcard__prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  gap: var(--space-3);
+  padding: 0 var(--space-3);
+  justify-content: center;
+}
+
+/* Muted prompt reprise shown at the top of the answer face */
+.flipcard__prompt.is-muted {
+  flex: 0 0 auto;
+  opacity: 0.5;
+  font-size: 0.85em;
+  border-bottom: var(--border-base);
+  padding-bottom: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+/* English sentence — shown on prompt face in phase-2 layout */
+.flipcard__sentence-en {
+  font-family: var(--font-body);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg-tertiary);
+  text-align: center;
+  line-height: var(--line-height-relaxed);
+  font-style: italic;
+  max-width: 28ch;
+}
+
+/* Answer content wrapper (replaces flipcard__answer-block) */
+.flipcard__answer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+}
+
+/* Reading / furigana reading shown on vocab answer face */
+.flipcard__reading {
+  font-family: var(--font-body);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg-secondary);
+  text-align: center;
+  line-height: var(--line-height-ruby);
+}
+
+/* Optional notes — lighter supplemental text */
+.flipcard__notes {
+  font-family: var(--font-body);
+  font-size: var(--font-size-2);
+  font-weight: var(--font-weight-light);
+  color: var(--color-fg-tertiary);
+  text-align: center;
+  line-height: var(--line-height-relaxed);
+  font-style: italic;
+}
+
+/* Grade buttons row (replaces flipcard__actions) */
+.flipcard__grade {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  width: 100%;
+  margin-top: auto;
+}
