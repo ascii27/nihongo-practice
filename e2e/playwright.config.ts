@@ -7,6 +7,9 @@ export default defineConfig({
   globalSetup: "./tests/global-setup.ts",
   timeout: 30_000,
   retries: process.env.CI ? 1 : 0,
+  // Single worker: specs share one Postgres and each beforeEach loads a
+  // fixture, so parallel workers would race on conflicting DB state.
+  workers: 1,
   use: { baseURL, trace: "retain-on-failure" },
   projects: [
     { name: "iphone-14", use: { ...devices["iPhone 14"] } },
