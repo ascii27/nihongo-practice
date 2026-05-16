@@ -1,6 +1,11 @@
 import { test, expect } from "@playwright/test";
+import { loadFixture } from "./fixtures";
 
 const PASSCODE = process.env.E2E_PASSCODE ?? "test";
+
+test.beforeEach(() => {
+  loadFixture("seed-test-items");
+});
 
 async function login(page: import("@playwright/test").Page) {
   await page.goto("/");
