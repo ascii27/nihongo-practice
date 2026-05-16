@@ -3,13 +3,16 @@ import { MODEL, type Usage } from "./pricing.js";
 import {
   buildVocabPrompt,
   buildSentencesForCardsPrompt,
+  buildGrammarPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
   parseVocabBatch,
   parseSentencesForCards,
+  parseGrammarBatch,
   type VocabItem,
   type SentenceForCard,
+  type GrammarItem,
 } from "./parse.js";
 
 export type { VocabItem, SentenceForCard, CardInput, Usage };
@@ -65,12 +68,18 @@ async function callWithRetry<T>(args: CallArgs<T>): Promise<{ value: T; usage: U
   );
 }
 
-const FAKE_FIXTURE: VocabItem[] = [
+const VOCAB_FAKE: VocabItem[] = [
   { target: "猫", sentence_japanese: "猫が好きです。", sentence_english: "I like cats." },
   { target: "本", sentence_japanese: "本を読みます。", sentence_english: "I read a book." },
   { target: "水", sentence_japanese: "水を飲みます。", sentence_english: "I drink water." },
   { target: "走る", sentence_japanese: "毎朝走ります。", sentence_english: "I run every morning." },
   { target: "高い", sentence_japanese: "山が高い。", sentence_english: "The mountain is tall." },
+];
+
+const GRAMMAR_FAKE: GrammarItem[] = [
+  { pattern: "〜ながら", sentence_japanese: "音楽を聞きながら勉強します。", sentence_english: "I study while listening to music.", explanation: "〜ながら attaches to the masu-stem and means 'while doing X'." },
+  { pattern: "〜たい", sentence_japanese: "寿司を食べたいです。", sentence_english: "I want to eat sushi.", explanation: "〜たい attaches to the masu-stem and expresses desire." },
+  { pattern: "〜てから", sentence_japanese: "宿題をしてから寝ます。", sentence_english: "After doing homework I sleep.", explanation: "〜てから expresses 'after doing X'." },
 ];
 
 export async function generateVocabBatch(args: {
@@ -80,13 +89,31 @@ export async function generateVocabBatch(args: {
   signal?: AbortSignal;
 }): Promise<{ items: VocabItem[]; usage: Usage; raw: string }> {
   if (process.env.NIHONGO_FAKE_AI === "1") {
-    const items = FAKE_FIXTURE.slice(0, Math.min(args.count, FAKE_FIXTURE.length));
+    const items = VOCAB_FAKE.slice(0, Math.min(args.count, VOCAB_FAKE.length));
     return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
   }
   const { system, user } = buildVocabPrompt({ count: args.count, weakness_hint: args.weakness_hint });
   const client = (args.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<VocabItem[]>({
     system, user, parse: parseVocabBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
+}
+
+export async function generateGrammarBatch(args: {
+  count: number;
+  weakness_hint?: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: GrammarItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = GRAMMAR_FAKE.slice(0, Math.min(args.count, GRAMMAR_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildGrammarPrompt({ count: args.count, weakness_hint: args.weakness_hint });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<GrammarItem[]>({
+    system, user, parse: parseGrammarBatch, client, signal: args.signal,
   });
   return { items: value, usage, raw };
 }

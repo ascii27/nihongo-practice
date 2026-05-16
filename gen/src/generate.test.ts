@@ -127,3 +127,40 @@ describe("generateSentencesForCards", () => {
     expect(r.usage.input_tokens).toBe(100);
   });
 });
+
+import { generateGrammarBatch } from "./generate.js";
+
+describe("generateGrammarBatch", () => {
+  it("calls the SDK with grammar system prompt and returns parsed items", async () => {
+    const create = vi.fn().mockResolvedValueOnce({
+      content: [{ type: "text", text: JSON.stringify({ items: [
+        { pattern: "〜ながら", sentence_japanese: "歩きながら話す。", sentence_english: "Talk while walking.", explanation: "..." },
+      ]})}],
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+    const r = await generateGrammarBatch({ count: 1, client: { messages: { create } } as never });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]!.pattern).toBe("〜ながら");
+    const arg = create.mock.calls[0]![0];
+    expect(arg.system).toMatch(/grammar/i);
+  });
+
+  it("returns a deterministic fixture when NIHONGO_FAKE_AI=1", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarBatch({ count: 2 });
+      expect(r.items).toHaveLength(2);
+      for (const it of r.items) {
+        expect(typeof it.pattern).toBe("string");
+        expect(it.pattern.length).toBeGreaterThan(0);
+        expect(it.sentence_japanese.length).toBeGreaterThan(0);
+        expect(it.explanation.length).toBeGreaterThan(0);
+      }
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
