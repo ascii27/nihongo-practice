@@ -13,7 +13,7 @@ export type SentenceForCard = {
 export function stripFences(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
-  return fenced ? fenced[1].trim() : trimmed;
+  return fenced?.[1]?.trim() ?? trimmed;
 }
 
 export function parseVocabBatch(raw: string): VocabItem[] {

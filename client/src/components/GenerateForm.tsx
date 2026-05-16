@@ -35,10 +35,6 @@ export function GenerateForm({ mode, defaultCount = 10, onSuccess }: Props) {
         count,
         weakness_hint: mode === "full" && hint.trim() ? hint.trim() : undefined,
       });
-      if (r.status === "failed") {
-        setStatus({ kind: "failed", message: "error" in r ? r.error : "generation failed" });
-        return;
-      }
       setStatus({ kind: "success", inserted: r.items_created, requested: count, cost_usd: r.cost_usd });
       onSuccess?.();
     } catch (err) {

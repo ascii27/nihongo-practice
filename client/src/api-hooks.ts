@@ -7,7 +7,6 @@ import type {
   ReviewResult,
   GenerateRequest,
   GenerateSuccess,
-  GenerateFailure,
   GenerationsResponse,
   SettingsStatusResponse,
 } from "@nihongo/shared";
@@ -47,8 +46,8 @@ export function submitReview(input: {
   });
 }
 
-export function generateItems(input: GenerateRequest): Promise<GenerateSuccess | GenerateFailure> {
-  return api<GenerateSuccess | GenerateFailure>("/api/generate", {
+export function generateItems(input: GenerateRequest): Promise<GenerateSuccess> {
+  return api<GenerateSuccess>("/api/generate", {
     method: "POST",
     body: JSON.stringify(input),
   });

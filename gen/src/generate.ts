@@ -84,7 +84,7 @@ export async function generateVocabBatch(args: {
     return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
   }
   const { system, user } = buildVocabPrompt({ count: args.count, weakness_hint: args.weakness_hint });
-  const client = args.client ?? new Anthropic();
+  const client = (args.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<VocabItem[]>({
     system, user, parse: parseVocabBatch, client, signal: args.signal,
   });
@@ -96,7 +96,7 @@ export async function generateSentencesForCards(
   opts: { client?: ClientLike } = {},
 ): Promise<{ sentences: SentenceForCard[]; usage: Usage; raw: string }> {
   const { system, user } = buildSentencesForCardsPrompt(cards);
-  const client = opts.client ?? new Anthropic();
+  const client = (opts.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<SentenceForCard[]>({
     system, user, parse: parseSentencesForCards, client,
   });
