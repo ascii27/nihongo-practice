@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { RubyText } from "./RubyText";
-import type { ItemRecord } from "@nihongo/shared";
+import type { ItemRecord, VocabPrompt, VocabAnswer } from "@nihongo/shared";
 
 type Props = {
   item: ItemRecord;
@@ -10,8 +10,9 @@ type Props = {
 export function FlipCard({ item, onAnswer }: Props) {
   const [revealed, setRevealed] = useState(false);
 
-  const { sentence_ruby, sentence_english, target } = item.prompt;
-  const { meaning, reading } = item.answer;
+  // TODO(phase-2 Task 11): replace with skill-dispatched narrowing once FlipCard accepts a variant prop.
+  const { sentence_ruby, sentence_english, target } = item.prompt as VocabPrompt;
+  const { meaning, reading } = item.answer as VocabAnswer;
 
   return (
     <article className={`flipcard ${revealed ? "is-revealed" : ""}`}>
