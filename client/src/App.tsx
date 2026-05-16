@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import type { Skill } from "@nihongo/shared";
 import { auth } from "./auth";
 import { api } from "./api";
 import { PasscodeScreen } from "./screens/PasscodeScreen";
-import { TodayScreen } from "./screens/TodayScreen";
+import { DashboardScreen } from "./screens/DashboardScreen";
 import { PracticeScreen } from "./screens/PracticeScreen";
 import { BrowseScreen } from "./screens/BrowseScreen";
 import { StatsScreen } from "./screens/StatsScreen";
@@ -15,6 +16,7 @@ type Route = Tab | "settings";
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [route, setRoute] = useState<Route>("today");
+  const [practiceSkill, setPracticeSkill] = useState<Skill | undefined>(undefined);
 
   useEffect(() => {
     if (!auth.get()) { setAuthState("needs-auth"); return; }
@@ -29,13 +31,13 @@ export default function App() {
   let active;
   if (route === "today") {
     active = (
-      <TodayScreen
-        onStartReview={() => setRoute("practice")}
+      <DashboardScreen
+        onPractice={(skill) => { setPracticeSkill(skill); setRoute("practice"); }}
         onOpenSettings={() => setRoute("settings")}
       />
     );
   } else if (route === "practice") {
-    active = <PracticeScreen onDone={() => setRoute("today")} />;
+    active = <PracticeScreen skill={practiceSkill} onDone={() => setRoute("today")} />;
   } else if (route === "browse") {
     active = <BrowseScreen />;
   } else if (route === "stats") {
