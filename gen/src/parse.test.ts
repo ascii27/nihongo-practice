@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -68,5 +68,61 @@ describe("parseSentencesForCards", () => {
       sentences: [{ external_id: "a", sentence_japanese: "本。", sentence_english: "A book." }],
     });
     expect(parseSentencesForCards("```json\n" + inner + "\n```")).toHaveLength(1);
+  });
+});
+
+describe("parseGrammarBatch", () => {
+  it("returns items with pattern/sentence_japanese/sentence_english/explanation", () => {
+    const raw = JSON.stringify({
+      items: [
+        {
+          pattern: "〜ながら",
+          sentence_japanese: "音楽を聞きながら勉強します。",
+          sentence_english: "I study while listening to music.",
+          explanation: "〜ながら attaches to the masu-stem and means 'while doing X'.",
+        },
+      ],
+    });
+    expect(parseGrammarBatch(raw)).toEqual([
+      {
+        pattern: "〜ながら",
+        sentence_japanese: "音楽を聞きながら勉強します。",
+        sentence_english: "I study while listening to music.",
+        explanation: "〜ながら attaches to the masu-stem and means 'while doing X'.",
+      },
+    ]);
+  });
+
+  it("accepts an optional another_example_japanese field", () => {
+    const raw = JSON.stringify({
+      items: [
+        {
+          pattern: "〜ながら",
+          sentence_japanese: "歩きながら話す。",
+          sentence_english: "Talk while walking.",
+          explanation: "...",
+          another_example_japanese: "食べながら見る。",
+        },
+      ],
+    });
+    const out = parseGrammarBatch(raw);
+    expect(out[0]!.another_example_japanese).toBe("食べながら見る。");
+  });
+
+  it("throws when a required field is missing", () => {
+    expect(() => parseGrammarBatch(JSON.stringify({
+      items: [{ pattern: "x", sentence_japanese: "y" }],
+    }))).toThrow();
+  });
+
+  it("throws when items is not an array", () => {
+    expect(() => parseGrammarBatch(JSON.stringify({ items: "x" }))).toThrow();
+  });
+
+  it("strips ```json fences", () => {
+    const inner = JSON.stringify({
+      items: [{ pattern: "x", sentence_japanese: "y", sentence_english: "z", explanation: "w" }],
+    });
+    expect(parseGrammarBatch("```json\n" + inner + "\n```")).toHaveLength(1);
   });
 });

@@ -31,3 +31,15 @@ export function buildSentencesForCardsPrompt(cards: CardInput[]): PromptPair {
   ].join("\n");
   return { system: SENTENCES_FOR_CARDS_SYSTEM, user };
 }
+
+const GRAMMAR_SYSTEM = `You generate Japanese grammar drill cards for an intermediate learner. Each card shows a natural sentence built around a specific pattern. Vary patterns across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "pattern": "<pattern label, e.g. 〜ながら>", "sentence_japanese": "<JA>", "sentence_english": "<EN>", "explanation": "<1–2 sentence explanation>", "another_example_japanese": "<optional second example, JA>" } ] }`;
+
+export function buildGrammarPrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} grammar drill cards.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  return { system: GRAMMAR_SYSTEM, user: lines.join("\n") };
+}

@@ -33,8 +33,8 @@ export type Source = z.infer<typeof Source>;
 export const ItemRecord = z.object({
   id: z.string().uuid(),
   skill: Skill,
-  prompt: VocabPrompt,           // Phase 1: vocab only
-  answer: VocabAnswer,
+  prompt: z.unknown(),
+  answer: z.unknown(),
   source: Source,
   external_id: z.string().nullable().optional(),
   tags: z.array(z.string()),
@@ -96,7 +96,7 @@ export type StreakResponse = z.infer<typeof StreakResponse>;
 // ----- API: generate -----
 
 export const GenerateRequest = z.object({
-  skill: z.literal("vocab"),
+  skill: Skill,                                       // all 5 values
   count: z.number().int().min(1).max(50),
   weakness_hint: z.string().max(200).optional(),
 });
@@ -146,3 +146,58 @@ export const SettingsStatusResponse = z.object({
   ai_key_configured: z.boolean(),
 });
 export type SettingsStatusResponse = z.infer<typeof SettingsStatusResponse>;
+
+// ----- Per-skill prompt/answer shapes (parent spec) -----
+
+export const GrammarPrompt = z.object({
+  sentence_ruby: z.string(),
+  pattern: z.string(),
+  sentence_english: z.string(),
+});
+export type GrammarPrompt = z.infer<typeof GrammarPrompt>;
+
+export const GrammarAnswer = z.object({
+  explanation: z.string(),
+  another_example_ruby: z.string().optional(),
+});
+export type GrammarAnswer = z.infer<typeof GrammarAnswer>;
+
+// ----- API: dashboard -----
+
+export const SkillCounts = z.object({
+  due: z.number().int().nonnegative(),
+  new: z.number().int().nonnegative(),
+});
+export type SkillCounts = z.infer<typeof SkillCounts>;
+
+export const DashboardResponse = z.object({
+  streak_days: z.number().int().nonnegative(),
+  last_practiced_at: z.string().nullable(),
+  by_skill: z.object({
+    vocab: SkillCounts,
+    grammar: SkillCounts,
+    reading: SkillCounts,
+    conjugation: SkillCounts,
+    particle: SkillCounts,
+  }),
+});
+export type DashboardResponse = z.infer<typeof DashboardResponse>;
+
+// ----- API: stats/by-skill -----
+
+export const SkillStats = z.object({
+  box_counts: z.tuple([z.number().int().nonnegative(), z.number().int().nonnegative(), z.number().int().nonnegative(), z.number().int().nonnegative(), z.number().int().nonnegative()]),
+  accuracy_30d: z.number().min(0).max(1).nullable(),  // null if no reviews
+});
+export type SkillStats = z.infer<typeof SkillStats>;
+
+export const StatsBySkillResponse = z.object({
+  by_skill: z.object({
+    vocab: SkillStats,
+    grammar: SkillStats,
+    reading: SkillStats,
+    conjugation: SkillStats,
+    particle: SkillStats,
+  }),
+});
+export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;

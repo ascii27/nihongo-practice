@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { resetDb } from "../db/reset.js";
 import { pool } from "../db/pool.js";
-import { runVocabGeneration } from "./generate.js";
+import { runGeneration } from "./generate.js";
 
 beforeEach(() => resetDb());
 
@@ -22,7 +22,7 @@ describe("runVocabGeneration", () => {
       { target: "本", sentence_japanese: "本を読む。", sentence_english: "Read a book." },
       { target: "水", sentence_japanese: "水を飲む。", sentence_english: "Drink water." },
     ]);
-    const r = await runVocabGeneration({ count: 2, client });
+    const r = await runGeneration({ skill: "vocab", count: 2, client });
     expect(r.status).toBe("success");
     expect(r.items_created).toBe(2);
     expect(r.items).toHaveLength(2);
@@ -47,7 +47,7 @@ describe("runVocabGeneration", () => {
     const client = fakeGenClient([
       { target: "本", sentence_japanese: "本。", sentence_english: "A book." },
     ]);
-    const r = await runVocabGeneration({ count: 3, client });
+    const r = await runGeneration({ skill: "vocab", count: 3, client });
     expect(r.status).toBe("partial");
     expect(r.items_created).toBe(1);
     const gens = await pool.query("SELECT status FROM generations");
@@ -64,7 +64,7 @@ describe("runVocabGeneration", () => {
       },
     };
     let err: unknown;
-    try { await runVocabGeneration({ count: 2, client }); } catch (e) { err = e; }
+    try { await runGeneration({ skill: "vocab", count: 2, client }); } catch (e) { err = e; }
     expect(err).toBeDefined();
     const items = await pool.query("SELECT count(*)::int AS c FROM items");
     expect(items.rows[0].c).toBe(0);
@@ -81,8 +81,43 @@ describe("runVocabGeneration", () => {
     const client = fakeGenClient([
       { target: "本", sentence_japanese: "本。", sentence_english: "A book." },
     ]);
-    await runVocabGeneration({ count: 1, weakness_hint: "particles", client });
+    await runGeneration({ skill: "vocab", count: 1, weakness_hint: "particles", client });
     const gens = await pool.query("SELECT weakness_hint FROM generations");
     expect(gens.rows[0].weakness_hint).toBe("particles");
+  });
+});
+
+function fakeGrammarClient(items: Array<{ pattern: string; sentence_japanese: string; sentence_english: string; explanation: string }>) {
+  return {
+    messages: {
+      create: vi.fn().mockResolvedValue({
+        content: [{ type: "text", text: JSON.stringify({ items }) }],
+        usage: { input_tokens: 100, output_tokens: 50 },
+      }),
+    },
+  };
+}
+
+describe("runGeneration grammar", () => {
+  it("inserts grammar items with sentence_ruby + sentence_english, writes generations row", async () => {
+    const client = fakeGrammarClient([
+      { pattern: "〜ながら", sentence_japanese: "音楽を聞きながら勉強します。", sentence_english: "I study while listening to music.", explanation: "..." },
+      { pattern: "〜たい", sentence_japanese: "寿司を食べたいです。", sentence_english: "I want to eat sushi.", explanation: "..." },
+    ]);
+    const r = await runGeneration({ skill: "grammar", count: 2, client });
+    expect(r.status).toBe("success");
+    expect(r.items_created).toBe(2);
+
+    const items = await pool.query("SELECT skill, prompt, answer FROM items ORDER BY created_at");
+    expect(items.rowCount).toBe(2);
+    expect(items.rows[0].skill).toBe("grammar");
+    expect(items.rows[0].prompt.sentence_ruby).toContain("<ruby>");
+    expect(items.rows[0].prompt.pattern).toBe("〜ながら");
+    expect(items.rows[0].answer.explanation).toBeTruthy();
+
+    const gens = await pool.query("SELECT skill, status, count_inserted FROM generations");
+    expect(gens.rows[0].skill).toBe("grammar");
+    expect(gens.rows[0].status).toBe("success");
+    expect(gens.rows[0].count_inserted).toBe(2);
   });
 });

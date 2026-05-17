@@ -9,10 +9,14 @@ import type {
   GenerateSuccess,
   GenerationsResponse,
   SettingsStatusResponse,
+  DashboardResponse,
+  StatsBySkillResponse,
+  Skill,
 } from "@nihongo/shared";
 
-export function fetchQueue(): Promise<QueueResponse> {
-  return api<QueueResponse>("/api/queue");
+export function fetchQueue(skill?: Skill): Promise<QueueResponse> {
+  const qs = skill ? `?skill=${encodeURIComponent(skill)}` : "";
+  return api<QueueResponse>(`/api/queue${qs}`);
 }
 
 export function fetchStreak(): Promise<StreakResponse> {
@@ -20,10 +24,18 @@ export function fetchStreak(): Promise<StreakResponse> {
   return api<StreakResponse>(`/api/stats/streak?tz=${encodeURIComponent(tz)}`);
 }
 
-export function startSession(): Promise<StartSessionResponse> {
+export function fetchDashboard(): Promise<DashboardResponse> {
+  return api<DashboardResponse>(`/api/dashboard`);
+}
+
+export function fetchStatsBySkill(): Promise<StatsBySkillResponse> {
+  return api<StatsBySkillResponse>(`/api/stats/by-skill`);
+}
+
+export function startSession(skill?: Skill): Promise<StartSessionResponse> {
   return api<StartSessionResponse>("/api/sessions", {
     method: "POST",
-    body: JSON.stringify({ skill_filter: "vocab" }),
+    body: JSON.stringify({ skill_filter: skill ?? "vocab" }),
   });
 }
 

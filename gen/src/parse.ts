@@ -32,6 +32,34 @@ export function parseVocabBatch(raw: string): VocabItem[] {
   return items as VocabItem[];
 }
 
+export type GrammarItem = {
+  pattern: string;
+  sentence_japanese: string;
+  sentence_english: string;
+  explanation: string;
+  another_example_japanese?: string;
+};
+
+export function parseGrammarBatch(raw: string): GrammarItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.pattern !== "string" ||
+      typeof it?.sentence_japanese !== "string" ||
+      typeof it?.sentence_english !== "string" ||
+      typeof it?.explanation !== "string"
+    ) {
+      throw new Error("grammar item missing required fields");
+    }
+    if (it.another_example_japanese !== undefined && typeof it.another_example_japanese !== "string") {
+      throw new Error("grammar item has non-string another_example_japanese");
+    }
+  }
+  return items as GrammarItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

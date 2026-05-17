@@ -4,6 +4,7 @@ import App from "./App";
 import "./styles/base.css";
 import "./styles/cards.css";
 import "./styles/settings.css";
+import "./styles/dashboard.css";
 
 const rootEl = document.getElementById("root");
 if (!rootEl) throw new Error("root element missing");

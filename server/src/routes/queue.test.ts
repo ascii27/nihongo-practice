@@ -87,8 +87,13 @@ describe("GET /api/queue", () => {
     expect(res.body.new).toHaveLength(0);
   });
 
-  it("rejects non-vocab skill filter with 400", async () => {
+  it("accepts grammar skill filter", async () => {
     const res = await request(app).get("/api/queue?skill=grammar").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects unsupported skill with 400", async () => {
+    const res = await request(app).get("/api/queue?skill=reading").set("X-Passcode", PASSCODE);
     expect(res.status).toBe(400);
   });
 });

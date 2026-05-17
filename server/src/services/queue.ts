@@ -26,16 +26,17 @@ function toRecord(r: Row): ItemRecord {
   };
 }
 
-export async function buildQueue(opts: { limit: number }): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
+export async function buildQueue(opts: { limit: number; skill?: string }): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
+  const skillFilter = opts.skill ?? null;
   const dueRes = await pool.query<Row>(
     `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
        FROM items i
        JOIN review_state rs ON rs.item_id = i.id
-      WHERE i.skill = 'vocab'
+      WHERE ($1::text IS NULL OR i.skill = $1)
         AND rs.next_review_at <= now()
       ORDER BY rs.next_review_at ASC
-      LIMIT $1`,
-    [opts.limit],
+      LIMIT $2`,
+    [skillFilter, opts.limit],
   );
   const due = dueRes.rows.map(toRecord);
 
@@ -45,10 +46,10 @@ export async function buildQueue(opts: { limit: number }): Promise<{ due: ItemRe
       `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
          FROM items i
          LEFT JOIN review_state rs ON rs.item_id = i.id
-        WHERE i.skill = 'vocab' AND rs.item_id IS NULL
+        WHERE ($1::text IS NULL OR i.skill = $1) AND rs.item_id IS NULL
         ORDER BY i.created_at ASC
-        LIMIT $1`,
-      [NEW_CAP],
+        LIMIT $2`,
+      [skillFilter, NEW_CAP],
     );
     neu = newRes.rows.map(toRecord);
   }

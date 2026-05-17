@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { GenerateRequest } from "@nihongo/shared";
-import { runVocabGeneration } from "../services/generate.js";
+import { runGeneration } from "../services/generate.js";
 import { pool } from "../db/pool.js";
 
 export const generateRouter = Router();
@@ -16,7 +16,8 @@ generateRouter.post("/", async (req, res) => {
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), TIMEOUT_MS);
   try {
-    const r = await runVocabGeneration({
+    const r = await runGeneration({
+      skill: parsed.data.skill,
       count: parsed.data.count,
       weakness_hint: parsed.data.weakness_hint,
       signal: ac.signal,
