@@ -75,6 +75,7 @@ export const SubmitReviewRequest = z.object({
   result: ReviewResult,
   reviewed_at: z.string().datetime(),       // ISO, client-supplied
   session_id: z.string().uuid().optional(),
+  answer_given: z.string().max(200).optional(),
 });
 export type SubmitReviewRequest = z.infer<typeof SubmitReviewRequest>;
 
@@ -175,6 +176,22 @@ export const ParticleAnswer = z.object({
   explanation: z.string(),
 });
 export type ParticleAnswer = z.infer<typeof ParticleAnswer>;
+
+// conjugation — produce a specific conjugated form
+
+export const ConjugationPrompt = z.object({
+  base: z.string(),
+  base_ruby: z.string(),
+  tense: z.string(),
+});
+export type ConjugationPrompt = z.infer<typeof ConjugationPrompt>;
+
+export const ConjugationAnswer = z.object({
+  expected: z.string(),
+  expected_ruby: z.string(),
+  alternates: z.array(z.string()).optional(),
+});
+export type ConjugationAnswer = z.infer<typeof ConjugationAnswer>;
 
 // ----- API: dashboard -----
 

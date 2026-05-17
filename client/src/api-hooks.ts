@@ -51,6 +51,7 @@ export function submitReview(input: {
   result: ReviewResult;
   reviewed_at: string;
   session_id?: string;
+  answer_given?: string;
 }): Promise<ReviewStateResponse> {
   return api<ReviewStateResponse>("/api/reviews", {
     method: "POST",

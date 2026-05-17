@@ -3,6 +3,7 @@ import {
   generateVocabBatch,
   generateGrammarBatch,
   generateParticleBatch,
+  generateConjugationBatch,
   toRubyHtml,
   readingFor,
   computeCost,
@@ -12,6 +13,7 @@ import {
   type VocabItem,
   type GrammarItem,
   type ParticleItem,
+  type ConjugationItem,
 } from "@nihongo/gen";
 import { pool } from "../db/pool.js";
 import type { ItemRecord, Skill } from "@nihongo/shared";
@@ -38,6 +40,7 @@ async function genFor(
     case "vocab":   return await generateVocabBatch(args);
     case "grammar": return await generateGrammarBatch(args);
     case "particle": return await generateParticleBatch(args);
+    case "conjugation": return await generateConjugationBatch(args);
     default: throw new Error(`generation for skill='${skill}' not implemented yet`);
   }
 }
@@ -72,6 +75,15 @@ async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
       return {
         prompt: { sentence_ruby_blanked, options: it.options, answer_index: it.answer_index },
         answer: { explanation: it.explanation },
+      };
+    }
+    case "conjugation": {
+      const it = raw as ConjugationItem;
+      const base_ruby = await toRubyHtml(it.base);
+      const expected_ruby = await toRubyHtml(it.expected);
+      return {
+        prompt: { base: it.base, base_ruby, tense: it.tense },
+        answer: { expected: it.expected, expected_ruby, alternates: it.alternates },
       };
     }
     default:

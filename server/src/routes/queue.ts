@@ -3,7 +3,7 @@ import { buildQueue } from "../services/queue.js";
 
 export const queueRouter = Router();
 
-const SUPPORTED_SKILLS = new Set(["vocab", "grammar", "particle"]);
+const SUPPORTED_SKILLS = new Set(["vocab", "grammar", "particle", "conjugation"]);
 
 queueRouter.get("/", async (req, res) => {
   const skillParam = req.query.skill;

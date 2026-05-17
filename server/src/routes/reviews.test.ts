@@ -102,4 +102,12 @@ describe("POST /api/reviews", () => {
     const r = await pool.query(`SELECT session_id FROM reviews WHERE item_id = $1`, [itemId]);
     expect(r.rows[0].session_id).toBe(sessionId);
   });
+
+  it("persists answer_given when provided", async () => {
+    const itemId = await insertItem();
+    await request(app).post("/api/reviews").set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), answer_given: "食べました" });
+    const r = await pool.query(`SELECT answer_given FROM reviews WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].answer_given).toBe("食べました");
+  });
 });

@@ -128,7 +128,7 @@ describe("generateSentencesForCards", () => {
   });
 });
 
-import { generateGrammarBatch, generateParticleBatch } from "./generate.js";
+import { generateGrammarBatch, generateParticleBatch, generateConjugationBatch } from "./generate.js";
 
 describe("generateGrammarBatch", () => {
   it("calls the SDK with grammar system prompt and returns parsed items", async () => {
@@ -189,6 +189,31 @@ describe("generateParticleBatch", () => {
         expect(it.answer_index).toBeGreaterThanOrEqual(0);
         expect(it.answer_index).toBeLessThanOrEqual(3);
       }
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateConjugationBatch", () => {
+  it("returns parsed conjugation items from the SDK", async () => {
+    const create = vi.fn().mockResolvedValueOnce({
+      content: [{ type: "text", text: JSON.stringify({ items: [
+        { base: "食べる", tense: "past polite", expected: "食べました" },
+      ]})}],
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+    const r = await generateConjugationBatch({ count: 1, client: { messages: { create } } as never });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]!.expected).toBe("食べました");
+  });
+  it("returns fake fixture under NIHONGO_FAKE_AI=1", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateConjugationBatch({ count: 2 });
+      expect(r.items).toHaveLength(2);
     } finally {
       if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
       else process.env.NIHONGO_FAKE_AI = prev;

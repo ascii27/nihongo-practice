@@ -88,6 +88,34 @@ export function parseParticleBatch(raw: string): ParticleItem[] {
   return items as ParticleItem[];
 }
 
+export type ConjugationItem = {
+  base: string;
+  tense: string;
+  expected: string;
+  alternates?: string[];
+};
+
+export function parseConjugationBatch(raw: string): ConjugationItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.base !== "string" ||
+      typeof it?.tense !== "string" ||
+      typeof it?.expected !== "string"
+    ) {
+      throw new Error("conjugation item missing required fields");
+    }
+    if (it.alternates !== undefined) {
+      if (!Array.isArray(it.alternates) || it.alternates.some((a: unknown) => typeof a !== "string")) {
+        throw new Error("conjugation item has invalid alternates");
+      }
+    }
+  }
+  return items as ConjugationItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;
