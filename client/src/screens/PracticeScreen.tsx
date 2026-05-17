@@ -3,6 +3,7 @@ import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
 import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
+import { TypedInputCard } from "../components/TypedInputCard";
 
 type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 
@@ -39,6 +40,10 @@ export function PracticeScreen({ onDone, skill }: Props) {
   }, [skill]);
 
   function handleAnswer(result: ReviewResult) {
+    handleAnswerWithText(result);
+  }
+
+  function handleAnswerWithText(result: ReviewResult, answer_given?: string) {
     const item = items[index];
     if (!item) return;
     setCounts((c) => result === "got_it" ? { ...c, got: c.got + 1 } : { ...c, missed: c.missed + 1 });
@@ -48,6 +53,7 @@ export function PracticeScreen({ onDone, skill }: Props) {
       result,
       reviewed_at: reviewedAt,
       session_id: sessionIdRef.current ?? undefined,
+      answer_given,
     });
     if (index + 1 >= items.length) {
       void finishSession();
@@ -89,6 +95,8 @@ export function PracticeScreen({ onDone, skill }: Props) {
       <p className="practice__progress">{index + 1} / {items.length}</p>
       {current.skill === "particle" ? (
         <MultipleChoiceCard key={current.id} item={current} onAnswer={handleAnswer} />
+      ) : current.skill === "conjugation" ? (
+        <TypedInputCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
       ) : (
         <FlipCard key={current.id} item={current} onAnswer={handleAnswer} />
       )}
