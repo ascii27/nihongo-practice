@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -124,6 +124,37 @@ describe("parseGrammarBatch", () => {
       items: [{ pattern: "x", sentence_japanese: "y", sentence_english: "z", explanation: "w" }],
     });
     expect(parseGrammarBatch("```json\n" + inner + "\n```")).toHaveLength(1);
+  });
+});
+
+describe("parseConjugationBatch", () => {
+  it("returns items with base/tense/expected (+ optional alternates)", () => {
+    const raw = JSON.stringify({
+      items: [{ base: "食べる", tense: "past polite", expected: "食べました", alternates: ["たべました"] }],
+    });
+    const out = parseConjugationBatch(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.alternates).toEqual(["たべました"]);
+  });
+  it("alternates is optional", () => {
+    const raw = JSON.stringify({
+      items: [{ base: "食べる", tense: "past polite", expected: "食べました" }],
+    });
+    expect(parseConjugationBatch(raw)[0]!.alternates).toBeUndefined();
+  });
+  it("throws when expected is missing", () => {
+    expect(() => parseConjugationBatch(JSON.stringify({
+      items: [{ base: "食べる", tense: "past polite" }],
+    }))).toThrow();
+  });
+  it("throws when alternates is not a string array", () => {
+    expect(() => parseConjugationBatch(JSON.stringify({
+      items: [{ base: "x", tense: "y", expected: "z", alternates: [1,2,3] }],
+    }))).toThrow();
+  });
+  it("strips fences", () => {
+    const inner = JSON.stringify({ items: [{ base: "x", tense: "y", expected: "z" }] });
+    expect(parseConjugationBatch("```json\n" + inner + "\n```")).toHaveLength(1);
   });
 });
 
