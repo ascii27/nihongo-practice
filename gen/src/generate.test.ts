@@ -128,7 +128,7 @@ describe("generateSentencesForCards", () => {
   });
 });
 
-import { generateGrammarBatch } from "./generate.js";
+import { generateGrammarBatch, generateParticleBatch } from "./generate.js";
 
 describe("generateGrammarBatch", () => {
   it("calls the SDK with grammar system prompt and returns parsed items", async () => {
@@ -158,6 +158,37 @@ describe("generateGrammarBatch", () => {
         expect(it.explanation.length).toBeGreaterThan(0);
       }
       expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateParticleBatch", () => {
+  it("returns parsed particle items from the SDK", async () => {
+    const create = vi.fn().mockResolvedValueOnce({
+      content: [{ type: "text", text: JSON.stringify({ items: [
+        { sentence_japanese_blanked: "学校___行きます。", options: ["は","が","に","を"], answer_index: 2, explanation: "..." },
+      ]})}],
+      usage: { input_tokens: 100, output_tokens: 50 },
+    });
+    const r = await generateParticleBatch({ count: 1, client: { messages: { create } } as never });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]!.options).toHaveLength(4);
+  });
+
+  it("returns fake fixture under NIHONGO_FAKE_AI=1", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateParticleBatch({ count: 2 });
+      expect(r.items).toHaveLength(2);
+      for (const it of r.items) {
+        expect(it.options).toHaveLength(4);
+        expect(it.answer_index).toBeGreaterThanOrEqual(0);
+        expect(it.answer_index).toBeLessThanOrEqual(3);
+      }
     } finally {
       if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
       else process.env.NIHONGO_FAKE_AI = prev;
