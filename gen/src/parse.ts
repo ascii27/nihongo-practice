@@ -60,6 +60,34 @@ export function parseGrammarBatch(raw: string): GrammarItem[] {
   return items as GrammarItem[];
 }
 
+export type ParticleItem = {
+  sentence_japanese_blanked: string;
+  options: string[];
+  answer_index: number;
+  explanation: string;
+};
+
+export function parseParticleBatch(raw: string): ParticleItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.sentence_japanese_blanked !== "string" ||
+      !Array.isArray(it?.options) ||
+      it.options.length !== 4 ||
+      it.options.some((o: unknown) => typeof o !== "string") ||
+      typeof it?.answer_index !== "number" ||
+      it.answer_index < 0 || it.answer_index > 3 ||
+      !Number.isInteger(it.answer_index) ||
+      typeof it?.explanation !== "string"
+    ) {
+      throw new Error("particle item missing or invalid required fields");
+    }
+  }
+  return items as ParticleItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

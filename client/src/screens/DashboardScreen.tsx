@@ -4,7 +4,7 @@ import { fetchDashboard } from "../api-hooks";
 import { SkillCard } from "../components/SkillCard";
 
 const SKILL_ORDER: Skill[] = ["vocab", "grammar", "particle", "conjugation", "reading"];
-const AVAILABLE: Skill[] = ["vocab", "grammar"];
+const AVAILABLE: Skill[] = ["vocab", "grammar", "particle"];
 
 type Props = {
   onPractice: (skill?: Skill) => void;   // undefined = mixed

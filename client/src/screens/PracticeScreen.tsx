@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
 import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
+import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 
 type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 
@@ -86,7 +87,11 @@ export function PracticeScreen({ onDone, skill }: Props) {
   return (
     <main className="screen screen--practice">
       <p className="practice__progress">{index + 1} / {items.length}</p>
-      <FlipCard key={current.id} item={current} onAnswer={handleAnswer} />
+      {current.skill === "particle" ? (
+        <MultipleChoiceCard key={current.id} item={current} onAnswer={handleAnswer} />
+      ) : (
+        <FlipCard key={current.id} item={current} onAnswer={handleAnswer} />
+      )}
     </main>
   );
 }

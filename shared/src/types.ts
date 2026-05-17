@@ -162,6 +162,20 @@ export const GrammarAnswer = z.object({
 });
 export type GrammarAnswer = z.infer<typeof GrammarAnswer>;
 
+// particle — pick the right particle (multiple choice)
+
+export const ParticlePrompt = z.object({
+  sentence_ruby_blanked: z.string(),
+  options: z.array(z.string()).length(4),
+  answer_index: z.number().int().min(0).max(3),
+});
+export type ParticlePrompt = z.infer<typeof ParticlePrompt>;
+
+export const ParticleAnswer = z.object({
+  explanation: z.string(),
+});
+export type ParticleAnswer = z.infer<typeof ParticleAnswer>;
+
 // ----- API: dashboard -----
 
 export const SkillCounts = z.object({
