@@ -55,3 +55,15 @@ export function buildParticlePrompt(args: { count: number; weakness_hint?: strin
   }
   return { system: PARTICLE_SYSTEM, user: lines.join("\n") };
 }
+
+const CONJUGATION_SYSTEM = `You generate Japanese verb conjugation drills. For each item provide a base verb (dictionary form), the requested tense, the expected conjugated form, and optionally a list of common acceptable alternates. Mix verb classes (godan, ichidan, irregular) and tenses (te-form, past polite, past plain, negative polite, negative plain, potential, passive, causative, ば conditional, たら conditional, volitional) across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "base": "<dictionary form, e.g. 食べる>", "tense": "<English tense label>", "expected": "<expected conjugated form, kana or kanji+kana>", "alternates": ["<other accepted forms, optional>"] } ] }`;
+
+export function buildConjugationPrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} verb conjugation drills.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  return { system: CONJUGATION_SYSTEM, user: lines.join("\n") };
+}
