@@ -121,3 +121,28 @@ describe("runGeneration grammar", () => {
     expect(gens.rows[0].count_inserted).toBe(2);
   });
 });
+
+describe("runGeneration particle", () => {
+  it("inserts particle items with sentence_ruby_blanked + 4 options + answer_index", async () => {
+    const client = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: JSON.stringify({ items: [
+            { sentence_japanese_blanked: "学校___行きます。", options: ["は","が","に","を"], answer_index: 2, explanation: "..." },
+          ]})}],
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }),
+      },
+    };
+    const r = await runGeneration({ skill: "particle", count: 1, client });
+    expect(r.status).toBe("success");
+    expect(r.items_created).toBe(1);
+
+    const items = await pool.query("SELECT skill, prompt, answer FROM items");
+    expect(items.rows[0].skill).toBe("particle");
+    expect(items.rows[0].prompt.sentence_ruby_blanked).toContain("<ruby>");
+    expect(items.rows[0].prompt.options).toEqual(["は","が","に","を"]);
+    expect(items.rows[0].prompt.answer_index).toBe(2);
+    expect(items.rows[0].answer.explanation).toBeTruthy();
+  });
+});

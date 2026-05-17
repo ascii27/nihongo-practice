@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import {
   generateVocabBatch,
   generateGrammarBatch,
+  generateParticleBatch,
   toRubyHtml,
   readingFor,
   computeCost,
@@ -10,6 +11,7 @@ import {
   type Usage,
   type VocabItem,
   type GrammarItem,
+  type ParticleItem,
 } from "@nihongo/gen";
 import { pool } from "../db/pool.js";
 import type { ItemRecord, Skill } from "@nihongo/shared";
@@ -35,6 +37,7 @@ async function genFor(
   switch (skill) {
     case "vocab":   return await generateVocabBatch(args);
     case "grammar": return await generateGrammarBatch(args);
+    case "particle": return await generateParticleBatch(args);
     default: throw new Error(`generation for skill='${skill}' not implemented yet`);
   }
 }
@@ -59,6 +62,16 @@ async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
       return {
         prompt: { sentence_ruby, pattern: it.pattern, sentence_english: it.sentence_english },
         answer: { explanation: it.explanation, another_example_ruby },
+      };
+    }
+    case "particle": {
+      const it = raw as ParticleItem;
+      // Run kuromoji over the blanked sentence — keep '___' intact (kuromoji
+      // treats it as a single symbol token, which is fine for our render).
+      const sentence_ruby_blanked = await toRubyHtml(it.sentence_japanese_blanked);
+      return {
+        prompt: { sentence_ruby_blanked, options: it.options, answer_index: it.answer_index },
+        answer: { explanation: it.explanation },
       };
     }
     default:
