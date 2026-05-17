@@ -17,7 +17,7 @@ export function TypedInputCard({ item, onAnswer }: Props) {
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const autoCorrect = submitted && answerMatches(value, answer.expected, answer.alternates ?? []);
+  const isCorrect = submitted && answerMatches(value, answer.expected, answer.alternates ?? []);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,8 +54,8 @@ export function TypedInputCard({ item, onAnswer }: Props) {
         </form>
       ) : (
         <div className="typed-card__reveal">
-          <p className={`typed-card__feedback ${autoCorrect ? "is-correct" : "is-wrong"}`}>
-            {autoCorrect ? "Correct" : "Not quite"} — expected:
+          <p className={`typed-card__feedback ${isCorrect ? "is-correct" : "is-wrong"}`}>
+            {isCorrect ? "Correct" : "Not quite"} — expected:
           </p>
           <RubyText html={answer.expected_ruby} className="typed-card__expected" />
           {answer.alternates && answer.alternates.length > 0 && (

@@ -687,6 +687,13 @@
   text-align: center;
 }
 
+.typed-card__feedback {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-2);
+  line-height: var(--line-height-relaxed);
+  color: var(--color-fg-secondary);
+  text-align: center;
+}
 .typed-card__feedback.is-correct { color: var(--color-success); }
 .typed-card__feedback.is-wrong { color: var(--color-error); }
 
