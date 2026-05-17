@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ItemRecord, ConjugationPrompt, ConjugationAnswer, ReviewResult } from "@nihongo/shared";
 import { RubyText } from "./RubyText";
-import { answerMatches, normalizeKana } from "../lib/kana";
+import { answerMatches, normalizeKana, rubyToKana } from "../lib/kana";
 
 type Props = {
   item: ItemRecord;
@@ -17,7 +17,10 @@ export function TypedInputCard({ item, onAnswer }: Props) {
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
-  const isCorrect = submitted && answerMatches(value, answer.expected, answer.alternates ?? []);
+  // Accept either kanji+kana or the kana-only reading derived from expected_ruby,
+  // plus any AI-supplied alternates.
+  const acceptedAlternates = [rubyToKana(answer.expected_ruby), ...(answer.alternates ?? [])];
+  const isCorrect = submitted && answerMatches(value, answer.expected, acceptedAlternates);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();

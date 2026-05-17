@@ -11,7 +11,21 @@ export function normalizeKana(input: string): string {
   return KATAKANA_TO_HIRAGANA(input.normalize("NFKC").trim());
 }
 
-export function answerMatches(given: string, expected: string, alternates: readonly string[] = []): boolean {
+// Extract just the kana reading from a ruby-annotated HTML string.
+//   <ruby>食<rt>た</rt></ruby>べました  →  たべました
+// Lets the conjugation grader accept the hiragana-only form even when the
+// canonical `expected` is written with kanji.
+export function rubyToKana(rubyHtml: string): string {
+  return rubyHtml
+    .replace(/<ruby>[^<]*<rt>([^<]*)<\/rt><\/ruby>/g, "$1")
+    .replace(/<[^>]*>/g, "");
+}
+
+export function answerMatches(
+  given: string,
+  expected: string,
+  alternates: readonly string[] = [],
+): boolean {
   const g = normalizeKana(given);
   if (g.length === 0) return false;
   if (normalizeKana(expected) === g) return true;
