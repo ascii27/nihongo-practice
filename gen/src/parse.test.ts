@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -124,5 +124,47 @@ describe("parseGrammarBatch", () => {
       items: [{ pattern: "x", sentence_japanese: "y", sentence_english: "z", explanation: "w" }],
     });
     expect(parseGrammarBatch("```json\n" + inner + "\n```")).toHaveLength(1);
+  });
+});
+
+describe("parseParticleBatch", () => {
+  it("returns items with sentence_japanese_blanked, options (4), answer_index, explanation", () => {
+    const raw = JSON.stringify({
+      items: [{
+        sentence_japanese_blanked: "学校___行きます。",
+        options: ["は", "が", "に", "を"],
+        answer_index: 2,
+        explanation: "に marks the destination of movement.",
+      }],
+    });
+    const out = parseParticleBatch(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.options).toHaveLength(4);
+    expect(out[0]!.answer_index).toBe(2);
+  });
+
+  it("throws when options is not a 4-element array", () => {
+    expect(() => parseParticleBatch(JSON.stringify({
+      items: [{ sentence_japanese_blanked: "x", options: ["a","b","c"], answer_index: 0, explanation: "y" }],
+    }))).toThrow();
+  });
+
+  it("throws when answer_index is out of range", () => {
+    expect(() => parseParticleBatch(JSON.stringify({
+      items: [{ sentence_japanese_blanked: "x", options: ["a","b","c","d"], answer_index: 4, explanation: "y" }],
+    }))).toThrow();
+  });
+
+  it("throws when a required field is missing", () => {
+    expect(() => parseParticleBatch(JSON.stringify({
+      items: [{ sentence_japanese_blanked: "x", options: ["a","b","c","d"], answer_index: 0 }],
+    }))).toThrow();
+  });
+
+  it("strips ```json fences", () => {
+    const inner = JSON.stringify({
+      items: [{ sentence_japanese_blanked: "x", options: ["a","b","c","d"], answer_index: 0, explanation: "y" }],
+    });
+    expect(parseParticleBatch("```json\n" + inner + "\n```")).toHaveLength(1);
   });
 });
