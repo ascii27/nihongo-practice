@@ -13,6 +13,7 @@ const Body = z.object({
   result: z.enum(["got_it", "missed"]),
   reviewed_at: z.string().datetime(),
   session_id: z.string().uuid().optional(),
+  answer_given: z.string().max(200).optional(),
 });
 
 reviewsRouter.post("/", async (req, res) => {
@@ -21,7 +22,7 @@ reviewsRouter.post("/", async (req, res) => {
     res.status(400).json({ error: "invalid body", code: "BAD_BODY" });
     return;
   }
-  const { item_id, result, reviewed_at, session_id } = parsed.data;
+  const { item_id, result, reviewed_at, session_id, answer_given } = parsed.data;
 
   const client = await pool.connect();
   try {
@@ -87,9 +88,9 @@ reviewsRouter.post("/", async (req, res) => {
 
     // Append-only review row
     await client.query(
-      `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null],
+      `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null, answer_given ?? null],
     );
 
     await client.query("COMMIT");
