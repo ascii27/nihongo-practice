@@ -5,6 +5,7 @@ import {
   buildSentencesForCardsPrompt,
   buildGrammarPrompt,
   buildParticlePrompt,
+  buildConjugationPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -12,13 +13,15 @@ import {
   parseSentencesForCards,
   parseGrammarBatch,
   parseParticleBatch,
+  parseConjugationBatch,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
   type ParticleItem,
+  type ConjugationItem,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 const MAX_TOKENS = 2000;
@@ -91,6 +94,12 @@ const PARTICLE_FAKE: ParticleItem[] = [
   { sentence_japanese_blanked: "私___学生です。", options: ["は","が","に","を"], answer_index: 0, explanation: "は marks the topic." },
 ];
 
+const CONJUGATION_FAKE: ConjugationItem[] = [
+  { base: "食べる", tense: "past polite", expected: "食べました", alternates: ["たべました"] },
+  { base: "行く", tense: "te-form", expected: "行って", alternates: ["いって"] },
+  { base: "見る", tense: "negative polite", expected: "見ません", alternates: ["みません"] },
+];
+
 export async function generateVocabBatch(args: {
   count: number;
   weakness_hint?: string;
@@ -141,6 +150,24 @@ export async function generateParticleBatch(args: {
   const client = (args.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<ParticleItem[]>({
     system, user, parse: parseParticleBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
+}
+
+export async function generateConjugationBatch(args: {
+  count: number;
+  weakness_hint?: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ConjugationItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = CONJUGATION_FAKE.slice(0, Math.min(args.count, CONJUGATION_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildConjugationPrompt({ count: args.count, weakness_hint: args.weakness_hint });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ConjugationItem[]>({
+    system, user, parse: parseConjugationBatch, client, signal: args.signal,
   });
   return { items: value, usage, raw };
 }
