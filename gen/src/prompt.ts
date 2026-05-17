@@ -43,3 +43,15 @@ export function buildGrammarPrompt(args: { count: number; weakness_hint?: string
   }
   return { system: GRAMMAR_SYSTEM, user: lines.join("\n") };
 }
+
+const PARTICLE_SYSTEM = `You generate Japanese particle drill cards. Each card is a sentence with exactly one particle slot, marked by three underscores '___'. Provide four particle options (one correct, three plausible distractors). The correct option's position should vary across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "sentence_japanese_blanked": "<JA with ___>", "options": ["<p1>", "<p2>", "<p3>", "<p4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence>" } ] }`;
+
+export function buildParticlePrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} particle drill cards.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  return { system: PARTICLE_SYSTEM, user: lines.join("\n") };
+}

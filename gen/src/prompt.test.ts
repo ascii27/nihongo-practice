@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt } from "./prompt.js";
+import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt } from "./prompt.js";
 
 describe("buildVocabPrompt", () => {
   it("asks for the requested count and returns strict JSON instructions", () => {
@@ -49,5 +49,21 @@ describe("buildGrammarPrompt", () => {
   it("includes the weakness hint when provided", () => {
     const { user } = buildGrammarPrompt({ count: 2, weakness_hint: "te-form connectives" });
     expect(user).toContain("te-form connectives");
+  });
+});
+
+describe("buildParticlePrompt", () => {
+  it("asks for the requested count and the four-option shape", () => {
+    const { system, user } = buildParticlePrompt({ count: 3 });
+    expect(system).toMatch(/JSON/i);
+    expect(system).toContain('"options"');
+    expect(system).toContain('"answer_index"');
+    expect(system).toContain('"explanation"');
+    expect(user).toContain("3");
+  });
+
+  it("includes the weakness hint when provided", () => {
+    const { user } = buildParticlePrompt({ count: 2, weakness_hint: "は vs が" });
+    expect(user).toContain("は vs が");
   });
 });
