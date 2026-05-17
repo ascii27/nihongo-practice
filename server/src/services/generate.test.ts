@@ -146,3 +146,29 @@ describe("runGeneration particle", () => {
     expect(items.rows[0].answer.explanation).toBeTruthy();
   });
 });
+
+describe("runGeneration conjugation", () => {
+  it("inserts conjugation items with base/base_ruby/tense/expected/expected_ruby", async () => {
+    const client = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: JSON.stringify({ items: [
+            { base: "食べる", tense: "past polite", expected: "食べました", alternates: ["たべました"] },
+          ]})}],
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }),
+      },
+    };
+    const r = await runGeneration({ skill: "conjugation", count: 1, client });
+    expect(r.status).toBe("success");
+
+    const items = await pool.query("SELECT skill, prompt, answer FROM items");
+    expect(items.rows[0].skill).toBe("conjugation");
+    expect(items.rows[0].prompt.base).toBe("食べる");
+    expect(items.rows[0].prompt.base_ruby).toContain("<ruby>");
+    expect(items.rows[0].prompt.tense).toBe("past polite");
+    expect(items.rows[0].answer.expected).toBe("食べました");
+    expect(items.rows[0].answer.expected_ruby).toContain("<ruby>");
+    expect(items.rows[0].answer.alternates).toEqual(["たべました"]);
+  });
+});
