@@ -67,3 +67,15 @@ export function buildConjugationPrompt(args: { count: number; weakness_hint?: st
   }
   return { system: CONJUGATION_SYSTEM, user: lines.join("\n") };
 }
+
+const READING_SYSTEM = `You generate Japanese reading comprehension items for an intermediate learner. Each item is a short 3–5 sentence passage, one English comprehension question that requires brief inference (not just lookup), and a 1-sentence English answer. Optionally include a Japanese form of the answer.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "passage_japanese": "<3–5 JA sentences>", "question_english": "<EN question>", "answer_english": "<EN answer>", "answer_japanese": "<optional JA answer>" } ] }`;
+
+export function buildReadingPrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} reading comprehension items.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  return { system: READING_SYSTEM, user: lines.join("\n") };
+}

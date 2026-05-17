@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt } from "./prompt.js";
+import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt } from "./prompt.js";
 
 describe("buildVocabPrompt", () => {
   it("asks for the requested count and returns strict JSON instructions", () => {
@@ -79,5 +79,19 @@ describe("buildConjugationPrompt", () => {
   it("includes weakness hint", () => {
     const { user } = buildConjugationPrompt({ count: 2, weakness_hint: "te-form" });
     expect(user).toContain("te-form");
+  });
+});
+
+describe("buildReadingPrompt", () => {
+  it("asks for count and the reading JSON shape", () => {
+    const { system, user } = buildReadingPrompt({ count: 2 });
+    expect(system).toContain('"passage_japanese"');
+    expect(system).toContain('"question_english"');
+    expect(system).toContain('"answer_english"');
+    expect(user).toContain("2");
+  });
+  it("includes weakness hint", () => {
+    const { user } = buildReadingPrompt({ count: 1, weakness_hint: "daily life topics" });
+    expect(user).toContain("daily life topics");
   });
 });
