@@ -611,3 +611,97 @@
 }
 .mc-card__feedback.is-correct { color: var(--color-success); }
 .mc-card__feedback.is-wrong { color: var(--color-error); }
+
+/* ─────────────────────────────────────────────
+   TYPEDINPUTCARD (conjugation skill)
+   ───────────────────────────────────────────── */
+.typed-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.typed-card__prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.typed-card__base {
+  font-family: var(--font-display);
+  font-size: var(--font-size-7);
+}
+
+.typed-card__tense {
+  display: inline-block;
+  padding: var(--space-1) var(--space-3);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-2);
+}
+
+.typed-card__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.typed-card__input {
+  padding: var(--space-3);
+  background: var(--color-bg-raised);
+  color: var(--color-fg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: var(--font-size-5);
+  text-align: center;
+}
+
+.typed-card__input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.typed-card__submit {
+  min-height: 52px;
+  background: var(--color-accent);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+}
+
+.typed-card__reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.typed-card__feedback.is-correct { color: var(--color-success); }
+.typed-card__feedback.is-wrong { color: var(--color-error); }
+
+.typed-card__expected {
+  font-family: var(--font-display);
+  font-size: var(--font-size-6);
+}
+
+.typed-card__alternates {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-2);
+}
+
+.typed-card__grade {
+  display: flex;
+  gap: var(--space-3);
+  width: 100%;
+}
