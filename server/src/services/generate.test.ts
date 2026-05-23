@@ -172,3 +172,27 @@ describe("runGeneration conjugation", () => {
     expect(items.rows[0].answer.alternates).toEqual(["たべました"]);
   });
 });
+
+describe("runGeneration reading", () => {
+  it("inserts reading items with passage_ruby + answer fields", async () => {
+    const client = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: JSON.stringify({ items: [
+            { passage_japanese: "山田さんは先生です。", question_english: "What is Yamada's job?", answer_english: "Teacher.", answer_japanese: "先生です。" },
+          ]})}],
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }),
+      },
+    };
+    const r = await runGeneration({ skill: "reading", count: 1, client });
+    expect(r.status).toBe("success");
+
+    const items = await pool.query("SELECT skill, prompt, answer FROM items");
+    expect(items.rows[0].skill).toBe("reading");
+    expect(items.rows[0].prompt.passage_ruby).toContain("<ruby>");
+    expect(items.rows[0].prompt.question_english).toBe("What is Yamada's job?");
+    expect(items.rows[0].answer.answer_english).toBe("Teacher.");
+    expect(items.rows[0].answer.answer_japanese_ruby).toContain("<ruby>");
+  });
+});
