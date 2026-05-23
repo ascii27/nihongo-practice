@@ -1,5 +1,14 @@
 import { useState } from "react";
-import type { ItemRecord, VocabPrompt, VocabAnswer, GrammarPrompt, GrammarAnswer, ReviewResult } from "@nihongo/shared";
+import type {
+  ItemRecord,
+  ReviewResult,
+  VocabPrompt,
+  VocabAnswer,
+  GrammarPrompt,
+  GrammarAnswer,
+  ReadingPrompt,
+  ReadingAnswer,
+} from "@nihongo/shared";
 import { RubyText } from "./RubyText";
 
 type Props = {
@@ -57,6 +66,15 @@ function PromptFace({ item, muted }: { item: ItemRecord; muted?: boolean }) {
         </div>
       );
     }
+    case "reading": {
+      const p = item.prompt as ReadingPrompt;
+      return (
+        <div className={`flipcard__prompt flipcard__prompt--reading ${muted ? "is-muted" : ""}`}>
+          <RubyText html={p.passage_ruby} className="flipcard__passage" />
+          <p className="flipcard__question">{p.question_english}</p>
+        </div>
+      );
+    }
     default:
       return <p className="flipcard__prompt">Unsupported skill: {item.skill}</p>;
   }
@@ -85,6 +103,17 @@ function AnswerFace({ item }: { item: ItemRecord }) {
           <p className="flipcard__explanation">{a.explanation}</p>
           {a.another_example_ruby && (
             <RubyText html={a.another_example_ruby} className="flipcard__another" />
+          )}
+        </div>
+      );
+    }
+    case "reading": {
+      const a = item.answer as ReadingAnswer;
+      return (
+        <div className="flipcard__answer">
+          <p className="flipcard__answer-en">{a.answer_english}</p>
+          {a.answer_japanese_ruby && (
+            <RubyText html={a.answer_japanese_ruby} className="flipcard__answer-ja" />
           )}
         </div>
       );

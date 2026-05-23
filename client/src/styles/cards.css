@@ -712,3 +712,38 @@
   gap: var(--space-3);
   width: 100%;
 }
+
+/* FlipCard reading variant — longer text, scrollable passage area */
+.flipcard__prompt--reading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.flipcard__passage {
+  font-family: var(--font-display);
+  font-size: var(--font-size-4);
+  line-height: var(--line-height-relaxed);
+}
+
+.flipcard__question {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-bg-overlay);
+  border-radius: var(--radius-md);
+  color: var(--color-fg-secondary);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-3);
+}
+
+.flipcard__answer-en {
+  font-size: var(--font-size-4);
+  margin-bottom: var(--space-3);
+}
+
+.flipcard__answer-ja {
+  color: var(--color-fg-secondary);
+  font-size: var(--font-size-3);
+}
