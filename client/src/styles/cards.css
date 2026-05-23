@@ -717,9 +717,17 @@
 .flipcard__prompt--reading {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  text-align: left;
   gap: var(--space-3);
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.flipcard__prompt--reading.is-muted {
+  max-height: none;
+  overflow-y: visible;
 }
 
 .flipcard__passage {
@@ -729,7 +737,6 @@
 }
 
 .flipcard__question {
-  margin-top: var(--space-3);
   padding: var(--space-3);
   background: var(--color-bg-overlay);
   border-radius: var(--radius-md);
