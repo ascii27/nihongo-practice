@@ -193,6 +193,20 @@ export const ConjugationAnswer = z.object({
 });
 export type ConjugationAnswer = z.infer<typeof ConjugationAnswer>;
 
+// reading — comprehend a short passage
+
+export const ReadingPrompt = z.object({
+  passage_ruby: z.string(),
+  question_english: z.string(),
+});
+export type ReadingPrompt = z.infer<typeof ReadingPrompt>;
+
+export const ReadingAnswer = z.object({
+  answer_english: z.string(),
+  answer_japanese_ruby: z.string().optional(),
+});
+export type ReadingAnswer = z.infer<typeof ReadingAnswer>;
+
 // ----- API: dashboard -----
 
 export const SkillCounts = z.object({

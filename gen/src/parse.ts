@@ -116,6 +116,32 @@ export function parseConjugationBatch(raw: string): ConjugationItem[] {
   return items as ConjugationItem[];
 }
 
+export type ReadingItem = {
+  passage_japanese: string;
+  question_english: string;
+  answer_english: string;
+  answer_japanese?: string;
+};
+
+export function parseReadingBatch(raw: string): ReadingItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.passage_japanese !== "string" ||
+      typeof it?.question_english !== "string" ||
+      typeof it?.answer_english !== "string"
+    ) {
+      throw new Error("reading item missing required fields");
+    }
+    if (it.answer_japanese !== undefined && typeof it.answer_japanese !== "string") {
+      throw new Error("reading item has non-string answer_japanese");
+    }
+  }
+  return items as ReadingItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

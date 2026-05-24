@@ -93,7 +93,7 @@ describe("GET /api/queue", () => {
   });
 
   it("rejects unsupported skill with 400", async () => {
-    const res = await request(app).get("/api/queue?skill=reading").set("X-Passcode", PASSCODE);
+    const res = await request(app).get("/api/queue?skill=unknown").set("X-Passcode", PASSCODE);
     expect(res.status).toBe(400);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -197,5 +197,31 @@ describe("parseParticleBatch", () => {
       items: [{ sentence_japanese_blanked: "x", options: ["a","b","c","d"], answer_index: 0, explanation: "y" }],
     });
     expect(parseParticleBatch("```json\n" + inner + "\n```")).toHaveLength(1);
+  });
+});
+
+describe("parseReadingBatch", () => {
+  it("returns items with passage_japanese/question_english/answer_english", () => {
+    const raw = JSON.stringify({
+      items: [{ passage_japanese: "山田さんは...", question_english: "What does Yamada do?", answer_english: "He is a teacher." }],
+    });
+    const out = parseReadingBatch(raw);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.passage_japanese).toContain("山田");
+  });
+  it("answer_japanese is optional", () => {
+    const raw = JSON.stringify({
+      items: [{ passage_japanese: "x", question_english: "y", answer_english: "z", answer_japanese: "w" }],
+    });
+    expect(parseReadingBatch(raw)[0]!.answer_japanese).toBe("w");
+  });
+  it("throws on missing required field", () => {
+    expect(() => parseReadingBatch(JSON.stringify({
+      items: [{ passage_japanese: "x", question_english: "y" }],
+    }))).toThrow();
+  });
+  it("strips fences", () => {
+    const inner = JSON.stringify({ items: [{ passage_japanese: "x", question_english: "y", answer_english: "z" }] });
+    expect(parseReadingBatch("```json\n" + inner + "\n```")).toHaveLength(1);
   });
 });

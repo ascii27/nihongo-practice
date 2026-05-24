@@ -6,6 +6,7 @@ import {
   buildGrammarPrompt,
   buildParticlePrompt,
   buildConjugationPrompt,
+  buildReadingPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -14,14 +15,16 @@ import {
   parseGrammarBatch,
   parseParticleBatch,
   parseConjugationBatch,
+  parseReadingBatch,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
   type ParticleItem,
   type ConjugationItem,
+  type ReadingItem,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 const MAX_TOKENS = 2000;
@@ -100,6 +103,20 @@ const CONJUGATION_FAKE: ConjugationItem[] = [
   { base: "見る", tense: "negative polite", expected: "見ません", alternates: ["みません"] },
 ];
 
+const READING_FAKE: ReadingItem[] = [
+  {
+    passage_japanese: "山田さんは毎朝六時に起きます。コーヒーを飲んで、新聞を読みます。それから会社へ行きます。",
+    question_english: "What does Yamada-san do after drinking coffee?",
+    answer_english: "He reads the newspaper.",
+    answer_japanese: "新聞を読みます。",
+  },
+  {
+    passage_japanese: "今日は雨が降っています。だから、傘を持って出かけました。学校までは歩いて十分です。",
+    question_english: "Why did the speaker take an umbrella?",
+    answer_english: "Because it is raining.",
+  },
+];
+
 export async function generateVocabBatch(args: {
   count: number;
   weakness_hint?: string;
@@ -168,6 +185,24 @@ export async function generateConjugationBatch(args: {
   const client = (args.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<ConjugationItem[]>({
     system, user, parse: parseConjugationBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
+}
+
+export async function generateReadingBatch(args: {
+  count: number;
+  weakness_hint?: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ReadingItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = READING_FAKE.slice(0, Math.min(args.count, READING_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildReadingPrompt({ count: args.count, weakness_hint: args.weakness_hint });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ReadingItem[]>({
+    system, user, parse: parseReadingBatch, client, signal: args.signal,
   });
   return { items: value, usage, raw };
 }
