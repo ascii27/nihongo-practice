@@ -14,7 +14,7 @@ type Props = {
   mode: Mode;
   defaultCount?: number;
   defaultSkill?: Skill;
-  lockedSkill?: Skill;          // if set, skill picker is hidden and forced to this value
+  lockedSkill?: Skill;          // if set, the skill picker is hidden + forced
   onSuccess?: () => void;
 };
 
@@ -34,7 +34,8 @@ export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", 
 
   const estimatedCents = Math.max(1, Math.ceil(count * 0.001 * 100));
   const estimateLabel = `~$0.${estimatedCents.toString().padStart(2, "0")}`;
-  const buttonLabel = status.kind === "submitting"
+  const submitting = status.kind === "submitting";
+  const buttonLabel = submitting
     ? "Generating…"
     : `Generate ${count} ${SKILL_LABELS[skill].toLowerCase()} (${estimateLabel})`;
 
@@ -55,42 +56,42 @@ export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", 
     }
   }
 
-  const submitting = status.kind === "submitting";
-
   return (
-    <form className={`generate-form generate-form--${mode}`} onSubmit={submit}>
-      {mode === "full" && <h2>Generate practice</h2>}
-
-      {mode === "full" && !lockedSkill && (
-        <label className="generate-form__skill">
-          <span>Skill</span>
-          <select value={skill} onChange={(e) => setSkill(e.target.value as Skill)} disabled={submitting}>
-            {(Object.keys(SKILL_LABELS) as Skill[]).map((s) => (
-              <option key={s} value={s}>{SKILL_LABELS[s]}</option>
-            ))}
-          </select>
+    <form className={`settings__gen generate-form generate-form--${mode}`} onSubmit={submit}>
+      <div className="settings__gen-row">
+        {!lockedSkill ? (
+          <label className="settings__field">
+            <span className="settings__field-label">Skill</span>
+            <select className="settings__select" value={skill} onChange={(e) => setSkill(e.target.value as Skill)} disabled={submitting}>
+              {(Object.keys(SKILL_LABELS) as Skill[]).map((s) => (
+                <option key={s} value={s}>{SKILL_LABELS[s]}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span />
+        )}
+        <label className="settings__field">
+          <span className="settings__field-label">Count</span>
+          <input
+            className="settings__input"
+            type="number"
+            min={1}
+            max={50}
+            value={count}
+            onChange={(e) => setCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
+            disabled={submitting}
+          />
         </label>
-      )}
-
-      <label className="generate-form__count">
-        <span>Count</span>
-        <input
-          type="number"
-          min={1}
-          max={50}
-          value={count}
-          onChange={(e) => setCount(Math.min(50, Math.max(1, Number(e.target.value) || 1)))}
-          disabled={submitting}
-        />
-      </label>
+      </div>
 
       {mode === "full" && (
-        <label className="generate-form__hint">
-          <span>Focus area (optional)</span>
-          <textarea
-            placeholder="e.g., verbs for cooking"
+        <label className="settings__field">
+          <span className="settings__field-label">Focus area (optional)</span>
+          <input
+            className="settings__input"
+            placeholder="e.g. verbs for cooking"
             maxLength={200}
-            rows={2}
             value={hint}
             onChange={(e) => setHint(e.target.value)}
             disabled={submitting}
@@ -98,19 +99,17 @@ export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", 
         </label>
       )}
 
-      <button type="submit" disabled={submitting}>{buttonLabel}</button>
+      <button type="submit" className="cta cta--primary cta--block" disabled={submitting}>{buttonLabel}</button>
 
       {status.kind === "success" && (
-        <p role="status" className="generate-form__status">
+        <p role="status" className="settings__gen-status is-ok">
           {status.inserted < status.requested
             ? `Added ${status.inserted} of ${status.requested} cards · $${status.cost_usd.toFixed(2)}`
             : `Added ${status.inserted} cards · $${status.cost_usd.toFixed(2)}`}
         </p>
       )}
       {status.kind === "failed" && (
-        <p role="alert" className="generate-form__status generate-form__status--error">
-          Generation failed — try again
-        </p>
+        <p role="alert" className="settings__gen-status is-err">Generation failed — try again</p>
       )}
     </form>
   );

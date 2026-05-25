@@ -51,12 +51,14 @@ export default function App() {
     );
   }
 
+  // The tab bar is hidden during full-bleed practice and the Settings sub-page.
+  const showTabs = route !== "practice" && route !== "settings";
   const tab: Tab = route === "settings" ? "today" : route;
 
   return (
-    <div className="app">
+    <div className="app dir-ink">
       {active}
-      <BottomTabs active={tab} onChange={(t) => setRoute(t)} />
+      {showTabs && <BottomTabs active={tab} onChange={(t) => setRoute(t)} />}
     </div>
   );
 }

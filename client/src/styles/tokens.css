@@ -16,7 +16,7 @@
    Loaded here so a single @import in main.tsx
    or index.html can pull both weights.
    ───────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
 
 /* ─────────────────────────────────────────────
    ROOT / DARK MODE (default)
@@ -51,6 +51,31 @@
   --color-muted: var(--color-fg-secondary);
   --color-surface: var(--color-bg-raised);
 
+  /* ── Short-name aliases ──
+     The redesigned screen CSS (screens.css) was authored against short token
+     names. Map them onto the canonical --color-* tokens so there is a single
+     source of truth. Tokens that flip in light mode reference --color-* and
+     follow automatically; raw-value tokens (--bg-sunken) are re-declared in
+     the light block below. */
+  --bg:            var(--color-bg);
+  --bg-raised:     var(--color-bg-raised);
+  --bg-overlay:    var(--color-bg-overlay);
+  --bg-sunken:     #0e0c0a;             /* one step below --bg (dark) */
+  --border:        var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --fg:            var(--color-fg);
+  --fg-secondary:  var(--color-fg-secondary);
+  --fg-tertiary:   var(--color-fg-tertiary);
+  --accent:        var(--color-accent);
+  --accent-hover:  var(--color-accent-hover);
+  --accent-muted:  var(--color-accent-muted);
+  --accent-glow:   var(--color-accent-glow);
+  --accent-fg:     #fff;                /* text on the vermillion accent */
+  --success:       var(--color-success);
+  --success-muted: var(--color-success-muted);
+  --error:         var(--color-error);
+  --error-muted:   var(--color-error-muted);
+
   /* ── Ruby Scale ── */
   --ruby-scale: 0.55; /* rt font-size = calc(1em * var(--ruby-scale)) */
 
@@ -78,8 +103,9 @@
   /* ── Font Families ── */
   --font-body:    'Noto Serif JP', 'Hiragino Mincho ProN', Georgia, serif;
   --font-display: 'Noto Serif JP', 'Hiragino Mincho ProN', Georgia, serif;
+  --font-jp:      'Noto Serif JP', 'Hiragino Mincho ProN', Georgia, serif; /* Japanese content */
   --font-mono:    'DM Mono', 'Hiragino Kaku Gothic ProN', 'Osaka-Mono', ui-monospace, monospace;
-  --font-ui:      'Noto Serif JP', system-ui, sans-serif; /* nav, buttons */
+  --font-ui:      'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; /* nav, buttons, chrome */
 
   /* ── Font Weights ── */
   --font-weight-light:   300;
@@ -154,6 +180,7 @@
     --color-bg:           #faf7f2;  /* warm paper white */
     --color-bg-raised:    #ffffff;
     --color-bg-overlay:   #f5f0e8;
+    --bg-sunken:          #efeae0;   /* one step below --bg (light) */
     --color-border:       #e4ddd4;
     --color-border-strong: #c8bfb5;
 

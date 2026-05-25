@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { auth } from "../auth";
 import { fetchGenerations, fetchSettingsStatus } from "../api-hooks";
 import { GenerateForm } from "../components/GenerateForm";
+import { IconChevron } from "../components/icons";
 import type { GenerationSummary } from "@nihongo/shared";
 
 type Props = {
@@ -22,10 +23,7 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
         setKeyConfigured(status.ai_key_configured);
         setGenerations(gens.generations);
       })
-      .catch(() => {
-        if (cancelled) return;
-        setKeyConfigured(false);
-      });
+      .catch(() => { if (!cancelled) setKeyConfigured(false); });
     return () => { cancelled = true; };
   }, [refreshTick]);
 
@@ -35,57 +33,66 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
   }
 
   return (
-    <main className="screen settings-screen">
+    <main className="screen screen--flush settings">
       <header className="topbar">
-        <button onClick={onBack} className="link" aria-label="Back to Today">← Today</button>
-        <h1>Settings</h1>
+        <button type="button" className="topbar__back" onClick={onBack} aria-label="Back to Today">
+          <IconChevron className="topbar__back-chev" /> Today
+        </button>
+        <h1 className="topbar__title" style={{ fontSize: 17 }}>Settings</h1>
+        <span style={{ width: 44 }} />
       </header>
 
-      <section className="settings-section">
-        <h2>AI key</h2>
-        {keyConfigured === null ? (
-          <p className="muted">Checking…</p>
-        ) : keyConfigured ? (
-          <p className="pill pill--ok">✓ Configured (set via .env)</p>
-        ) : (
-          <p className="pill pill--err">✗ Not configured</p>
-        )}
-      </section>
+      <div className="settings__section">
+        <h2 className="settings__section-title">Account</h2>
+        <div className="settings__list">
+          <div className="settings__row">
+            <span className="settings__row-label">AI key</span>
+            {keyConfigured === null ? (
+              <span className="muted">Checking…</span>
+            ) : keyConfigured ? (
+              <span className="settings__pill settings__pill--ok">✓ Configured</span>
+            ) : (
+              <span className="settings__pill settings__pill--err">✗ Not set</span>
+            )}
+          </div>
+        </div>
+      </div>
 
-      <section className="settings-section">
+      <div className="settings__section">
+        <h2 className="settings__section-title">Generate new cards</h2>
         <GenerateForm mode="full" onSuccess={() => setRefreshTick((n) => n + 1)} />
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <h2>Recent generations</h2>
+      <div className="settings__section">
+        <h2 className="settings__section-title">Recent generations</h2>
         {generations.length === 0 ? (
-          <p className="muted">No generations yet.</p>
+          <p className="settings__empty">No generations yet.</p>
         ) : (
-          <ul className="generations-list">
-            {generations.map((g) => (
-              <li key={g.id}>
-                <span>{formatTimestamp(g.requested_at)}</span>
-                <span>{g.count_inserted} cards</span>
-                <span>${g.cost_usd.toFixed(2)}</span>
-                <span aria-label={g.status}>
-                  {g.status === "failed" ? "✗ failed" : g.status === "partial" ? "◐ partial" : "✓"}
-                </span>
-              </li>
-            ))}
-          </ul>
+          <div className="settings__gens-list">
+            {generations.map((g) => {
+              const statusGlyph = g.status === "failed" ? "✗" : g.status === "partial" ? "◐" : "✓";
+              return (
+                <div key={g.id} className="settings__gen-item">
+                  <div>
+                    <div className="settings__gen-item-date">{formatDate(g.requested_at)}</div>
+                    <div className="settings__gen-item-meta">
+                      {g.skill} · {g.count_inserted} cards · ${g.cost_usd.toFixed(2)}
+                    </div>
+                  </div>
+                  <span className={`settings__gen-item-status is-${g.status}`} aria-hidden>{statusGlyph}</span>
+                  <span className="settings__gen-item-meta" aria-label={`status ${g.status}`}>{g.status}</span>
+                </div>
+              );
+            })}
+          </div>
         )}
-      </section>
+      </div>
 
-      <section className="settings-section">
-        <button type="button" className="link" onClick={signOut}>Sign out</button>
-      </section>
+      <button type="button" className="settings__signout" onClick={signOut}>Sign out</button>
     </main>
   );
 }
 
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const time = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${date}, ${time}`;
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }

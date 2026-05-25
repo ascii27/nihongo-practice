@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DashboardResponse, Skill } from "@nihongo/shared";
 import { fetchDashboard } from "../api-hooks";
-import { SkillCard } from "../components/SkillCard";
-
-const SKILL_ORDER: Skill[] = ["vocab", "grammar", "particle", "conjugation", "reading"];
-const AVAILABLE: Skill[] = ["vocab", "grammar", "particle", "conjugation", "reading"];
+import { SKILL_ORDER, SKILL_META } from "../lib/skills";
+import { IconChevron } from "../components/icons";
 
 type Props = {
   onPractice: (skill?: Skill) => void;   // undefined = mixed
@@ -32,44 +30,55 @@ export function DashboardScreen({ onPractice, onOpenSettings }: Props) {
     : "never";
 
   return (
-    <main className="screen dashboard">
+    <main className="screen today">
       <header className="topbar">
-        <h1>Today</h1>
-        <button onClick={onOpenSettings} className="link">Settings</button>
+        <h1 className="topbar__title">Today</h1>
+        <button type="button" className="topbar__action" onClick={onOpenSettings}>Settings</button>
       </header>
 
-      <p className="dashboard__streak muted">
-        {data.streak_days}-day streak · last practice {lastLabel}
-      </p>
+      <div className="today__streak">
+        <span className="today__streak-flame">日</span>
+        <span><span className="today__streak-num">{data.streak_days}</span>-day streak</span>
+        <span className="today__streak-sep">·</span>
+        <span>last practice {lastLabel}</span>
+      </div>
 
-      <section className={`dashboard__mixed ${totalDue === 0 ? "is-empty" : ""}`}>
+      <section className="today__hero">
+        <p className="today__hero-label">Ready to review</p>
+        <p className="today__hero-count">{totalDue}</p>
         {totalDue > 0 ? (
           <>
-            <p className="dashboard__mixed-count">{totalDue}</p>
-            <p className="muted">cards ready across all skills</p>
-            <button type="button" className="cta cta--primary" onClick={() => onPractice(undefined)}>
-              Start mixed practice →
+            <p className="today__hero-sub">cards across all skills &nbsp;·&nbsp; <span className="jp">混合練習</span></p>
+            <button type="button" className="cta cta--primary cta--lg today__hero-cta" onClick={() => onPractice(undefined)}>
+              Start mixed practice
             </button>
           </>
         ) : (
-          <p>All caught up — pick a skill to generate more.</p>
+          <p className="today__hero-empty">全部終わり — all caught up. Generate more in Settings.</p>
         )}
       </section>
 
-      <h2 className="dashboard__heading">Skills</h2>
-      <section className="dashboard__skills">
-        {SKILL_ORDER.map((s) => (
-          <SkillCard
-            key={s}
-            skill={s}
-            due={data.by_skill[s].due}
-            newCount={data.by_skill[s].new}
-            available={AVAILABLE.includes(s)}
-            onPractice={() => onPractice(s)}
-            onGenerated={load}
-          />
-        ))}
-      </section>
+      <h2 className="today__section-title">Skills</h2>
+      <div className="today__skill-list">
+        {SKILL_ORDER.map((s) => {
+          const { due, new: n } = data.by_skill[s];
+          const total = due + n;
+          const meta = SKILL_META[s];
+          return (
+            <button key={s} type="button" className={`today__skill-row skill-card--${s}`} onClick={() => onPractice(s)}>
+              <span className="today__skill-glyph">{meta.short}</span>
+              <span className="today__skill-meta">
+                <span className="today__skill-name">{meta.label}</span>
+                <span className="today__skill-counts">
+                  {total > 0 ? <>{due} due · {n} new</> : <span className="empty">all caught up</span>}
+                </span>
+              </span>
+              <span className={`today__skill-num ${total === 0 ? "is-zero" : ""}`}>{total}</span>
+              <span className="today__skill-chev"><IconChevron /></span>
+            </button>
+          );
+        })}
+      </div>
     </main>
   );
 }

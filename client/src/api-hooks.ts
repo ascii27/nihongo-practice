@@ -11,6 +11,8 @@ import type {
   SettingsStatusResponse,
   DashboardResponse,
   StatsBySkillResponse,
+  LibraryResponse,
+  StatsOverviewResponse,
   Skill,
 } from "@nihongo/shared";
 
@@ -30,6 +32,15 @@ export function fetchDashboard(): Promise<DashboardResponse> {
 
 export function fetchStatsBySkill(): Promise<StatsBySkillResponse> {
   return api<StatsBySkillResponse>(`/api/stats/by-skill`);
+}
+
+export function fetchLibrary(): Promise<LibraryResponse> {
+  return api<LibraryResponse>(`/api/library`);
+}
+
+export function fetchStatsOverview(): Promise<StatsOverviewResponse> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  return api<StatsOverviewResponse>(`/api/stats/overview?tz=${encodeURIComponent(tz)}`);
 }
 
 export function startSession(skill?: Skill): Promise<StartSessionResponse> {

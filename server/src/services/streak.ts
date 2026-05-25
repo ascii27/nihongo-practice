@@ -27,8 +27,28 @@ export async function computeStreak(tz: string): Promise<number> {
   return count;
 }
 
+// Returns the longest run of consecutive review days anywhere in history
+// (not just the run ending today), in the caller's timezone.
+export async function longestStreak(tz: string): Promise<number> {
+  const r = await pool.query<{ d: string }>(
+    `SELECT DISTINCT to_char(date_trunc('day', reviewed_at AT TIME ZONE $1), 'YYYY-MM-DD') AS d
+       FROM reviews
+       ORDER BY d ASC`,
+    [tz],
+  );
+  let longest = 0;
+  let run = 0;
+  let prev: string | null = null;
+  for (const { d } of r.rows) {
+    run = prev !== null && decYmd(d) === prev ? run + 1 : 1;
+    if (run > longest) longest = run;
+    prev = d;
+  }
+  return longest;
+}
+
 // Format a Date as YYYY-MM-DD as observed in the given IANA timezone.
-function ymdInTz(d: Date, tz: string): string {
+export function ymdInTz(d: Date, tz: string): string {
   const fmt = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",
@@ -38,7 +58,7 @@ function ymdInTz(d: Date, tz: string): string {
   return fmt.format(d);
 }
 
-function decYmd(s: string): string {
+export function decYmd(s: string): string {
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y!, m! - 1, d!));
   dt.setUTCDate(dt.getUTCDate() - 1);
