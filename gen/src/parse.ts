@@ -10,6 +10,34 @@ export type SentenceForCard = {
   sentence_english: string;
 };
 
+// A user-supplied vocab entry, after the AI fills in the missing side plus an
+// example sentence. Unlike the batch generators this returns a single object,
+// not a wrapping `items` array.
+export type ManualVocabItem = {
+  japanese: string;
+  english: string;
+  sentence_japanese: string;
+  sentence_english: string;
+};
+
+export function parseManualVocab(raw: string): ManualVocabItem {
+  const parsed = JSON.parse(stripFences(raw));
+  if (
+    typeof parsed?.japanese !== "string" ||
+    typeof parsed?.english !== "string" ||
+    typeof parsed?.sentence_japanese !== "string" ||
+    typeof parsed?.sentence_english !== "string"
+  ) {
+    throw new Error("manual vocab response missing required fields");
+  }
+  return {
+    japanese: parsed.japanese,
+    english: parsed.english,
+    sentence_japanese: parsed.sentence_japanese,
+    sentence_english: parsed.sentence_english,
+  };
+}
+
 export function stripFences(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);

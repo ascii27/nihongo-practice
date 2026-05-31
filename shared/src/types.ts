@@ -279,6 +279,39 @@ export const LibraryResponse = z.object({
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
+// ----- API: items/manual (user-added vocab) -----
+//
+// Two-step flow:
+//   POST /api/items/manual/translate  → preview only (no DB write)
+//   POST /api/items/manual            → commits the (possibly edited) preview
+// Lets the learner sanity-check the AI's output before it joins their queue.
+
+export const ManualVocabPreviewRequest = z.object({
+  input: z.string().min(1).max(120),
+});
+export type ManualVocabPreviewRequest = z.infer<typeof ManualVocabPreviewRequest>;
+
+export const ManualVocabFields = z.object({
+  japanese: z.string().min(1).max(120),
+  english: z.string().min(1).max(120),
+  sentence_japanese: z.string().min(1).max(200),
+  sentence_english: z.string().min(1).max(200),
+});
+export type ManualVocabFields = z.infer<typeof ManualVocabFields>;
+
+export const ManualVocabPreviewResponse = ManualVocabFields.extend({
+  cost_usd: z.number().nonnegative(),
+});
+export type ManualVocabPreviewResponse = z.infer<typeof ManualVocabPreviewResponse>;
+
+export const ManualVocabSaveRequest = ManualVocabFields;
+export type ManualVocabSaveRequest = z.infer<typeof ManualVocabSaveRequest>;
+
+export const ManualVocabSaveResponse = z.object({
+  item: ItemRecord,
+});
+export type ManualVocabSaveResponse = z.infer<typeof ManualVocabSaveResponse>;
+
 // ----- API: stats/overview -----
 
 export const HardestCard = z.object({

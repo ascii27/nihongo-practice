@@ -618,6 +618,9 @@
 .settings__gen-status.is-ok  { color: var(--success); }
 .settings__gen-status.is-err { color: var(--error); }
 
+/* Action row used by ManualItemForm in its preview phase: Discard + Add side by side. */
+.manual__actions { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+
 .settings__gens-list { margin: 0 20px; display: flex; flex-direction: column; gap: 6px; }
 .settings__gen-item {
   display: grid; grid-template-columns: 1fr auto auto;

@@ -13,6 +13,10 @@ import type {
   StatsBySkillResponse,
   LibraryResponse,
   StatsOverviewResponse,
+  ManualVocabPreviewRequest,
+  ManualVocabPreviewResponse,
+  ManualVocabSaveRequest,
+  ManualVocabSaveResponse,
   Skill,
 } from "@nihongo/shared";
 
@@ -83,4 +87,20 @@ export function fetchGenerations(limit = 10): Promise<GenerationsResponse> {
 
 export function fetchSettingsStatus(): Promise<SettingsStatusResponse> {
   return api<SettingsStatusResponse>("/api/settings/status");
+}
+
+// Manual vocab entry — two steps so the learner can review the AI's translation
+// before it joins their deck.
+export function previewManualVocab(input: ManualVocabPreviewRequest): Promise<ManualVocabPreviewResponse> {
+  return api<ManualVocabPreviewResponse>("/api/items/manual/translate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function saveManualVocab(input: ManualVocabSaveRequest): Promise<ManualVocabSaveResponse> {
+  return api<ManualVocabSaveResponse>("/api/items/manual", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
