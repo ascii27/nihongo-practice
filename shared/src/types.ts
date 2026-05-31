@@ -246,3 +246,56 @@ export const StatsBySkillResponse = z.object({
   }),
 });
 export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
+
+// ----- API: library (Browse) -----
+
+// A single browsable card, with display fields derived server-side from the
+// skill-specific prompt/answer JSON, plus a Leitner-box-derived mastery (0..1).
+export const LibraryItem = z.object({
+  id: z.string().uuid(),
+  skill: Skill,
+  front: z.string(),
+  reading: z.string().nullable(),
+  meaning: z.string(),
+  mastery: z.number().min(0).max(1),
+});
+export type LibraryItem = z.infer<typeof LibraryItem>;
+
+export const LibrarySkillGroup = z.object({
+  count: z.number().int().nonnegative(),       // total items in the skill
+  avg_mastery: z.number().min(0).max(1),       // mean mastery over all items
+  items: z.array(LibraryItem),                 // capped sample (newest first)
+});
+export type LibrarySkillGroup = z.infer<typeof LibrarySkillGroup>;
+
+export const LibraryResponse = z.object({
+  by_skill: z.object({
+    vocab: LibrarySkillGroup,
+    grammar: LibrarySkillGroup,
+    reading: LibrarySkillGroup,
+    conjugation: LibrarySkillGroup,
+    particle: LibrarySkillGroup,
+  }),
+});
+export type LibraryResponse = z.infer<typeof LibraryResponse>;
+
+// ----- API: stats/overview -----
+
+export const HardestCard = z.object({
+  id: z.string().uuid(),
+  skill: Skill,
+  front: z.string(),
+  meaning: z.string(),
+  accuracy: z.number().min(0).max(1),
+});
+export type HardestCard = z.infer<typeof HardestCard>;
+
+export const StatsOverviewResponse = z.object({
+  streak_days: z.number().int().nonnegative(),
+  longest_streak: z.number().int().nonnegative(),
+  total_reviewed: z.number().int().nonnegative(),
+  overall_accuracy: z.number().min(0).max(1).nullable(),  // null if no reviews
+  daily_reviews: z.array(z.number().int().nonnegative()).length(30),  // oldest → today
+  hardest_cards: z.array(HardestCard),                    // up to 5, lowest accuracy
+});
+export type StatsOverviewResponse = z.infer<typeof StatsOverviewResponse>;

@@ -92,3 +92,62 @@ describe("GET /api/stats/by-skill", () => {
     expect(res.body.by_skill.grammar.accuracy_30d).toBeNull();
   });
 });
+
+describe("GET /api/stats/overview", () => {
+  it("returns empty-but-shaped data with no reviews", async () => {
+    const res = await request(app).get("/api/stats/overview?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.streak_days).toBe(0);
+    expect(res.body.longest_streak).toBe(0);
+    expect(res.body.total_reviewed).toBe(0);
+    expect(res.body.overall_accuracy).toBeNull();
+    expect(res.body.daily_reviews).toHaveLength(30);
+    expect(res.body.daily_reviews.every((n: number) => n === 0)).toBe(true);
+    expect(res.body.hardest_cards).toEqual([]);
+  });
+
+  it("computes totals, accuracy, longest streak and today's daily count", async () => {
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    // Two consecutive days, then a gap, then today → longest run 2, current 1.
+    await insertItemWithReview(new Date(now).toISOString());
+    await insertItemWithReview(new Date(now - 3 * day).toISOString());
+    await insertItemWithReview(new Date(now - 4 * day).toISOString());
+
+    const res = await request(app).get("/api/stats/overview?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.total_reviewed).toBe(3);
+    expect(res.body.overall_accuracy).toBeCloseTo(1.0, 5); // all got_it
+    expect(res.body.streak_days).toBe(1);
+    expect(res.body.longest_streak).toBe(2);
+    expect(res.body.daily_reviews).toHaveLength(30);
+    expect(res.body.daily_reviews[29]).toBe(1); // today is the last slot
+  });
+
+  it("surfaces the lowest-accuracy cards with ≥3 reviews", async () => {
+    const mk = await pool.query(
+      `INSERT INTO items (skill, prompt, answer, source, external_id)
+       VALUES ('grammar', $1, $2, 'seed', $3) RETURNING id`,
+      [
+        JSON.stringify({ sentence_ruby: "x", pattern: "～なければならない", sentence_english: "x" }),
+        JSON.stringify({ explanation: "must do" }),
+        `hard-${Math.random()}`,
+      ],
+    );
+    const id = mk.rows[0].id;
+    // 4 reviews, 2 missed → accuracy 0.5
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, total_reviews, total_missed)
+       VALUES ($1, 1, now(), 4, 2)`,
+      [id],
+    );
+    const res = await request(app).get("/api/stats/overview?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.hardest_cards).toHaveLength(1);
+    expect(res.body.hardest_cards[0]).toMatchObject({ skill: "grammar", front: "～なければならない" });
+    expect(res.body.hardest_cards[0].accuracy).toBeCloseTo(0.5, 5);
+  });
+
+  it("rejects an invalid timezone", async () => {
+    const res = await request(app).get("/api/stats/overview?tz=Not/AZone").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(400);
+  });
+});
