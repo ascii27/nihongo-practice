@@ -59,6 +59,14 @@ describe("GET /api/dashboard", () => {
     expect(res.body.by_skill.conjugation).toEqual({ due: 0, new: 0 });
   });
 
+  it("reports the actual count of new items (no NEW_CAP clamp)", async () => {
+    // 15 unstudied vocab items — well past the previous cap of 10.
+    for (let i = 0; i < 15; i++) await insertItem("vocab");
+    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.by_skill.vocab).toEqual({ due: 0, new: 15 });
+  });
+
   it("returns last_practiced_at as the most recent review", async () => {
     const id = await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 60 });
     const earlier = new Date(Date.now() - 120 * 60_000).toISOString();

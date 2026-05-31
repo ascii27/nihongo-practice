@@ -3,7 +3,6 @@ import { pool } from "../db/pool.js";
 import { computeStreak } from "../services/streak.js";
 
 const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle"] as const;
-const NEW_CAP = 10;
 
 export const dashboardRouter = Router();
 
@@ -17,13 +16,14 @@ dashboardRouter.get("/", async (_req, res) => {
   );
   const due = new Map(dueRes.rows.map((r) => [r.skill, Number(r.c)]));
 
-  // New counts per skill: items with no review_state, capped at NEW_CAP per skill.
+  // New counts per skill: items with no review_state. The actual session size
+  // is still bounded by the queue's own NEW_CAP — this count is the visible
+  // pool, so a bulk-imported deck (300+ vocab) is reflected honestly.
   const newRes = await pool.query<{ skill: string; c: string }>(
-    `SELECT i.skill, LEAST(count(*), $1)::text AS c
+    `SELECT i.skill, count(*)::text AS c
        FROM items i LEFT JOIN review_state rs ON rs.item_id = i.id
       WHERE rs.item_id IS NULL
       GROUP BY i.skill`,
-    [NEW_CAP],
   );
   const fresh = new Map(newRes.rows.map((r) => [r.skill, Number(r.c)]));
 
