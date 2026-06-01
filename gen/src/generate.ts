@@ -8,6 +8,8 @@ import {
   buildConjugationPrompt,
   buildReadingPrompt,
   buildManualVocabPrompt,
+  buildExplainPrompt,
+  buildExplainGradePrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -18,6 +20,8 @@ import {
   parseConjugationBatch,
   parseReadingBatch,
   parseManualVocab,
+  parseExplainBatch,
+  parseExplainGrade,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
@@ -25,9 +29,11 @@ import {
   type ConjugationItem,
   type ReadingItem,
   type ManualVocabItem,
+  type ExplainItem,
+  type ExplainGradeRaw,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 const MAX_TOKENS = 2000;
@@ -230,6 +236,72 @@ const MANUAL_VOCAB_FAKE: ManualVocabItem = {
   sentence_japanese: "これはテストです。",
   sentence_english: "This is a test.",
 };
+
+const EXPLAIN_FAKE: ExplainItem[] = [
+  {
+    task_english: "Explain to a colleague why your team migrated to TiDB.",
+    task_japanese: "同僚に、チームがTiDBへ移行した理由を説明してください。",
+    required_connectives: ["つまり", "その結果", "一方で"],
+    register: "polite",
+    model_explanation_japanese: "結論として、私たちはTiDBへ移行しました。理由はスケーラビリティです。その結果、書き込み性能が向上しました。一方で、運用コストは少し増えました。",
+    rubric_notes: "State the conclusion first, give a reason, a concrete result, then a trade-off.",
+  },
+  {
+    task_english: "Explain why last week's incident happened.",
+    task_japanese: "先週の障害がなぜ起きたのか説明してください。",
+    required_connectives: ["なぜなら", "したがって"],
+    register: "formal",
+    model_explanation_japanese: "障害はデプロイ時に発生しました。なぜなら、設定の検証が不十分だったからです。したがって、検証手順を追加しました。",
+    rubric_notes: "Identify cause, justify with なぜなら, conclude with a したがって follow-up action.",
+  },
+];
+
+const EXPLAIN_GRADE_FAKE: ExplainGradeRaw = {
+  connective_use: 1, structure: 1, register: 1, grammar: 1, overall: 1,
+  corrected_japanese: "結論として、移行しました。その結果、性能が向上しました。",
+  feedback: "Clear structure and correct connective use.",
+};
+
+export async function generateExplainBatch(args: {
+  count: number;
+  weakness_hint?: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ExplainItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = EXPLAIN_FAKE.slice(0, Math.min(args.count, EXPLAIN_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildExplainPrompt({ count: args.count, weakness_hint: args.weakness_hint });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ExplainItem[]>({
+    system, user, parse: parseExplainBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
+}
+
+export async function gradeExplanationRaw(args: {
+  task_english: string;
+  required_connectives: string[];
+  register: string;
+  answer_given: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ grade: ExplainGradeRaw; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return {
+      grade: EXPLAIN_GRADE_FAKE,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(EXPLAIN_GRADE_FAKE),
+    };
+  }
+  const { system, user } = buildExplainGradePrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ExplainGradeRaw>({
+    system, user, parse: parseExplainGrade, client, signal: args.signal,
+  });
+  return { grade: value, usage, raw };
+}
 
 export async function generateManualVocab(args: {
   input: string;
