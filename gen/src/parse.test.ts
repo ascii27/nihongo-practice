@@ -269,8 +269,9 @@ describe("parseExplainBatch", () => {
     ]});
     const items = parseExplainBatch(raw);
     expect(items).toHaveLength(1);
-    expect(items[0].register).toBe("polite");
-    expect(items[0].required_connectives).toEqual(["つまり", "その結果", "一方で"]);
+    expect(items).toMatchObject([
+      { register: "polite", required_connectives: ["つまり", "その結果", "一方で"] },
+    ]);
   });
 
   it("throws when register is invalid", () => {
