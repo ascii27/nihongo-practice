@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -223,5 +223,34 @@ describe("parseReadingBatch", () => {
   it("strips fences", () => {
     const inner = JSON.stringify({ items: [{ passage_japanese: "x", question_english: "y", answer_english: "z" }] });
     expect(parseReadingBatch("```json\n" + inner + "\n```")).toHaveLength(1);
+  });
+});
+
+describe("parseManualVocab", () => {
+  it("parses a single object (no items wrapper)", () => {
+    const raw = JSON.stringify({
+      japanese: "食べる",
+      english: "to eat",
+      sentence_japanese: "ご飯を食べる。",
+      sentence_english: "I eat rice.",
+    });
+    const out = parseManualVocab(raw);
+    expect(out).toEqual({
+      japanese: "食べる",
+      english: "to eat",
+      sentence_japanese: "ご飯を食べる。",
+      sentence_english: "I eat rice.",
+    });
+  });
+
+  it("strips fences", () => {
+    const inner = JSON.stringify({
+      japanese: "猫", english: "cat", sentence_japanese: "猫が好き。", sentence_english: "I like cats.",
+    });
+    expect(parseManualVocab("```json\n" + inner + "\n```").japanese).toBe("猫");
+  });
+
+  it("throws on missing required field", () => {
+    expect(() => parseManualVocab(JSON.stringify({ japanese: "x", english: "y" }))).toThrow();
   });
 });

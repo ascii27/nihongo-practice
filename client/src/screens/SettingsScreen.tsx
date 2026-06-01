@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { auth } from "../auth";
 import { fetchGenerations, fetchSettingsStatus } from "../api-hooks";
 import { GenerateForm } from "../components/GenerateForm";
+import { ManualItemForm } from "../components/ManualItemForm";
 import { IconChevron } from "../components/icons";
 import type { GenerationSummary } from "@nihongo/shared";
 
@@ -56,6 +57,11 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="settings__section">
+        <h2 className="settings__section-title">Add a word</h2>
+        <ManualItemForm onSaved={() => setRefreshTick((n) => n + 1)} />
       </div>
 
       <div className="settings__section">

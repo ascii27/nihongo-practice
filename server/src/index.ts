@@ -13,6 +13,7 @@ import { generationsRouter } from "./routes/generations.js";
 import { settingsRouter } from "./routes/settings.js";
 import { dashboardRouter } from "./routes/dashboard.js";
 import { libraryRouter } from "./routes/library.js";
+import { itemsRouter } from "./routes/items.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../../client/dist");
@@ -29,6 +30,7 @@ export function createApp() {
   app.use("/api/stats", statsRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/library", libraryRouter);
+  app.use("/api/items", itemsRouter);
   app.use("/api/generate", generateRouter);
   app.use("/api/generations", generationsRouter);
   app.use("/api/settings", settingsRouter);

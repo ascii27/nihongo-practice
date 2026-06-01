@@ -7,6 +7,7 @@ import {
   buildParticlePrompt,
   buildConjugationPrompt,
   buildReadingPrompt,
+  buildManualVocabPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -16,15 +17,17 @@ import {
   parseParticleBatch,
   parseConjugationBatch,
   parseReadingBatch,
+  parseManualVocab,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
   type ParticleItem,
   type ConjugationItem,
   type ReadingItem,
+  type ManualVocabItem,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 const MAX_TOKENS = 2000;
@@ -217,4 +220,33 @@ export async function generateSentencesForCards(
     system, user, parse: parseSentencesForCards, client,
   });
   return { sentences: value, usage, raw };
+}
+
+// Deterministic stub for tests / NIHONGO_FAKE_AI=1. Doesn't try to translate;
+// the route tests just need a well-formed item back.
+const MANUAL_VOCAB_FAKE: ManualVocabItem = {
+  japanese: "テスト",
+  english: "test",
+  sentence_japanese: "これはテストです。",
+  sentence_english: "This is a test.",
+};
+
+export async function generateManualVocab(args: {
+  input: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ item: ManualVocabItem; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return {
+      item: MANUAL_VOCAB_FAKE,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(MANUAL_VOCAB_FAKE),
+    };
+  }
+  const { system, user } = buildManualVocabPrompt(args.input);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ManualVocabItem>({
+    system, user, parse: parseManualVocab, client, signal: args.signal,
+  });
+  return { item: value, usage, raw };
 }

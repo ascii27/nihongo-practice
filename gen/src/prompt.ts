@@ -32,6 +32,24 @@ export function buildSentencesForCardsPrompt(cards: CardInput[]): PromptPair {
   return { system: SENTENCES_FOR_CARDS_SYSTEM, user };
 }
 
+const MANUAL_VOCAB_SYSTEM = `You help a Japanese learner add a single word or short phrase to their flashcard deck. The user's input may be in English or in Japanese (kanji and/or kana). Detect the language, fill in the missing side, and write a short natural example sentence at about N4 level.
+
+Constraints:
+- "japanese" is the dictionary form in Japanese (kanji + kana as appropriate). Verbs in plain dictionary form (e.g. 食べる, not 食べます).
+- "english" is a concise dictionary-style meaning (1–6 words, no full sentences, no period).
+- "sentence_japanese" is a single natural example sentence (under 20 syllables) containing the word verbatim.
+- "sentence_english" is the English translation of that example sentence.
+
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "japanese": "<JA>", "english": "<EN>", "sentence_japanese": "<JA>", "sentence_english": "<EN>" }`;
+
+export function buildManualVocabPrompt(input: string): PromptPair {
+  return {
+    system: MANUAL_VOCAB_SYSTEM,
+    user: `Input: ${input}`,
+  };
+}
+
 const GRAMMAR_SYSTEM = `You generate Japanese grammar drill cards for an intermediate learner. Each card shows a natural sentence built around a specific pattern. Vary patterns across the batch.
 Reply ONLY with valid JSON in this exact shape, no prose, no fences:
 { "items": [ { "pattern": "<pattern label, e.g. 〜ながら>", "sentence_japanese": "<JA>", "sentence_english": "<EN>", "explanation": "<1–2 sentence explanation>", "another_example_japanese": "<optional second example, JA>" } ] }`;
