@@ -289,3 +289,32 @@ describe("parseExplainBatch", () => {
     expect(() => parseExplainBatch(raw)).toThrow();
   });
 });
+
+describe("parseExplainGrade", () => {
+  it("parses a valid grade", () => {
+    const raw = JSON.stringify({
+      connective_use: 0.8, structure: 0.7, register: 1.0, grammar: 0.9, overall: 0.82,
+      corrected_japanese: "結論として、移行しました。", feedback: "Good structure.",
+    });
+    const g = parseExplainGrade(raw);
+    expect(g.overall).toBeCloseTo(0.82);
+    expect(g.corrected_japanese).toContain("移行");
+  });
+
+  it("clamps out-of-range scores into 0..1", () => {
+    const raw = JSON.stringify({
+      connective_use: 1.4, structure: -0.2, register: 0.5, grammar: 0.5, overall: 2,
+      corrected_japanese: "x", feedback: "x",
+    });
+    const g = parseExplainGrade(raw);
+    expect(g.connective_use).toBe(1);
+    expect(g.structure).toBe(0);
+    expect(g.overall).toBe(1);
+  });
+
+  it("throws when a score is missing", () => {
+    const raw = JSON.stringify({ structure: 0.5, register: 0.5, grammar: 0.5, overall: 0.5,
+      corrected_japanese: "x", feedback: "x" });
+    expect(() => parseExplainGrade(raw)).toThrow();
+  });
+});

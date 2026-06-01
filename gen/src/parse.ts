@@ -202,6 +202,37 @@ export function parseExplainBatch(raw: string): ExplainItem[] {
   return items as ExplainItem[];
 }
 
+export type ExplainGradeRaw = {
+  connective_use: number;
+  structure: number;
+  register: number;
+  grammar: number;
+  overall: number;
+  corrected_japanese: string;
+  feedback: string;
+};
+
+function clamp01(n: unknown): number {
+  if (typeof n !== "number" || Number.isNaN(n)) throw new Error("score is not a number");
+  return Math.max(0, Math.min(1, n));
+}
+
+export function parseExplainGrade(raw: string): ExplainGradeRaw {
+  const p = JSON.parse(stripFences(raw));
+  if (typeof p?.corrected_japanese !== "string" || typeof p?.feedback !== "string") {
+    throw new Error("explain grade missing corrected_japanese/feedback");
+  }
+  return {
+    connective_use: clamp01(p.connective_use),
+    structure: clamp01(p.structure),
+    register: clamp01(p.register),
+    grammar: clamp01(p.grammar),
+    overall: clamp01(p.overall),
+    corrected_japanese: p.corrected_japanese,
+    feedback: p.feedback,
+  };
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;
