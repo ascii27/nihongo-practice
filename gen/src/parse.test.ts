@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -252,5 +252,40 @@ describe("parseManualVocab", () => {
 
   it("throws on missing required field", () => {
     expect(() => parseManualVocab(JSON.stringify({ japanese: "x", english: "y" }))).toThrow();
+  });
+});
+
+describe("parseExplainBatch", () => {
+  it("parses valid explain items", () => {
+    const raw = JSON.stringify({ items: [
+      {
+        task_english: "Explain to a colleague why you migrated to TiDB.",
+        task_japanese: "同僚に、TiDBへ移行する理由を説明してください。",
+        required_connectives: ["つまり", "その結果", "一方で"],
+        register: "polite",
+        model_explanation_japanese: "まず結論として、TiDBに移行しました。その結果、拡張性が向上しました。",
+        rubric_notes: "Should state conclusion first, then reasons.",
+      },
+    ]});
+    const items = parseExplainBatch(raw);
+    expect(items).toHaveLength(1);
+    expect(items[0].register).toBe("polite");
+    expect(items[0].required_connectives).toEqual(["つまり", "その結果", "一方で"]);
+  });
+
+  it("throws when register is invalid", () => {
+    const raw = JSON.stringify({ items: [
+      { task_english: "x", task_japanese: "x", required_connectives: [], register: "shouting",
+        model_explanation_japanese: "x", rubric_notes: "x" },
+    ]});
+    expect(() => parseExplainBatch(raw)).toThrow();
+  });
+
+  it("throws when required_connectives is not a string array", () => {
+    const raw = JSON.stringify({ items: [
+      { task_english: "x", task_japanese: "x", required_connectives: [1, 2], register: "casual",
+        model_explanation_japanese: "x", rubric_notes: "x" },
+    ]});
+    expect(() => parseExplainBatch(raw)).toThrow();
   });
 });

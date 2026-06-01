@@ -170,6 +170,38 @@ export function parseReadingBatch(raw: string): ReadingItem[] {
   return items as ReadingItem[];
 }
 
+export type ExplainItem = {
+  task_english: string;
+  task_japanese: string;
+  required_connectives: string[];
+  register: "casual" | "polite" | "formal";
+  model_explanation_japanese: string;
+  rubric_notes: string;
+};
+
+const REGISTERS = ["casual", "polite", "formal"] as const;
+
+export function parseExplainBatch(raw: string): ExplainItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.task_english !== "string" ||
+      typeof it?.task_japanese !== "string" ||
+      !Array.isArray(it?.required_connectives) ||
+      it.required_connectives.some((c: unknown) => typeof c !== "string") ||
+      typeof it?.register !== "string" ||
+      !REGISTERS.includes(it.register) ||
+      typeof it?.model_explanation_japanese !== "string" ||
+      typeof it?.rubric_notes !== "string"
+    ) {
+      throw new Error("explain item missing or invalid required fields");
+    }
+  }
+  return items as ExplainItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;
