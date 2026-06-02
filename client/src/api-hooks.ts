@@ -17,6 +17,8 @@ import type {
   ManualVocabPreviewResponse,
   ManualVocabSaveRequest,
   ManualVocabSaveResponse,
+  ExplainGradeRequest,
+  ExplainGradeResponse,
   Skill,
 } from "@nihongo/shared";
 
@@ -100,6 +102,13 @@ export function previewManualVocab(input: ManualVocabPreviewRequest): Promise<Ma
 
 export function saveManualVocab(input: ManualVocabSaveRequest): Promise<ManualVocabSaveResponse> {
   return api<ManualVocabSaveResponse>("/api/items/manual", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGradeResponse> {
+  return api<ExplainGradeResponse>("/api/explain/grade", {
     method: "POST",
     body: JSON.stringify(input),
   });
