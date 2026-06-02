@@ -4,7 +4,7 @@ import { itemDisplay, boxToMastery } from "../services/item-display.js";
 
 export const libraryRouter = Router();
 
-const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle"] as const;
+const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle", "explain"] as const;
 type SkillName = (typeof SKILLS)[number];
 
 // Cap items returned per skill — Browse renders a sample beneath a per-skill

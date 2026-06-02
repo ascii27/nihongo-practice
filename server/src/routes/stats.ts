@@ -5,7 +5,7 @@ import { pool } from "../db/pool.js";
 
 export const statsRouter = Router();
 
-const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle"] as const;
+const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle", "explain"] as const;
 
 function validateTz(tz: unknown): tz is string {
   if (typeof tz !== "string" || tz.length === 0) return false;
