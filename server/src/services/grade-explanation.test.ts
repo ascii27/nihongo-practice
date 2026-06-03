@@ -56,6 +56,17 @@ describe("gradeExplanation", () => {
     expect(r.cost_usd).toBeGreaterThan(0);
   });
 
+  it("maps a sub-0.6 overall to missed end-to-end", async () => {
+    const itemId = await insertExplainItem();
+    const client = fakeGradeClient({
+      connective_use: 0.3, structure: 0.4, register: 0.5, grammar: 0.5, overall: 0.4,
+      corrected_japanese: "もっと接続詞を使いましょう。", feedback: "Add connectives.",
+    });
+    const r = await gradeExplanation({ item_id: itemId, answer_given: "移行した。", client });
+    expect(r.result).toBe("missed");
+    expect(r.grade.overall).toBeCloseTo(0.4);
+  });
+
   it("throws when the item does not exist", async () => {
     const client = fakeGradeClient({ connective_use: 1, structure: 1, register: 1, grammar: 1, overall: 1, corrected_japanese: "x", feedback: "x" });
     await expect(

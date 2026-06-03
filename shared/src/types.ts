@@ -97,7 +97,7 @@ export type StreakResponse = z.infer<typeof StreakResponse>;
 // ----- API: generate -----
 
 export const GenerateRequest = z.object({
-  skill: Skill,                                       // all 5 values
+  skill: Skill,                                       // any Skill enum value
   count: z.number().int().min(1).max(50),
   weakness_hint: z.string().max(200).optional(),
 });
