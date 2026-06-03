@@ -128,7 +128,7 @@ describe("generateSentencesForCards", () => {
   });
 });
 
-import { generateGrammarBatch, generateParticleBatch, generateConjugationBatch, generateReadingBatch } from "./generate.js";
+import { generateGrammarBatch, generateParticleBatch, generateConjugationBatch, generateReadingBatch, generateExplainBatch } from "./generate.js";
 
 describe("generateGrammarBatch", () => {
   it("calls the SDK with grammar system prompt and returns parsed items", async () => {
@@ -242,5 +242,45 @@ describe("generateReadingBatch", () => {
       if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
       else process.env.NIHONGO_FAKE_AI = prev;
     }
+  });
+});
+
+function explainItems(n: number): string {
+  const items = Array.from({ length: n }, (_, i) => ({
+    task_english: `task ${i}`,
+    task_japanese: `タスク${i}を説明してください。`,
+    required_connectives: ["つまり", "その結果"],
+    register: "polite",
+    model_explanation_japanese: `結論として説明${i}です。その結果、改善しました。`,
+    rubric_notes: `notes ${i}`,
+  }));
+  return JSON.stringify({ items });
+}
+
+describe("generateExplainBatch", () => {
+  it("splits a large batch into parallel sub-batches of <=4 and concatenates items + usage", async () => {
+    const { client, create } = fakeClient([
+      { text: explainItems(4), in: 300, out: 1800 },
+      { text: explainItems(4), in: 300, out: 1800 },
+      { text: explainItems(2), in: 300, out: 900 },
+    ]);
+    const r = await generateExplainBatch({ count: 10, client });
+    expect(create).toHaveBeenCalledTimes(3);
+    expect(r.items).toHaveLength(10);
+    // Each sub-batch requests at most 4 items.
+    const requested = create.mock.calls.map((c: any) =>
+      Number(/Generate (\d+) explanation/.exec(c[0].messages[0].content)?.[1]),
+    );
+    expect(requested.sort((a: number, b: number) => b - a)).toEqual([4, 4, 2]);
+    // Usage is summed across sub-batches.
+    expect(r.usage.input_tokens).toBe(900);
+    expect(r.usage.output_tokens).toBe(4500);
+  });
+
+  it("makes a single call when count is within one chunk", async () => {
+    const { client, create } = fakeClient([{ text: explainItems(3) }]);
+    const r = await generateExplainBatch({ count: 3, client });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(r.items).toHaveLength(3);
   });
 });

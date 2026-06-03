@@ -36,7 +36,16 @@ import {
 export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
-const MAX_TOKENS = 2000;
+// Raised from 2000: explain items are token-heavy (~450 tok each), so even a
+// small sub-batch needs headroom to avoid truncating the JSON mid-response.
+// This is only a ceiling — compact skills still bill for what they actually use.
+const MAX_TOKENS = 4096;
+
+// explain drills are far more verbose than other skills (a 2–4 sentence model
+// answer + rubric notes per item). A single 10-item call takes ~60s and both
+// truncates at MAX_TOKENS and overruns the request timeout, so explain requests
+// are split into parallel sub-batches of this size (~25s each, run concurrently).
+const EXPLAIN_CHUNK = 4;
 
 export class GenerateError extends Error {
   constructor(message: string, public usage: Usage, public raw: string | null) {
@@ -272,12 +281,35 @@ export async function generateExplainBatch(args: {
     const items = EXPLAIN_FAKE.slice(0, Math.min(args.count, EXPLAIN_FAKE.length));
     return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
   }
-  const { system, user } = buildExplainPrompt({ count: args.count, weakness_hint: args.weakness_hint });
   const client = (args.client ?? new Anthropic()) as ClientLike;
-  const { value, usage, raw } = await callWithRetry<ExplainItem[]>({
-    system, user, parse: parseExplainBatch, client, signal: args.signal,
-  });
-  return { items: value, usage, raw };
+
+  // Split into sub-batches of EXPLAIN_CHUNK and run them concurrently. A single
+  // 10-item call truncates at MAX_TOKENS and runs ~60s; parallel chunks keep
+  // each call small (no truncation, ~25s) and the wall-clock ≈ one chunk.
+  const chunks: number[] = [];
+  for (let remaining = args.count; remaining > 0; remaining -= EXPLAIN_CHUNK) {
+    chunks.push(Math.min(EXPLAIN_CHUNK, remaining));
+  }
+
+  const results = await Promise.all(
+    chunks.map((n, i) => {
+      const { system, user } = buildExplainPrompt({
+        count: n,
+        weakness_hint: args.weakness_hint,
+        variety_note: chunks.length > 1
+          ? `This is sub-batch ${i + 1} of ${chunks.length}; choose distinct tasks, connectives, and registers so the overall set stays varied.`
+          : undefined,
+      });
+      return callWithRetry<ExplainItem[]>({ system, user, parse: parseExplainBatch, client, signal: args.signal });
+    }),
+  );
+
+  const items = results.flatMap((r) => r.value);
+  const usage: Usage = {
+    input_tokens: results.reduce((sum, r) => sum + r.usage.input_tokens, 0),
+    output_tokens: results.reduce((sum, r) => sum + r.usage.output_tokens, 0),
+  };
+  return { items, usage, raw: JSON.stringify({ items }) };
 }
 
 export async function gradeExplanationRaw(args: {

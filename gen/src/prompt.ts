@@ -103,12 +103,18 @@ Vary the task topic, the required connectives, and the register across the batch
 Reply ONLY with valid JSON in this exact shape, no prose, no fences:
 { "items": [ { "task_english": "<EN task>", "task_japanese": "<JA task prompt>", "required_connectives": ["<c1>","<c2>"], "register": "casual|polite|formal", "model_explanation_japanese": "<2–4 JA sentences>", "rubric_notes": "<what a strong answer contains, EN>" } ] }`;
 
-export function buildExplainPrompt(args: { count: number; weakness_hint?: string }): PromptPair {
+export function buildExplainPrompt(args: { count: number; weakness_hint?: string; variety_note?: string }): PromptPair {
   const lines: string[] = [`Generate ${args.count} explanation drills.`];
   if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
     lines.push(`Focus on: ${args.weakness_hint.trim()}`);
   } else {
     lines.push("Seed the tasks from real software-work topics: platform migrations, reliability/incidents, and planning.");
+  }
+  // When a request is split into parallel sub-batches (see generateExplainBatch),
+  // each sub-batch gets this nudge so the concatenated set stays varied even
+  // though the calls can't see each other.
+  if (args.variety_note && args.variety_note.trim().length > 0) {
+    lines.push(args.variety_note.trim());
   }
   return { system: EXPLAIN_SYSTEM, user: lines.join("\n") };
 }
