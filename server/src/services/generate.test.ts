@@ -196,3 +196,37 @@ describe("runGeneration reading", () => {
     expect(items.rows[0].answer.answer_japanese_ruby).toContain("<ruby>");
   });
 });
+
+describe("runGeneration explain", () => {
+  it("inserts explain items with ruby-enriched task + model explanation", async () => {
+    const client = {
+      messages: {
+        create: vi.fn().mockResolvedValue({
+          content: [{ type: "text", text: JSON.stringify({ items: [
+            {
+              task_english: "Explain why you migrated to TiDB.",
+              task_japanese: "TiDBへ移行した理由を説明してください。",
+              required_connectives: ["つまり", "その結果"],
+              register: "polite",
+              model_explanation_japanese: "結論として移行しました。その結果、性能が向上しました。",
+              rubric_notes: "Conclusion first.",
+            },
+          ]})}],
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }),
+      },
+    };
+    const r = await runGeneration({ skill: "explain", count: 1, client });
+    expect(r.status).toBe("success");
+    expect(r.items_created).toBe(1);
+
+    const items = await pool.query("SELECT skill, prompt, answer FROM items");
+    expect(items.rows[0].skill).toBe("explain");
+    expect(items.rows[0].prompt.task_english).toContain("TiDB");
+    expect(items.rows[0].prompt.required_connectives).toEqual(["つまり", "その結果"]);
+    expect(items.rows[0].prompt.register).toBe("polite");
+    expect(items.rows[0].prompt.task_japanese_ruby).toContain("<ruby>");
+    expect(items.rows[0].answer.model_explanation_ruby).toContain("<ruby>");
+    expect(items.rows[0].answer.rubric_notes).toBeTruthy();
+  });
+});

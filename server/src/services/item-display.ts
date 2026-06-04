@@ -60,6 +60,12 @@ export function itemDisplay(skill: Skill, prompt: unknown, answer: unknown): Ite
         reading: null,
         meaning: str(a.answer_english),
       };
+    case "explain":
+      return {
+        front: stripRuby(str(p.task_japanese_ruby)) || str(p.task_english),
+        reading: null,
+        meaning: str(p.task_english),
+      };
     default:
       return { front: "", reading: null, meaning: "" };
   }

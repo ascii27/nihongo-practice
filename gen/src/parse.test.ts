@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -252,5 +252,70 @@ describe("parseManualVocab", () => {
 
   it("throws on missing required field", () => {
     expect(() => parseManualVocab(JSON.stringify({ japanese: "x", english: "y" }))).toThrow();
+  });
+});
+
+describe("parseExplainBatch", () => {
+  it("parses valid explain items", () => {
+    const raw = JSON.stringify({ items: [
+      {
+        task_english: "Explain to a colleague why you migrated to TiDB.",
+        task_japanese: "同僚に、TiDBへ移行する理由を説明してください。",
+        required_connectives: ["つまり", "その結果", "一方で"],
+        register: "polite",
+        model_explanation_japanese: "まず結論として、TiDBに移行しました。その結果、拡張性が向上しました。",
+        rubric_notes: "Should state conclusion first, then reasons.",
+      },
+    ]});
+    const items = parseExplainBatch(raw);
+    expect(items).toHaveLength(1);
+    expect(items).toMatchObject([
+      { register: "polite", required_connectives: ["つまり", "その結果", "一方で"] },
+    ]);
+  });
+
+  it("throws when register is invalid", () => {
+    const raw = JSON.stringify({ items: [
+      { task_english: "x", task_japanese: "x", required_connectives: [], register: "shouting",
+        model_explanation_japanese: "x", rubric_notes: "x" },
+    ]});
+    expect(() => parseExplainBatch(raw)).toThrow();
+  });
+
+  it("throws when required_connectives is not a string array", () => {
+    const raw = JSON.stringify({ items: [
+      { task_english: "x", task_japanese: "x", required_connectives: [1, 2], register: "casual",
+        model_explanation_japanese: "x", rubric_notes: "x" },
+    ]});
+    expect(() => parseExplainBatch(raw)).toThrow();
+  });
+});
+
+describe("parseExplainGrade", () => {
+  it("parses a valid grade", () => {
+    const raw = JSON.stringify({
+      connective_use: 0.8, structure: 0.7, register: 1.0, grammar: 0.9, overall: 0.82,
+      corrected_japanese: "結論として、移行しました。", feedback: "Good structure.",
+    });
+    const g = parseExplainGrade(raw);
+    expect(g.overall).toBeCloseTo(0.82);
+    expect(g.corrected_japanese).toContain("移行");
+  });
+
+  it("clamps out-of-range scores into 0..1", () => {
+    const raw = JSON.stringify({
+      connective_use: 1.4, structure: -0.2, register: 0.5, grammar: 0.5, overall: 2,
+      corrected_japanese: "x", feedback: "x",
+    });
+    const g = parseExplainGrade(raw);
+    expect(g.connective_use).toBe(1);
+    expect(g.structure).toBe(0);
+    expect(g.overall).toBe(1);
+  });
+
+  it("throws when a score is missing", () => {
+    const raw = JSON.stringify({ structure: 0.5, register: 0.5, grammar: 0.5, overall: 0.5,
+      corrected_japanese: "x", feedback: "x" });
+    expect(() => parseExplainGrade(raw)).toThrow();
   });
 });

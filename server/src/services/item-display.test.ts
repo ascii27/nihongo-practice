@@ -54,6 +54,31 @@ describe("itemDisplay", () => {
     expect(d.meaning).toBe("He walks.");
   });
 
+  it("explain: ruby-stripped task as front, english task as meaning", () => {
+    const d = itemDisplay(
+      "explain",
+      {
+        task_english: "Explain why you migrated to TiDB.",
+        task_japanese_ruby: "<ruby>移行<rt>いこう</rt></ruby>した<ruby>理由<rt>りゆう</rt></ruby>",
+        required_connectives: ["つまり"],
+        register: "polite",
+      },
+      { model_explanation_ruby: "…", rubric_notes: "x" },
+    );
+    expect(d.front).toBe("移行した理由");
+    expect(d.reading).toBeNull();
+    expect(d.meaning).toBe("Explain why you migrated to TiDB.");
+  });
+
+  it("explain: falls back to english task when no japanese ruby", () => {
+    const d = itemDisplay(
+      "explain",
+      { task_english: "Explain the incident.", required_connectives: [], register: "formal" },
+      { model_explanation_ruby: "…", rubric_notes: "x" },
+    );
+    expect(d.front).toBe("Explain the incident.");
+  });
+
   it("falls back to ruby-stripped text when a plain field is absent", () => {
     const d = itemDisplay(
       "conjugation",

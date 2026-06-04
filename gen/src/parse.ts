@@ -170,6 +170,69 @@ export function parseReadingBatch(raw: string): ReadingItem[] {
   return items as ReadingItem[];
 }
 
+export type ExplainItem = {
+  task_english: string;
+  task_japanese: string;
+  required_connectives: string[];
+  register: "casual" | "polite" | "formal";
+  model_explanation_japanese: string;
+  rubric_notes: string;
+};
+
+const REGISTERS = ["casual", "polite", "formal"] as const;
+
+export function parseExplainBatch(raw: string): ExplainItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      typeof it?.task_english !== "string" ||
+      typeof it?.task_japanese !== "string" ||
+      !Array.isArray(it?.required_connectives) ||
+      it.required_connectives.some((c: unknown) => typeof c !== "string") ||
+      typeof it?.register !== "string" ||
+      !REGISTERS.includes(it.register) ||
+      typeof it?.model_explanation_japanese !== "string" ||
+      typeof it?.rubric_notes !== "string"
+    ) {
+      throw new Error("explain item missing or invalid required fields");
+    }
+  }
+  return items as ExplainItem[];
+}
+
+export type ExplainGradeRaw = {
+  connective_use: number;
+  structure: number;
+  register: number;
+  grammar: number;
+  overall: number;
+  corrected_japanese: string;
+  feedback: string;
+};
+
+function clamp01(n: unknown): number {
+  if (typeof n !== "number" || Number.isNaN(n)) throw new Error("score is not a number");
+  return Math.max(0, Math.min(1, n));
+}
+
+export function parseExplainGrade(raw: string): ExplainGradeRaw {
+  const p = JSON.parse(stripFences(raw));
+  if (typeof p?.corrected_japanese !== "string" || typeof p?.feedback !== "string") {
+    throw new Error("explain grade missing corrected_japanese/feedback");
+  }
+  return {
+    connective_use: clamp01(p.connective_use),
+    structure: clamp01(p.structure),
+    register: clamp01(p.register),
+    grammar: clamp01(p.grammar),
+    overall: clamp01(p.overall),
+    corrected_japanese: p.corrected_japanese,
+    feedback: p.feedback,
+  };
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

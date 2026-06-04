@@ -24,7 +24,7 @@ export const VocabAnswer = z.object({
 });
 export type VocabAnswer = z.infer<typeof VocabAnswer>;
 
-export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle"]);
+export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain"]);
 export type Skill = z.infer<typeof Skill>;
 
 export const Source = z.enum(["seed", "ai", "user"]);
@@ -97,7 +97,7 @@ export type StreakResponse = z.infer<typeof StreakResponse>;
 // ----- API: generate -----
 
 export const GenerateRequest = z.object({
-  skill: Skill,                                       // all 5 values
+  skill: Skill,                                       // any Skill enum value
   count: z.number().int().min(1).max(50),
   weakness_hint: z.string().max(200).optional(),
 });
@@ -207,6 +207,48 @@ export const ReadingAnswer = z.object({
 });
 export type ReadingAnswer = z.infer<typeof ReadingAnswer>;
 
+// explain — free-text productive explanation, LLM-graded on a rubric
+
+export const ExplainPrompt = z.object({
+  task_english: z.string(),
+  task_japanese_ruby: z.string().optional(),
+  required_connectives: z.array(z.string()),   // e.g. ["つまり","その結果","一方で"]
+  register: z.enum(["casual", "polite", "formal"]),
+});
+export type ExplainPrompt = z.infer<typeof ExplainPrompt>;
+
+export const ExplainAnswer = z.object({
+  model_explanation_ruby: z.string(),          // reference answer, furigana HTML
+  rubric_notes: z.string(),                    // what a strong answer should contain
+});
+export type ExplainAnswer = z.infer<typeof ExplainAnswer>;
+
+export const ExplainGrade = z.object({
+  connective_use: z.number().min(0).max(1),
+  structure: z.number().min(0).max(1),
+  register: z.number().min(0).max(1),
+  grammar: z.number().min(0).max(1),
+  overall: z.number().min(0).max(1),
+  corrected_ruby: z.string(),                  // furigana HTML
+  feedback: z.string(),                        // 1–2 sentences
+});
+export type ExplainGrade = z.infer<typeof ExplainGrade>;
+
+// POST /api/explain/grade — pure scoring, no DB write. Client records the
+// review afterward via POST /api/reviews (idempotency model untouched).
+export const ExplainGradeRequest = z.object({
+  item_id: z.string().uuid(),
+  answer_given: z.string().min(1).max(2000),
+});
+export type ExplainGradeRequest = z.infer<typeof ExplainGradeRequest>;
+
+export const ExplainGradeResponse = z.object({
+  grade: ExplainGrade,
+  result: ReviewResult,                        // overall >= 0.6 → got_it
+  cost_usd: z.number().nonnegative(),
+});
+export type ExplainGradeResponse = z.infer<typeof ExplainGradeResponse>;
+
 // ----- API: dashboard -----
 
 export const SkillCounts = z.object({
@@ -224,6 +266,7 @@ export const DashboardResponse = z.object({
     reading: SkillCounts,
     conjugation: SkillCounts,
     particle: SkillCounts,
+    explain: SkillCounts,
   }),
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
@@ -243,6 +286,7 @@ export const StatsBySkillResponse = z.object({
     reading: SkillStats,
     conjugation: SkillStats,
     particle: SkillStats,
+    explain: SkillStats,
   }),
 });
 export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
@@ -275,6 +319,7 @@ export const LibraryResponse = z.object({
     reading: LibrarySkillGroup,
     conjugation: LibrarySkillGroup,
     particle: LibrarySkillGroup,
+    explain: LibrarySkillGroup,
   }),
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;

@@ -92,6 +92,11 @@ describe("GET /api/queue", () => {
     expect(res.status).toBe(200);
   });
 
+  it("accepts explain skill filter", async () => {
+    const res = await request(app).get("/api/queue?skill=explain").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+  });
+
   it("rejects unsupported skill with 400", async () => {
     const res = await request(app).get("/api/queue?skill=unknown").set("X-Passcode", PASSCODE);
     expect(res.status).toBe(400);

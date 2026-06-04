@@ -2,7 +2,7 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { computeStreak } from "../services/streak.js";
 
-const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle"] as const;
+const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle", "explain"] as const;
 
 export const dashboardRouter = Router();
 

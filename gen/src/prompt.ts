@@ -97,3 +97,51 @@ export function buildReadingPrompt(args: { count: number; weakness_hint?: string
   }
   return { system: READING_SYSTEM, user: lines.join("\n") };
 }
+
+const EXPLAIN_SYSTEM = `You generate Japanese productive-explanation drills for an intermediate-to-advanced learner who works in software (platform, reliability, planning). Each drill gives a real-world workplace task, a set of required connectives the learner must use, a target register, a model answer, and rubric notes.
+Vary the task topic, the required connectives, and the register across the batch. Pick 2–4 required connectives per item from natural discourse connectives (e.g. つまり／その結果／一方で／なぜなら／したがって／例えば). The model answer must be 2–4 natural sentences following 結論→理由→具体例→まとめ and must actually use the required connectives in the chosen register.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "task_english": "<EN task>", "task_japanese": "<JA task prompt>", "required_connectives": ["<c1>","<c2>"], "register": "casual|polite|formal", "model_explanation_japanese": "<2–4 JA sentences>", "rubric_notes": "<what a strong answer contains, EN>" } ] }`;
+
+export function buildExplainPrompt(args: { count: number; weakness_hint?: string; variety_note?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} explanation drills.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  } else {
+    lines.push("Seed the tasks from real software-work topics: platform migrations, reliability/incidents, and planning.");
+  }
+  // When a request is split into parallel sub-batches (see generateExplainBatch),
+  // each sub-batch gets this nudge so the concatenated set stays varied even
+  // though the calls can't see each other.
+  if (args.variety_note && args.variety_note.trim().length > 0) {
+    lines.push(args.variety_note.trim());
+  }
+  return { system: EXPLAIN_SYSTEM, user: lines.join("\n") };
+}
+
+const EXPLAIN_GRADE_SYSTEM = `You grade a Japanese learner's short explanation (2–4 sentences).
+Inputs: the task, the required connectives, the target register, and the learner's text.
+Score each 0.0–1.0: connective_use (required connectives present AND used correctly),
+structure (結論→理由→具体例→まとめ progression), register (target register held throughout),
+grammar (accuracy/naturalness). overall = weighted mean (connective_use and structure
+weighted highest). Provide corrected_japanese (a natural rewrite preserving the learner's
+intent) and feedback (1–2 sentences, concrete, English).
+Reply ONLY with valid JSON, no prose, no fences:
+{ "connective_use": n, "structure": n, "register": n, "grammar": n, "overall": n,
+  "corrected_japanese": "<JA>", "feedback": "<EN>" }`;
+
+export function buildExplainGradePrompt(args: {
+  task_english: string;
+  required_connectives: string[];
+  register: string;
+  answer_given: string;
+}): PromptPair {
+  const user = [
+    `Task: ${args.task_english}`,
+    `Required connectives: ${args.required_connectives.join(" / ") || "(none)"}`,
+    `Target register: ${args.register}`,
+    `Learner's answer:`,
+    args.answer_given,
+  ].join("\n");
+  return { system: EXPLAIN_GRADE_SYSTEM, user };
+}

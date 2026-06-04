@@ -5,6 +5,7 @@ import {
   generateParticleBatch,
   generateConjugationBatch,
   generateReadingBatch,
+  generateExplainBatch,
   toRubyHtml,
   readingFor,
   computeCost,
@@ -16,6 +17,7 @@ import {
   type ParticleItem,
   type ConjugationItem,
   type ReadingItem,
+  type ExplainItem,
 } from "@nihongo/gen";
 import { pool } from "../db/pool.js";
 import type { ItemRecord, Skill } from "@nihongo/shared";
@@ -44,6 +46,7 @@ async function genFor(
     case "particle": return await generateParticleBatch(args);
     case "conjugation": return await generateConjugationBatch(args);
     case "reading": return await generateReadingBatch(args);
+    case "explain": return await generateExplainBatch(args);
     default: throw new Error(`generation for skill='${skill}' not implemented yet`);
   }
 }
@@ -98,6 +101,20 @@ async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
       return {
         prompt: { passage_ruby, question_english: it.question_english },
         answer: { answer_english: it.answer_english, answer_japanese_ruby },
+      };
+    }
+    case "explain": {
+      const it = raw as ExplainItem;
+      const task_japanese_ruby = await toRubyHtml(it.task_japanese);
+      const model_explanation_ruby = await toRubyHtml(it.model_explanation_japanese);
+      return {
+        prompt: {
+          task_english: it.task_english,
+          task_japanese_ruby,
+          required_connectives: it.required_connectives,
+          register: it.register,
+        },
+        answer: { model_explanation_ruby, rubric_notes: it.rubric_notes },
       };
     }
     default:

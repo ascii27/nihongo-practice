@@ -4,6 +4,7 @@ import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 import { TypedInputCard } from "../components/TypedInputCard";
+import { ProductionCard } from "../components/ProductionCard";
 import { IconClose } from "../components/icons";
 
 type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
@@ -130,7 +131,9 @@ export function PracticeScreen({ onDone, skill }: Props) {
         <span className="practice-bar__count">{index + 1}/{items.length}</span>
       </div>
       <div className="practice-stage">
-        {current.skill === "particle" ? (
+        {current.skill === "explain" ? (
+          <ProductionCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
+        ) : current.skill === "particle" ? (
           <MultipleChoiceCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : current.skill === "conjugation" ? (
           <TypedInputCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
