@@ -110,4 +110,36 @@ describe("POST /api/reviews", () => {
     const r = await pool.query(`SELECT answer_given FROM reviews WHERE item_id = $1`, [itemId]);
     expect(r.rows[0].answer_given).toBe("食べました");
   });
+
+  it("suspends an item when total_missed reaches 8", async () => {
+    const itemId = await insertItem();
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, total_reviews, total_missed)
+       VALUES ($1, 1, now() - interval '1 hour', 10, 7)`,
+      [itemId],
+    );
+    await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "missed", reviewed_at: new Date().toISOString() });
+    const r = await pool.query(`SELECT total_missed, suspended FROM review_state WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].total_missed).toBe(8);
+    expect(r.rows[0].suspended).toBe(true);
+  });
+
+  it("does not suspend below 8 misses", async () => {
+    const itemId = await insertItem();
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, total_reviews, total_missed)
+       VALUES ($1, 1, now() - interval '1 hour', 10, 6)`,
+      [itemId],
+    );
+    await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "missed", reviewed_at: new Date().toISOString() });
+    const r = await pool.query(`SELECT total_missed, suspended FROM review_state WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].total_missed).toBe(7);
+    expect(r.rows[0].suspended).toBe(false);
+  });
 });
