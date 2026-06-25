@@ -135,4 +135,15 @@ describe("GET /api/queue", () => {
     const res = await request(app).get("/api/queue").set("X-Passcode", PASSCODE);
     expect(res.body.due).toHaveLength(20);
   });
+
+  it("counts items introduced today against the cap with a skill filter and non-UTC tz", async () => {
+    const seen = await insertItem({ external_id: "seen-tz", box: 1, nextReviewMinutesAgo: 120 });
+    await recordNewExposureToday(seen);
+    for (let i = 0; i < 12; i++) await insertItem({ external_id: `fresh-tz-${i}` });
+    const res = await request(app)
+      .get("/api/queue?skill=vocab&tz=America/New_York")
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.new).toHaveLength(9);
+  });
 });
