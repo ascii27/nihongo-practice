@@ -5,6 +5,17 @@ export const queueRouter = Router();
 
 const SUPPORTED_SKILLS = new Set(["vocab", "grammar", "particle", "conjugation", "reading", "explain"]);
 
+function resolveTz(raw: unknown): string {
+  if (typeof raw !== "string" || raw.length === 0) return "UTC";
+  try {
+    // Throws RangeError on an invalid IANA zone name.
+    new Intl.DateTimeFormat("en-US", { timeZone: raw });
+    return raw;
+  } catch {
+    return "UTC";
+  }
+}
+
 queueRouter.get("/", async (req, res) => {
   const skillParam = req.query.skill;
   let skill: string | undefined;
@@ -16,6 +27,7 @@ queueRouter.get("/", async (req, res) => {
     skill = skillParam;
   }
   const limit = Math.min(Math.max(Number(req.query.limit ?? 100), 1), 500);
-  const payload = await buildQueue({ limit, skill });
+  const tz = resolveTz(req.query.tz);
+  const payload = await buildQueue({ limit, skill, tz });
   res.json(payload);
 });
