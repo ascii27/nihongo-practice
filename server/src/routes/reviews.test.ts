@@ -142,4 +142,20 @@ describe("POST /api/reviews", () => {
     expect(r.rows[0].total_missed).toBe(7);
     expect(r.rows[0].suspended).toBe(false);
   });
+
+  it("stays suspended on a later got_it (one-way contract)", async () => {
+    const itemId = await insertItem();
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, total_reviews, total_missed, suspended)
+       VALUES ($1, 1, now() - interval '1 hour', 12, 8, true)`,
+      [itemId],
+    );
+    await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString() });
+    const r = await pool.query(`SELECT total_missed, suspended FROM review_state WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].total_missed).toBe(8);
+    expect(r.rows[0].suspended).toBe(true);
+  });
 });

@@ -59,7 +59,7 @@ reviewsRouter.post("/", async (req, res) => {
 
     // Load existing state, if any
     const stateRes = await client.query(
-      `SELECT box, next_review_at, last_reviewed_at, total_reviews, total_missed
+      `SELECT box, next_review_at, last_reviewed_at, total_reviews, total_missed, suspended
          FROM review_state WHERE item_id = $1`,
       [item_id],
     );
@@ -69,11 +69,12 @@ reviewsRouter.post("/", async (req, res) => {
       last_reviewed_at: stateRes.rows[0].last_reviewed_at,
       total_reviews: stateRes.rows[0].total_reviews,
       total_missed: stateRes.rows[0].total_missed,
+      suspended: stateRes.rows[0].suspended,
     };
 
     const next = nextState(prev, result, new Date());
 
-    const suspended = next.total_missed >= 8;
+    const suspended = (prev?.suspended ?? false) || next.total_missed >= 8;
 
     // Upsert review_state
     await client.query(
