@@ -23,8 +23,10 @@ import type {
 } from "@nihongo/shared";
 
 export function fetchQueue(skill?: Skill): Promise<QueueResponse> {
-  const qs = skill ? `?skill=${encodeURIComponent(skill)}` : "";
-  return api<QueueResponse>(`/api/queue${qs}`);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const params = new URLSearchParams({ tz });
+  if (skill) params.set("skill", skill);
+  return api<QueueResponse>(`/api/queue?${params.toString()}`);
 }
 
 export function fetchStreak(): Promise<StreakResponse> {
