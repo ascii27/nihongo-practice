@@ -24,7 +24,7 @@ export const VocabAnswer = z.object({
 });
 export type VocabAnswer = z.infer<typeof VocabAnswer>;
 
-export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain"]);
+export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening"]);
 export type Skill = z.infer<typeof Skill>;
 
 export const Source = z.enum(["seed", "ai", "user"]);
@@ -249,6 +249,31 @@ export const ExplainGradeResponse = z.object({
 });
 export type ExplainGradeResponse = z.infer<typeof ExplainGradeResponse>;
 
+// ----- Listening item -----
+
+export const ListeningQuestion = z.object({
+  question_english: z.string(),
+  options: z.array(z.string()).length(4),
+  answer_index: z.number().int().min(0).max(3),
+});
+export type ListeningQuestion = z.infer<typeof ListeningQuestion>;
+
+export const ListeningPrompt = z.object({
+  audio_url: z.string(),                       // e.g. "/audio/<uuid>.mp3"
+  audio_kind: z.enum(["monologue", "dialogue"]),
+  topic: z.string(),
+  jlpt_level: z.string(),                       // "N5".."N1"
+  questions: z.array(ListeningQuestion).min(1).max(4),
+});
+export type ListeningPrompt = z.infer<typeof ListeningPrompt>;
+
+export const ListeningAnswer = z.object({
+  transcript_ruby: z.string(),                  // furigana HTML, revealed after answering
+  translation_english: z.string(),
+  question_explanations: z.array(z.string()).optional(),
+});
+export type ListeningAnswer = z.infer<typeof ListeningAnswer>;
+
 // ----- API: dashboard -----
 
 export const SkillCounts = z.object({
@@ -267,6 +292,7 @@ export const DashboardResponse = z.object({
     conjugation: SkillCounts,
     particle: SkillCounts,
     explain: SkillCounts,
+    listening: SkillCounts,
   }),
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
@@ -287,6 +313,7 @@ export const StatsBySkillResponse = z.object({
     conjugation: SkillStats,
     particle: SkillStats,
     explain: SkillStats,
+    listening: SkillStats,
   }),
 });
 export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
@@ -320,6 +347,7 @@ export const LibraryResponse = z.object({
     conjugation: LibrarySkillGroup,
     particle: LibrarySkillGroup,
     explain: LibrarySkillGroup,
+    listening: LibrarySkillGroup,
   }),
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;

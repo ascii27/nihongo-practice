@@ -29,7 +29,7 @@ describe("nextState", () => {
   it("box 1 got_it -> box 2, +3d", () => {
     const prev: ReviewStateRow = {
       box: 1, total_reviews: 5, total_missed: 1,
-      next_review_at: NOW, last_reviewed_at: NOW,
+      next_review_at: NOW, last_reviewed_at: NOW, suspended: false,
     };
     const result = nextState(prev, "got_it", NOW);
     expect(result.box).toBe(2);
@@ -39,31 +39,31 @@ describe("nextState", () => {
   });
 
   it("box 2 got_it -> box 3, +7d", () => {
-    const prev: ReviewStateRow = { box: 2, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW };
+    const prev: ReviewStateRow = { box: 2, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW, suspended: false };
     expect(nextState(prev, "got_it", NOW).box).toBe(3);
     expect(nextState(prev, "got_it", NOW).next_review_at).toEqual(plusDays(NOW, 7));
   });
 
   it("box 3 got_it -> box 4, +14d", () => {
-    const prev: ReviewStateRow = { box: 3, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW };
+    const prev: ReviewStateRow = { box: 3, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW, suspended: false };
     expect(nextState(prev, "got_it", NOW).box).toBe(4);
     expect(nextState(prev, "got_it", NOW).next_review_at).toEqual(plusDays(NOW, 14));
   });
 
   it("box 4 got_it -> box 5, +30d", () => {
-    const prev: ReviewStateRow = { box: 4, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW };
+    const prev: ReviewStateRow = { box: 4, total_reviews: 1, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW, suspended: false };
     expect(nextState(prev, "got_it", NOW).box).toBe(5);
     expect(nextState(prev, "got_it", NOW).next_review_at).toEqual(plusDays(NOW, 30));
   });
 
   it("box 5 got_it stays at box 5, +30d", () => {
-    const prev: ReviewStateRow = { box: 5, total_reviews: 10, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW };
+    const prev: ReviewStateRow = { box: 5, total_reviews: 10, total_missed: 0, next_review_at: NOW, last_reviewed_at: NOW, suspended: false };
     expect(nextState(prev, "got_it", NOW).box).toBe(5);
     expect(nextState(prev, "got_it", NOW).next_review_at).toEqual(plusDays(NOW, 30));
   });
 
   it("missed from any box -> box 1, +1d, missed counter increments", () => {
-    const prev: ReviewStateRow = { box: 4, total_reviews: 8, total_missed: 1, next_review_at: NOW, last_reviewed_at: NOW };
+    const prev: ReviewStateRow = { box: 4, total_reviews: 8, total_missed: 1, next_review_at: NOW, last_reviewed_at: NOW, suspended: false };
     const result = nextState(prev, "missed", NOW);
     expect(result.box).toBe(1);
     expect(result.next_review_at).toEqual(plusDays(NOW, 1));

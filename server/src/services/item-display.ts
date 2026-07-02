@@ -66,6 +66,15 @@ export function itemDisplay(skill: Skill, prompt: unknown, answer: unknown): Ite
         reading: null,
         meaning: str(p.task_english),
       };
+    case "listening": {
+      const kind = str(p.audio_kind) || "clip";
+      const n = Array.isArray(p.questions) ? p.questions.length : 0;
+      return {
+        front: `${kind}: ${str(p.topic)}`,
+        reading: str(p.jlpt_level) || null,
+        meaning: `${n} question${n === 1 ? "" : "s"}`,
+      };
+    }
     default:
       return { front: "", reading: null, meaning: "" };
   }

@@ -6,6 +6,8 @@ import {
   generateConjugationBatch,
   generateReadingBatch,
   generateExplainBatch,
+  generateListeningBatch,
+  synthesizeSpeech,
   toRubyHtml,
   readingFor,
   computeCost,
@@ -18,9 +20,11 @@ import {
   type ConjugationItem,
   type ReadingItem,
   type ExplainItem,
+  type ListeningGenItem,
 } from "@nihongo/gen";
 import { pool } from "../db/pool.js";
 import type { ItemRecord, Skill } from "@nihongo/shared";
+import { saveAudio } from "./audio-store.js";
 
 export type RunResult = {
   generation_id: string;
@@ -34,7 +38,7 @@ type AnthropicLike = { messages: { create: (body: unknown, opts?: { signal?: Abo
 
 // Each skill provides (a) a batch generator and (b) an enricher that turns
 // the parsed item into the {prompt, answer} jsonb pair stored in `items`.
-type Enriched = { prompt: unknown; answer: unknown };
+type Enriched = { prompt: unknown; answer: unknown; audio_cost_usd?: number };
 
 async function genFor(
   skill: Skill,
@@ -47,6 +51,7 @@ async function genFor(
     case "conjugation": return await generateConjugationBatch(args);
     case "reading": return await generateReadingBatch(args);
     case "explain": return await generateExplainBatch(args);
+    case "listening": return await generateListeningBatch(args);
     default: throw new Error(`generation for skill='${skill}' not implemented yet`);
   }
 }
@@ -117,6 +122,31 @@ async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
         answer: { model_explanation_ruby, rubric_notes: it.rubric_notes },
       };
     }
+    case "listening": {
+      const it = raw as ListeningGenItem;
+      const { audio, cost_usd } = await synthesizeSpeech(it.segments);
+      const { audio_url } = await saveAudio(audio);
+      const transcript_ruby = await toRubyHtml(it.transcript_japanese);
+      return {
+        prompt: {
+          audio_url,
+          audio_kind: it.audio_kind,
+          topic: it.topic,
+          jlpt_level: it.jlpt_level,
+          questions: it.questions.map((q) => ({
+            question_english: q.question_english,
+            options: q.options,
+            answer_index: q.answer_index,
+          })),
+        },
+        answer: {
+          transcript_ruby,
+          translation_english: it.translation_english,
+          question_explanations: it.questions.map((q) => q.explanation ?? ""),
+        },
+        audio_cost_usd: cost_usd,
+      };
+    }
     default:
       throw new Error(`enrichment for skill='${skill}' not implemented yet`);
   }
@@ -158,7 +188,8 @@ export async function runGeneration(args: {
   }
 
   const status: "success" | "partial" = items.length < args.count ? "partial" : "success";
-  const cost_usd = computeCost(usage);
+  const audioCost = enriched.reduce((sum, e) => sum + (e.audio_cost_usd ?? 0), 0);
+  const cost_usd = computeCost(usage) + audioCost;
 
   const client = await pool.connect();
   try {

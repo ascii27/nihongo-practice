@@ -4,6 +4,7 @@ export type ReviewStateRow = {
   last_reviewed_at: Date | null;
   total_reviews: number;
   total_missed: number;
+  suspended: boolean;
 };
 
 export type ReviewResult = "got_it" | "missed";
@@ -31,6 +32,7 @@ export function nextState(
       last_reviewed_at: now,
       total_reviews: totalReviews,
       total_missed: totalMissed,
+      suspended: false,
     };
   }
 
@@ -41,6 +43,7 @@ export function nextState(
       last_reviewed_at: now,
       total_reviews: totalReviews,
       total_missed: totalMissed,
+      suspended: prev.suspended,
     };
   }
 
@@ -52,5 +55,6 @@ export function nextState(
     last_reviewed_at: now,
     total_reviews: totalReviews,
     total_missed: totalMissed,
+    suspended: prev.suspended,
   };
 }

@@ -59,7 +59,7 @@ reviewsRouter.post("/", async (req, res) => {
 
     // Load existing state, if any
     const stateRes = await client.query(
-      `SELECT box, next_review_at, last_reviewed_at, total_reviews, total_missed
+      `SELECT box, next_review_at, last_reviewed_at, total_reviews, total_missed, suspended
          FROM review_state WHERE item_id = $1`,
       [item_id],
     );
@@ -69,21 +69,25 @@ reviewsRouter.post("/", async (req, res) => {
       last_reviewed_at: stateRes.rows[0].last_reviewed_at,
       total_reviews: stateRes.rows[0].total_reviews,
       total_missed: stateRes.rows[0].total_missed,
+      suspended: stateRes.rows[0].suspended,
     };
 
     const next = nextState(prev, result, new Date());
 
+    const suspended = (prev?.suspended ?? false) || next.total_missed >= 8;
+
     // Upsert review_state
     await client.query(
-      `INSERT INTO review_state (item_id, box, next_review_at, last_reviewed_at, total_reviews, total_missed)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO review_state (item_id, box, next_review_at, last_reviewed_at, total_reviews, total_missed, suspended)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (item_id) DO UPDATE
          SET box = EXCLUDED.box,
              next_review_at = EXCLUDED.next_review_at,
              last_reviewed_at = EXCLUDED.last_reviewed_at,
              total_reviews = EXCLUDED.total_reviews,
-             total_missed = EXCLUDED.total_missed`,
-      [item_id, next.box, next.next_review_at, next.last_reviewed_at, next.total_reviews, next.total_missed],
+             total_missed = EXCLUDED.total_missed,
+             suspended = EXCLUDED.suspended`,
+      [item_id, next.box, next.next_review_at, next.last_reviewed_at, next.total_reviews, next.total_missed, suspended],
     );
 
     // Append-only review row

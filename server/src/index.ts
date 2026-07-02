@@ -23,6 +23,7 @@ export function createApp() {
   const app = express();
   app.use(express.json());
   app.get("/healthz", (_req, res) => res.json({ ok: true }));
+  app.use("/audio", express.static(env.AUDIO_DIR));
   app.use("/api", passcodeMiddleware(env.PASSCODE));
   app.use("/api/auth", authRouter);
   app.use("/api/queue", queueRouter);
