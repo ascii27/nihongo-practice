@@ -697,3 +697,11 @@
 .lessons__item-title { font-family: var(--font-ui); font-weight: 500; }
 .lessons__item-meta { grid-column: 1; font-size: 12px; color: var(--fg-secondary); }
 .lessons__badge { grid-column: 2; grid-row: 1 / span 2; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-secondary); }
+
+/* Lesson teach view */
+.teach { display: flex; flex-direction: column; gap: 16px; padding: 24px; flex: 1; }
+.teach__heading { font-family: var(--font-display); font-size: 20px; font-weight: 500; margin: 0; }
+.teach__lines { display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.teach__line { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.teach__ruby { font-size: 18px; }
+.teach__gloss { font-size: 13px; color: var(--fg-secondary); }
