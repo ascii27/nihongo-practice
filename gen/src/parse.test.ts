@@ -319,3 +319,29 @@ describe("parseExplainGrade", () => {
     expect(() => parseExplainGrade(raw)).toThrow();
   });
 });
+
+import { parseListeningBatch } from "./parse.js";
+
+describe("parseListeningBatch", () => {
+  const one = {
+    audio_kind: "dialogue", topic: "at a cafe", jlpt_level: "N4",
+    segments: [{ text: "いらっしゃいませ。", speaker: 0 }, { text: "コーヒーをください。", speaker: 1 }],
+    transcript_japanese: "いらっしゃいませ。コーヒーをください。",
+    translation_english: "Welcome. A coffee please.",
+    questions: [{ question_english: "What did the customer order?", options: ["tea", "coffee", "water", "juice"], answer_index: 1, explanation: "They said コーヒー." }],
+  };
+
+  it("parses a valid batch", () => {
+    expect(parseListeningBatch(JSON.stringify({ items: [one] }))).toHaveLength(1);
+  });
+
+  it("rejects a question without 4 options", () => {
+    const bad = { ...one, questions: [{ ...one.questions[0], options: ["a", "b"] }] };
+    expect(() => parseListeningBatch(JSON.stringify({ items: [bad] }))).toThrow();
+  });
+
+  it("rejects a segment with an out-of-range speaker", () => {
+    const bad = { ...one, segments: [{ text: "x", speaker: 2 }] };
+    expect(() => parseListeningBatch(JSON.stringify({ items: [bad] }))).toThrow();
+  });
+});
