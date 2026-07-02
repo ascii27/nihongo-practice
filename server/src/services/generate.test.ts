@@ -230,3 +230,14 @@ describe("runGeneration explain", () => {
     expect(items.rows[0].answer.rubric_notes).toBeTruthy();
   });
 });
+
+describe("runGeneration listening (fake mode)", () => {
+  it("inserts a listening item with an audio_url and questions", async () => {
+    process.env.NIHONGO_FAKE_AI = "1";
+    const r = await runGeneration({ skill: "listening", count: 1 });
+    expect(r.items_created).toBe(1);
+    const prompt = r.items[0]!.prompt as { audio_url: string; questions: unknown[] };
+    expect(prompt.audio_url).toMatch(/^\/audio\/.+\.mp3$/);
+    expect(prompt.questions.length).toBeGreaterThanOrEqual(2);
+  });
+});

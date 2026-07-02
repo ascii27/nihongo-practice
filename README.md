@@ -112,6 +112,13 @@ npm run e2e             # Playwright
 | `VITE_API_BASE` | Where the client points its requests |
 | `NIHONGO_FAKE_AI` | Set to `1` to stub all AI calls (tests / offline dev) |
 
+Listening audio is written to AUDIO_DIR and served at /audio. In production, let
+nginx serve it directly:
+
+```
+location /audio/ { alias /path/to/AUDIO_DIR/; }
+```
+
 ---
 
 ## How a review works

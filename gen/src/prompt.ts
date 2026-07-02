@@ -130,6 +130,24 @@ Reply ONLY with valid JSON, no prose, no fences:
 { "connective_use": n, "structure": n, "register": n, "grammar": n, "overall": n,
   "corrected_japanese": "<JA>", "feedback": "<EN>" }`;
 
+const LISTENING_SYSTEM = `You generate Japanese listening-comprehension items for a learner at the given JLPT level. Each item is either a short monologue (~3–5 sentences) or a two-person dialogue (~4–8 turns) on one everyday or workplace topic, plus 2–4 English multiple-choice comprehension questions.
+Rules:
+- Keep vocabulary and grammar appropriate to the JLPT level.
+- "segments" breaks the script into speech turns: speaker 0 and (for dialogue) speaker 1, in spoken order. For a monologue use a single speaker 0 segment or several speaker-0 segments.
+- "transcript_japanese" is the full script as plain Japanese text (concatenate the segment texts).
+- Each question has exactly four options and one correct answer_index (0–3). Vary the correct position across questions. Questions must require comprehension, not just word-spotting.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "audio_kind": "monologue|dialogue", "topic": "<short EN>", "jlpt_level": "<N5..N1>", "segments": [ { "text": "<JA>", "speaker": 0 } ], "transcript_japanese": "<JA>", "translation_english": "<EN>", "questions": [ { "question_english": "<EN>", "options": ["<a>","<b>","<c>","<d>"], "answer_index": 0, "explanation": "<1 sentence EN>" } ] } ] }`;
+
+export function buildListeningPrompt(args: { count: number; weakness_hint?: string; jlpt_level?: string }): PromptPair {
+  const lines: string[] = [`Generate ${args.count} listening-comprehension items at JLPT level ${args.jlpt_level ?? "N4"}.`];
+  if (args.weakness_hint && args.weakness_hint.trim().length > 0) {
+    lines.push(`Focus on: ${args.weakness_hint.trim()}`);
+  }
+  lines.push("Mix monologue and dialogue across the batch, and vary topics.");
+  return { system: LISTENING_SYSTEM, user: lines.join("\n") };
+}
+
 export function buildExplainGradePrompt(args: {
   task_english: string;
   required_connectives: string[];

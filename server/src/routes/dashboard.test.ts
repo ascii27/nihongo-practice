@@ -78,4 +78,9 @@ describe("GET /api/dashboard", () => {
     const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
     expect(new Date(res.body.last_practiced_at).getTime()).toBe(new Date(recent).getTime());
   });
+
+  it("includes a listening bucket", async () => {
+    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
+    expect(res.body.by_skill).toHaveProperty("listening");
+  });
 });

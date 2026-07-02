@@ -233,6 +233,52 @@ export function parseExplainGrade(raw: string): ExplainGradeRaw {
   };
 }
 
+export type ListeningGenItem = {
+  audio_kind: "monologue" | "dialogue";
+  topic: string;
+  jlpt_level: string;
+  segments: { text: string; speaker: 0 | 1 }[];
+  transcript_japanese: string;
+  translation_english: string;
+  questions: { question_english: string; options: string[]; answer_index: number; explanation?: string }[];
+};
+
+export function parseListeningBatch(raw: string): ListeningGenItem[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const items = parsed?.items;
+  if (!Array.isArray(items)) throw new Error("response missing 'items' array");
+  for (const it of items) {
+    if (
+      (it?.audio_kind !== "monologue" && it?.audio_kind !== "dialogue") ||
+      typeof it?.topic !== "string" ||
+      typeof it?.jlpt_level !== "string" ||
+      typeof it?.transcript_japanese !== "string" ||
+      typeof it?.translation_english !== "string" ||
+      !Array.isArray(it?.segments) || it.segments.length === 0 ||
+      !Array.isArray(it?.questions) || it.questions.length < 1 || it.questions.length > 4
+    ) {
+      throw new Error("listening item missing or invalid required fields");
+    }
+    for (const s of it.segments) {
+      if (typeof s?.text !== "string" || (s?.speaker !== 0 && s?.speaker !== 1)) {
+        throw new Error("listening item has invalid segment");
+      }
+    }
+    for (const q of it.questions) {
+      if (
+        typeof q?.question_english !== "string" ||
+        !Array.isArray(q?.options) || q.options.length !== 4 ||
+        q.options.some((o: unknown) => typeof o !== "string") ||
+        typeof q?.answer_index !== "number" || !Number.isInteger(q.answer_index) ||
+        q.answer_index < 0 || q.answer_index > 3
+      ) {
+        throw new Error("listening item has invalid question");
+      }
+    }
+  }
+  return items as ListeningGenItem[];
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

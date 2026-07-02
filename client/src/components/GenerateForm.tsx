@@ -25,6 +25,7 @@ const SKILL_LABELS: Record<Skill, string> = {
   conjugation: "Conjugation",
   particle: "Particles",
   explain: "Explain",
+  listening: "Listening",
 };
 
 export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", lockedSkill, onSuccess }: Props) {

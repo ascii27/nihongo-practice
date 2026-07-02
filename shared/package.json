@@ -9,7 +9,8 @@
     ".": "./src/types.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "^3.23.8",
@@ -17,6 +18,7 @@
   },
   "devDependencies": {
     "@types/sanitize-html": "^2.13.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
   }
 }

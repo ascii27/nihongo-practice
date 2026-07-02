@@ -284,3 +284,15 @@ describe("generateExplainBatch", () => {
     expect(r.items).toHaveLength(3);
   });
 });
+
+import { generateListeningBatch } from "./generate.js";
+
+describe("generateListeningBatch (fake mode)", () => {
+  it("returns a well-formed listening item with zero cost", async () => {
+    process.env.NIHONGO_FAKE_AI = "1";
+    const r = await generateListeningBatch({ count: 1 });
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0].questions.length).toBeGreaterThanOrEqual(2);
+    expect(r.usage.output_tokens).toBe(0);
+  });
+});

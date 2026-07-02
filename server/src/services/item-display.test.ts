@@ -93,6 +93,18 @@ describe("itemDisplay", () => {
   });
 });
 
+describe("itemDisplay listening", () => {
+  it("summarizes a listening item by topic + kind", () => {
+    const d = itemDisplay(
+      "listening",
+      { audio_url: "/audio/x.mp3", audio_kind: "dialogue", topic: "at the station", jlpt_level: "N4", questions: [{ question_english: "q", options: ["a","b","c","d"], answer_index: 0 }] },
+      { transcript_ruby: "<ruby>駅<rt>えき</rt></ruby>", translation_english: "station" },
+    );
+    expect(d.front).toContain("at the station");
+    expect(d.meaning.length).toBeGreaterThan(0);
+  });
+});
+
 describe("boxToMastery", () => {
   it("maps boxes 1..5 to 0.2..1.0", () => {
     expect(boxToMastery(1)).toBeCloseTo(0.2);

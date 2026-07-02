@@ -10,6 +10,7 @@ import {
   buildManualVocabPrompt,
   buildExplainPrompt,
   buildExplainGradePrompt,
+  buildListeningPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -22,6 +23,7 @@ import {
   parseManualVocab,
   parseExplainBatch,
   parseExplainGrade,
+  parseListeningBatch,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
@@ -31,9 +33,10 @@ import {
   type ManualVocabItem,
   type ExplainItem,
   type ExplainGradeRaw,
+  type ListeningGenItem,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 // Raised from 2000: explain items are token-heavy (~450 tok each), so even a
@@ -353,4 +356,39 @@ export async function generateManualVocab(args: {
     system, user, parse: parseManualVocab, client, signal: args.signal,
   });
   return { item: value, usage, raw };
+}
+
+const LISTENING_FAKE: ListeningGenItem[] = [
+  {
+    audio_kind: "dialogue", topic: "at the station", jlpt_level: "N4",
+    segments: [
+      { text: "すみません、東京駅はどこですか。", speaker: 0 },
+      { text: "この道をまっすぐ行ってください。", speaker: 1 },
+    ],
+    transcript_japanese: "すみません、東京駅はどこですか。この道をまっすぐ行ってください。",
+    translation_english: "Excuse me, where is Tokyo Station? Go straight down this road.",
+    questions: [
+      { question_english: "What is the first speaker looking for?", options: ["a bank", "Tokyo Station", "a cafe", "the bathroom"], answer_index: 1, explanation: "They ask 東京駅はどこですか." },
+      { question_english: "What direction are they told to go?", options: ["left", "right", "straight", "back"], answer_index: 2, explanation: "まっすぐ = straight." },
+    ],
+  },
+];
+
+export async function generateListeningBatch(args: {
+  count: number;
+  weakness_hint?: string;
+  jlpt_level?: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ListeningGenItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = LISTENING_FAKE.slice(0, Math.min(args.count, LISTENING_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildListeningPrompt({ count: args.count, weakness_hint: args.weakness_hint, jlpt_level: args.jlpt_level });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ListeningGenItem[]>({
+    system, user, parse: parseListeningBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
 }
