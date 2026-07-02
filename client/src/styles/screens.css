@@ -683,3 +683,17 @@
 .production-card__section-label { font-family: var(--font-ui); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.7; margin: 0 0 4px; }
 .production-card__error { display: flex; flex-direction: column; gap: 12px; margin-top: auto; }
 .production-card__error .is-wrong { background: var(--error-muted); color: var(--error); padding: 12px 14px; border-radius: var(--radius-md); font-family: var(--font-ui); font-size: 14px; margin: 0; }
+
+/* Lessons */
+.lessons { padding: 20px 16px 88px; }
+.lessons__title { font-family: var(--font-display); font-size: 24px; font-weight: 500; margin: 0 0 16px; }
+.lessons__form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.lessons__skills { display: flex; flex-wrap: wrap; gap: 8px; }
+.lessons__skill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; }
+.lessons__skill.is-on { border-color: var(--fg); }
+.lessons__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lessons__item-btn { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: none; text-align: left; }
+.lessons__item-btn:disabled { opacity: 0.6; }
+.lessons__item-title { font-family: var(--font-ui); font-weight: 500; }
+.lessons__item-meta { grid-column: 1; font-size: 12px; color: var(--fg-secondary); }
+.lessons__badge { grid-column: 2; grid-row: 1 / span 2; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-secondary); }
