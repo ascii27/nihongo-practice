@@ -57,7 +57,7 @@ describe("lesson types", () => {
     expect(TodayLessonResponse.parse({ lesson: null, generating: true })).toEqual({ lesson: null, generating: true });
   });
   it("parses a LessonDetail with grouped sections", () => {
-    const d = { id: "11111111-1111-1111-1111-111111111111", title: "t", topic: "x", jlpt_level: "N4", status: "ready", progress: "not_started", sections: [] };
+    const d = { id: "11111111-1111-1111-1111-111111111111", title: "t", topic: "x", jlpt_level: "N4", status: "ready", progress: "not_started", current_section: null, sections: [] };
     expect(LessonDetail.parse(d)).toEqual(d);
   });
 });

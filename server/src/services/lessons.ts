@@ -32,7 +32,7 @@ export async function createLesson(input: CreateLessonRequest): Promise<{ id: st
 type LessonRow = {
   id: string; title: string; topic: string; jlpt_level: string; kind: string;
   status: string; skills: string[]; created_at: Date;
-  progress: string; item_count: string;
+  progress: string; current_section: string | null; item_count: string;
 };
 
 function toSummary(r: LessonRow): LessonSummary {
@@ -46,7 +46,7 @@ function toSummary(r: LessonRow): LessonSummary {
 
 const LIST_SELECT = `
   SELECT l.id, l.title, l.topic, l.jlpt_level, l.kind, l.status, l.skills, l.created_at,
-         ls.status AS progress,
+         ls.status AS progress, ls.current_section,
          (SELECT count(*) FROM lesson_items li WHERE li.lesson_id = l.id)::text AS item_count
     FROM lessons l JOIN lesson_state ls ON ls.lesson_id = l.id`;
 
@@ -92,6 +92,7 @@ export async function getLessonDetail(id: string): Promise<LessonDetail | null> 
   return {
     id: lesson.id, title: lesson.title, topic: lesson.topic, jlpt_level: lesson.jlpt_level,
     status: lesson.status as LessonDetail["status"], progress: lesson.progress as LessonDetail["progress"],
+    current_section: lesson.current_section,
     sections,
   };
 }

@@ -21,7 +21,13 @@ export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
         setDetail(d);
         setPhase(d.sections.length ? "walking" : "done");
         if (d.sections.length) {
-          void updateLessonState(lessonId, { progress: "in_progress", current_section: d.sections[0]!.section, current_index: 0 }).catch(() => {});
+          // Resume at the persisted section if this lesson was already in progress.
+          const resumeAt = d.current_section
+            ? d.sections.findIndex((s) => s.section === d.current_section)
+            : -1;
+          const startIdx = resumeAt >= 0 ? resumeAt : 0;
+          setSectionIdx(startIdx);
+          void updateLessonState(lessonId, { progress: "in_progress", current_section: d.sections[startIdx]!.section, current_index: 0 }).catch(() => {});
         }
       } catch {
         if (!cancelled) setPhase("error");

@@ -459,6 +459,7 @@ export const LessonDetail = z.object({
   jlpt_level: z.string(),
   status: LessonStatus,
   progress: LessonProgress,
+  current_section: z.string().nullable(),   // resume point (skill of the in-progress section)
   sections: z.array(LessonSectionDetail),
 });
 export type LessonDetail = z.infer<typeof LessonDetail>;
