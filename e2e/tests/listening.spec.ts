@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill, POST_GRADE } from "./helpers";
+import { login, generateViaSettings, practiceSkill } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -29,6 +29,10 @@ test("listening skill: generate → answer both MC questions → session summary
   await page.locator(".mc-option").first().click();
   await page.getByRole("button", { name: /Finish/i }).click();
 
+  // After "Finish →", the transcript reveal panel appears synchronously.
+  await expect(page.locator(".listening-card__reveal")).toBeVisible();
+
   // Only one listening item was generated, so answering it ends the session.
-  await expect(page.locator(POST_GRADE).first()).toBeVisible();
+  // Assert summary screen is actually reached, with timeout covering endSession round-trip.
+  await expect(page.locator(".summary__title")).toBeVisible({ timeout: 15000 });
 });
