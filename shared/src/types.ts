@@ -405,3 +405,79 @@ export const StatsOverviewResponse = z.object({
   hardest_cards: z.array(HardestCard),                    // up to 5, lowest accuracy
 });
 export type StatsOverviewResponse = z.infer<typeof StatsOverviewResponse>;
+
+// ----- Lessons (Phase 2) -----
+
+export const LessonStatus = z.enum(["generating", "ready", "failed"]);
+export type LessonStatus = z.infer<typeof LessonStatus>;
+
+export const LessonProgress = z.enum(["not_started", "in_progress", "completed"]);
+export type LessonProgress = z.infer<typeof LessonProgress>;
+
+export const LessonKind = z.enum(["lesson", "assessment"]);
+export type LessonKind = z.infer<typeof LessonKind>;
+
+export const CreateLessonRequest = z.object({
+  topic: z.string().min(1).max(120),
+  jlpt_level: z.string().min(1).max(4),
+  skills: z.array(Skill).min(1).max(7),
+});
+export type CreateLessonRequest = z.infer<typeof CreateLessonRequest>;
+
+export const CreateLessonResponse = z.object({
+  id: z.string().uuid(),
+  status: LessonStatus,
+});
+export type CreateLessonResponse = z.infer<typeof CreateLessonResponse>;
+
+export const LessonSummary = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  topic: z.string(),
+  jlpt_level: z.string(),
+  kind: LessonKind,
+  status: LessonStatus,
+  progress: LessonProgress,
+  item_count: z.number().int().nonnegative(),
+  created_at: z.string(),
+});
+export type LessonSummary = z.infer<typeof LessonSummary>;
+
+export const LessonsListResponse = z.object({ lessons: z.array(LessonSummary) });
+export type LessonsListResponse = z.infer<typeof LessonsListResponse>;
+
+export const LessonSectionDetail = z.object({
+  section: Skill,
+  items: z.array(ItemRecord),
+});
+export type LessonSectionDetail = z.infer<typeof LessonSectionDetail>;
+
+export const LessonDetail = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  topic: z.string(),
+  jlpt_level: z.string(),
+  status: LessonStatus,
+  progress: LessonProgress,
+  sections: z.array(LessonSectionDetail),
+});
+export type LessonDetail = z.infer<typeof LessonDetail>;
+
+export const LessonStatusResponse = z.object({
+  status: LessonStatus,
+  error: z.string().nullable(),
+});
+export type LessonStatusResponse = z.infer<typeof LessonStatusResponse>;
+
+export const TodayLessonResponse = z.object({
+  lesson: LessonSummary.nullable(),
+  generating: z.boolean(),
+});
+export type TodayLessonResponse = z.infer<typeof TodayLessonResponse>;
+
+export const LessonStateUpdate = z.object({
+  progress: LessonProgress,
+  current_section: z.string().nullable(),
+  current_index: z.number().int().nonnegative(),
+});
+export type LessonStateUpdate = z.infer<typeof LessonStateUpdate>;
