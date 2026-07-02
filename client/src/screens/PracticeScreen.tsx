@@ -3,6 +3,7 @@ import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
 import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
+import { ListeningCard } from "../components/ListeningCard";
 import { TypedInputCard } from "../components/TypedInputCard";
 import { ProductionCard } from "../components/ProductionCard";
 import { IconClose } from "../components/icons";
@@ -135,6 +136,8 @@ export function PracticeScreen({ onDone, skill }: Props) {
           <ProductionCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
         ) : current.skill === "particle" ? (
           <MultipleChoiceCard key={current.id} item={current} onAnswer={handleAnswer} />
+        ) : current.skill === "listening" ? (
+          <ListeningCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : current.skill === "conjugation" ? (
           <TypedInputCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
         ) : (
