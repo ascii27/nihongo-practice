@@ -32,6 +32,9 @@ test("listening skill: generate → answer both MC questions → session summary
   // After "Finish →", the transcript reveal panel appears synchronously.
   await expect(page.locator(".listening-card__reveal")).toBeVisible();
 
+  // The reveal stays on screen until the learner explicitly continues.
+  await page.getByRole("button", { name: /Continue/i }).click();
+
   // Only one listening item was generated, so answering it ends the session.
   // Assert summary screen is actually reached, with timeout covering endSession round-trip.
   await expect(page.locator(".summary__title")).toBeVisible({ timeout: 15000 });

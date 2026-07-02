@@ -389,6 +389,7 @@
 .listening-card__audio { width: 100%; margin: 0 0 4px; }
 .listening-card__q { font-family: var(--font-ui); font-size: 15px; font-weight: 500; color: var(--fg); line-height: 1.5; }
 .listening-card__reveal { display: flex; flex-direction: column; gap: 10px; padding-top: 16px; margin-top: 8px; border-top: 1px solid var(--border); }
+.listening-card__explanations { display: flex; flex-direction: column; gap: 6px; margin: 0; padding-left: 18px; font-family: var(--font-ui); font-size: 13px; color: var(--fg-secondary); }
 
 /* Typed input */
 .typed-card { display: flex; flex-direction: column; flex: 1; padding: 28px 24px 20px; gap: 20px; }

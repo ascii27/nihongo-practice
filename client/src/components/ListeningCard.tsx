@@ -14,6 +14,7 @@ export function ListeningCard({ item, onAnswer }: Props) {
   const [qi, setQi] = useState(0);
   const [picks, setPicks] = useState<number[]>([]);
   const [revealed, setRevealed] = useState(false);
+  const [result, setResult] = useState<ReviewResult | null>(null);
 
   const q = prompt.questions[qi];
   const decided = picks[qi] !== undefined;
@@ -29,7 +30,7 @@ export function ListeningCard({ item, onAnswer }: Props) {
   function next() {
     if (isLast) {
       const correct = prompt.questions.reduce((n, qq, i) => n + (picks[i] === qq.answer_index ? 1 : 0), 0);
-      onAnswer(correct / prompt.questions.length >= PASS ? "got_it" : "missed");
+      setResult(correct / prompt.questions.length >= PASS ? "got_it" : "missed");
       setRevealed(true);
     } else {
       setQi(qi + 1);
@@ -75,6 +76,22 @@ export function ListeningCard({ item, onAnswer }: Props) {
             <h3>Transcript</h3>
             <RubyText html={answer.transcript_ruby} className="ruby-hi-contrast" />
             <p className="muted">{answer.translation_english}</p>
+            {answer.question_explanations && answer.question_explanations.some((e) => e !== "") && (
+              <ul className="listening-card__explanations">
+                {answer.question_explanations
+                  .filter((e) => e !== "")
+                  .map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+              </ul>
+            )}
+            <button
+              type="button"
+              className="cta cta--primary cta--block"
+              onClick={() => result && onAnswer(result)}
+            >
+              Continue →
+            </button>
           </div>
         )}
       </div>
