@@ -53,9 +53,13 @@ export async function generateLessonInto(
       [lessonId, totalCost],
     );
   } catch (err) {
-    await pool.query(
-      `UPDATE lessons SET status = 'failed', error = $2, cost_usd = $3 WHERE id = $1`,
-      [lessonId, err instanceof Error ? err.message.slice(0, 1000) : String(err), totalCost],
-    );
+    try {
+      await pool.query(
+        `UPDATE lessons SET status = 'failed', error = $2, cost_usd = $3 WHERE id = $1`,
+        [lessonId, err instanceof Error ? err.message.slice(0, 1000) : String(err), totalCost],
+      );
+    } catch (writeErr) {
+      console.error("generateLessonInto: failed to record failure", lessonId, writeErr);
+    }
   }
 }
