@@ -296,3 +296,16 @@ describe("generateListeningBatch (fake mode)", () => {
     expect(r.usage.output_tokens).toBe(0);
   });
 });
+
+import { generateTeachingBatch } from "./generate.js";
+
+describe("generateTeachingBatch (fake AI)", () => {
+  it("returns deterministic teaching content without a client", async () => {
+    process.env.NIHONGO_FAKE_AI = "1";
+    const r = await generateTeachingBatch({ skill: "particle", topic: "at the station", jlpt_level: "N4", avoid: ["は — topic"] });
+    expect(r.teaching.explanation.length).toBeGreaterThan(0);
+    expect(r.teaching.examples.length).toBeGreaterThan(0);
+    expect(r.teaching.examples[0]!.jp).toBeTruthy();
+    expect(r.teaching.examples[0]!.en).toBeTruthy();
+  });
+});

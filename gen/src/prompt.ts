@@ -1,3 +1,5 @@
+import type { Skill } from "@nihongo/shared";
+
 export type CardInput = {
   external_id: string;
   japanese: string;
@@ -146,6 +148,37 @@ export function buildListeningPrompt(args: { count: number; weakness_hint?: stri
   }
   lines.push("Mix monologue and dialogue across the batch, and vary topics.");
   return { system: LISTENING_SYSTEM, user: lines.join("\n") };
+}
+
+const TEACHING_SYSTEM = `You write a short teaching block that prepares a Japanese learner for a set of practice cards on one skill. Explain the concept clearly in ENGLISH, then give worked example sentences.
+
+Reply ONLY with valid JSON matching this exact schema:
+{"explanation": string, "examples": [{"jp": string, "en": string, "note": string}]}
+
+Rules:
+- "explanation" is 2–4 sentences of plain English teaching the concept at the given JLPT level.
+- Provide 2–3 examples. "jp" is a natural Japanese sentence (no furigana markup), "en" is its English translation, "note" is a short English note on why it works.
+- Do NOT reuse any of the sentences or exact items listed under "Already tested" — teach with DIFFERENT examples that still prepare the learner for those.`;
+
+const PARTICLE_TEACHING_EXTRA = ` This is a particle lesson: explicitly explain in English what each particle does, and contrast the commonly confused ones (e.g. は vs が, に vs で).`;
+
+export function buildTeachingPrompt(args: {
+  skill: Skill;
+  topic: string;
+  jlpt_level: string;
+  avoid: string[];
+}): PromptPair {
+  const system = args.skill === "particle" ? TEACHING_SYSTEM + PARTICLE_TEACHING_EXTRA : TEACHING_SYSTEM;
+  const lines = [
+    `Skill: ${args.skill}.`,
+    `Topic: ${args.topic}.`,
+    `Target JLPT level: ${args.jlpt_level}.`,
+  ];
+  if (args.avoid.length) {
+    lines.push("Already tested (do not reuse):");
+    for (const a of args.avoid) lines.push(`- ${a}`);
+  }
+  return { system, user: lines.join("\n") };
 }
 
 export function buildExplainGradePrompt(args: {

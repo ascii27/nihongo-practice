@@ -1,8 +1,8 @@
 export { computeCost, MODEL, INPUT_PER_MTOK, OUTPUT_PER_MTOK, type Usage } from "./pricing.js";
 export { computeTtsCost, TTS_MODEL, TTS_USD_PER_1K_CHARS } from "./pricing.js";
 export { synthesizeSpeech, type Segment } from "./tts.js";
-export { stripFences, parseVocabBatch, parseSentencesForCards, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade, parseListeningBatch, type VocabItem, type SentenceForCard, type GrammarItem, type ParticleItem, type ConjugationItem, type ReadingItem, type ManualVocabItem, type ExplainItem, type ExplainGradeRaw, type ListeningGenItem } from "./parse.js";
-export { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt, buildManualVocabPrompt, buildExplainPrompt, buildExplainGradePrompt, buildListeningPrompt, type CardInput } from "./prompt.js";
+export { stripFences, parseVocabBatch, parseSentencesForCards, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade, parseListeningBatch, parseTeaching, type VocabItem, type SentenceForCard, type GrammarItem, type ParticleItem, type ConjugationItem, type ReadingItem, type ManualVocabItem, type ExplainItem, type ExplainGradeRaw, type ListeningGenItem, type RawTeaching } from "./parse.js";
+export { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt, buildManualVocabPrompt, buildExplainPrompt, buildExplainGradePrompt, buildListeningPrompt, buildTeachingPrompt, type CardInput } from "./prompt.js";
 export { toRubyHtml, readingFor, getTokenizer } from "./furigana.js";
 export {
   generateVocabBatch,
@@ -15,5 +15,6 @@ export {
   generateExplainBatch,
   gradeExplanationRaw,
   generateListeningBatch,
+  generateTeachingBatch,
   GenerateError,
 } from "./generate.js";

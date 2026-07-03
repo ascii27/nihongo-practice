@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import type { Skill } from "@nihongo/shared";
 import { MODEL, type Usage } from "./pricing.js";
 import {
   buildVocabPrompt,
@@ -11,6 +12,7 @@ import {
   buildExplainPrompt,
   buildExplainGradePrompt,
   buildListeningPrompt,
+  buildTeachingPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -24,6 +26,7 @@ import {
   parseExplainBatch,
   parseExplainGrade,
   parseListeningBatch,
+  parseTeaching,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
@@ -34,6 +37,7 @@ import {
   type ExplainItem,
   type ExplainGradeRaw,
   type ListeningGenItem,
+  type RawTeaching,
 } from "./parse.js";
 
 export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage };
@@ -391,4 +395,31 @@ export async function generateListeningBatch(args: {
     system, user, parse: parseListeningBatch, client, signal: args.signal,
   });
   return { items: value, usage, raw };
+}
+
+const TEACHING_FAKE: RawTeaching = {
+  explanation: "This is a fake teaching explanation used in tests.",
+  examples: [
+    { jp: "これは例文です。", en: "This is an example sentence.", note: "fake note" },
+    { jp: "もう一つの例です。", en: "Here is another example." },
+  ],
+};
+
+export async function generateTeachingBatch(args: {
+  skill: Skill;
+  topic: string;
+  jlpt_level: string;
+  avoid: string[];
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ teaching: RawTeaching; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return { teaching: TEACHING_FAKE, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify(TEACHING_FAKE) };
+  }
+  const { system, user } = buildTeachingPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<RawTeaching>({
+    system, user, parse: parseTeaching, client, signal: args.signal,
+  });
+  return { teaching: value, usage, raw };
 }

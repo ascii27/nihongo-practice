@@ -279,6 +279,30 @@ export function parseListeningBatch(raw: string): ListeningGenItem[] {
   return items as ListeningGenItem[];
 }
 
+export type RawTeaching = {
+  explanation: string;
+  examples: { jp: string; en: string; note?: string }[];
+};
+
+export function parseTeaching(raw: string): RawTeaching {
+  const parsed = JSON.parse(stripFences(raw));
+  if (typeof parsed?.explanation !== "string" || parsed.explanation.trim() === "") {
+    throw new Error("teaching missing 'explanation'");
+  }
+  if (!Array.isArray(parsed?.examples)) {
+    throw new Error("teaching 'examples' must be an array");
+  }
+  for (const ex of parsed.examples) {
+    if (typeof ex?.jp !== "string" || typeof ex?.en !== "string") {
+      throw new Error("teaching example missing 'jp'/'en'");
+    }
+    if (ex.note !== undefined && typeof ex.note !== "string") {
+      throw new Error("teaching example has invalid 'note'");
+    }
+  }
+  return parsed as RawTeaching;
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

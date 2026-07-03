@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
+import { parseTeaching } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -343,5 +344,40 @@ describe("parseListeningBatch", () => {
   it("rejects a segment with an out-of-range speaker", () => {
     const bad = { ...one, segments: [{ text: "x", speaker: 2 }] };
     expect(() => parseListeningBatch(JSON.stringify({ items: [bad] }))).toThrow();
+  });
+});
+
+describe("parseTeaching", () => {
+  const good = JSON.stringify({
+    explanation: "は marks the topic of the sentence.",
+    examples: [
+      { jp: "私は学生です。", en: "I am a student.", note: "は marks 私 as the topic" },
+      { jp: "今日は寒いです。", en: "It is cold today." },
+    ],
+  });
+
+  it("accepts well-formed teaching content", () => {
+    const t = parseTeaching(good);
+    expect(t.explanation).toContain("topic");
+    expect(t.examples).toHaveLength(2);
+    expect(t.examples[0]!.jp).toBe("私は学生です。");
+    expect(t.examples[0]!.note).toBe("は marks 私 as the topic");
+    expect(t.examples[1]!.note).toBeUndefined();
+  });
+
+  it("strips code fences before parsing", () => {
+    expect(parseTeaching("```json\n" + good + "\n```").examples).toHaveLength(2);
+  });
+
+  it("rejects a missing explanation", () => {
+    expect(() => parseTeaching(JSON.stringify({ examples: [] }))).toThrow();
+  });
+
+  it("rejects examples that are not an array", () => {
+    expect(() => parseTeaching(JSON.stringify({ explanation: "x", examples: {} }))).toThrow();
+  });
+
+  it("rejects an example missing jp/en", () => {
+    expect(() => parseTeaching(JSON.stringify({ explanation: "x", examples: [{ jp: "あ" }] }))).toThrow();
   });
 });
