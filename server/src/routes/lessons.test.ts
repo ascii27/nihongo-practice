@@ -82,4 +82,26 @@ describe("lessons routes", () => {
     expect(Array.isArray(particle.content.examples)).toBe(true);
     expect((particle.content.examples[0] as { jp_ruby: string }).jp_ruby).toContain("<");
   });
+
+  it("exposes teaching content on concept sections and null on task sections", async () => {
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ topic: "ordering food", jlpt_level: "N4", skills: ["vocab", "reading"] });
+    const id = create.body.id as string;
+
+    let status = "generating";
+    for (let i = 0; i < 100 && status === "generating"; i++) {
+      const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
+      status = s.body.status;
+      if (status === "generating") await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(status).toBe("ready");
+
+    const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
+    const vocab = detail.body.sections.find((s: { section: string }) => s.section === "vocab");
+    const reading = detail.body.sections.find((s: { section: string }) => s.section === "reading");
+    expect(vocab.teaching).not.toBeNull();
+    expect(vocab.teaching.explanation.length).toBeGreaterThan(0);
+    expect(vocab.teaching.examples[0].jp_ruby).toBeTruthy();
+    expect(reading.teaching).toBeNull();
+  });
 });

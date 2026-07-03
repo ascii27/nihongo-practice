@@ -1,7 +1,7 @@
 import { pool } from "../db/pool.js";
 import type {
   CreateLessonRequest, LessonSummary, LessonDetail, LessonSectionDetail,
-  TodayLessonResponse, LessonStateUpdate, ItemRecord, Skill,
+  TodayLessonResponse, LessonStateUpdate, ItemRecord, Skill, LessonTeaching,
 } from "@nihongo/shared";
 
 export function titleFor(topic: string): string {
@@ -84,10 +84,17 @@ export async function getLessonDetail(id: string): Promise<LessonDetail | null> 
     arr.push(rec);
     bySection.set(row.section, arr);
   }
+  const tr = await pool.query<{ section: string; content: LessonTeaching }>(
+    `SELECT section, content FROM lesson_sections WHERE lesson_id = $1`, [id],
+  );
+  const teachingBySection = new Map<string, LessonTeaching>(
+    tr.rows.map((row) => [row.section, row.content]),
+  );
+
   // Sections in the lesson's declared skill order, only those with items.
   const sections: LessonSectionDetail[] = (lesson.skills as Skill[])
     .filter((s) => bySection.has(s))
-    .map((s) => ({ section: s, items: bySection.get(s)! }));
+    .map((s) => ({ section: s, items: bySection.get(s)!, teaching: teachingBySection.get(s) ?? null }));
 
   return {
     id: lesson.id, title: lesson.title, topic: lesson.topic, jlpt_level: lesson.jlpt_level,
