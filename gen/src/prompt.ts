@@ -158,7 +158,7 @@ Reply ONLY with valid JSON matching this exact schema:
 Rules:
 - "explanation" is 2–4 sentences of plain English teaching the concept at the given JLPT level.
 - Provide 2–3 examples. "jp" is a natural Japanese sentence (no furigana markup), "en" is its English translation, "note" is a short English note on why it works.
-- Do NOT reuse any of the sentences or exact items listed under "Already tested" — teach with DIFFERENT examples that still prepare the learner for those.`;
+- The items listed under the "will be tested on" list are the words/patterns/concepts the learner's practice cards will test. Make sure your explanation and examples PREPARE the learner for every one of them (cover the same words/patterns/concepts) — but write your OWN natural example sentences rather than copying the practice cards verbatim.`;
 
 const PARTICLE_TEACHING_EXTRA = ` This is a particle lesson: explicitly explain in English what each particle does, and contrast the commonly confused ones (e.g. は vs が, に vs で).`;
 
@@ -175,7 +175,7 @@ export function buildTeachingPrompt(args: {
     `Target JLPT level: ${args.jlpt_level}.`,
   ];
   if (args.avoid.length) {
-    lines.push("Already tested (do not reuse):");
+    lines.push("The learner will be tested on these — prepare them:");
     for (const a of args.avoid) lines.push(`- ${a}`);
   }
   return { system, user: lines.join("\n") };
