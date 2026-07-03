@@ -1,6 +1,27 @@
 import { pool } from "../db/pool.js";
 import { runGeneration } from "./generate.js";
 import type { Skill } from "@nihongo/shared";
+import { generateTeachingBatch, toRubyHtml, computeCost } from "@nihongo/gen";
+import type { ItemRecord } from "@nihongo/shared";
+
+const CONCEPT_SKILLS = new Set<Skill>(["vocab", "grammar", "particle", "conjugation"]);
+
+// Short human-readable hints describing what each check card tests, so the
+// teaching generator can prepare the learner for them while using DIFFERENT
+// example sentences. Reads the same prompt/answer fields the teach view uses.
+export function avoidHintsFor(skill: Skill, items: ItemRecord[]): string[] {
+  return items.map((it) => {
+    const p = it.prompt as Record<string, unknown>;
+    const a = it.answer as Record<string, unknown>;
+    switch (skill) {
+      case "vocab": return `${p.target ?? ""} — ${p.sentence_english ?? ""}`.trim();
+      case "grammar": return `${p.pattern ?? ""} — ${p.sentence_english ?? ""}`.trim();
+      case "particle": return String(a.explanation ?? "");
+      case "conjugation": return `${p.base ?? ""} (${p.tense ?? ""})`.trim();
+      default: return "";
+    }
+  }).filter((s) => s !== "");
+}
 
 // Per-section item counts for a generated lesson. Small, focused sets — a lesson
 // teaches a topic, it is not a bulk drill. Listening/explain are token-heavy so
@@ -45,6 +66,25 @@ export async function generateLessonInto(
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (lesson_id, item_id) DO NOTHING`,
           [lessonId, item.id, skill, i],
+        );
+      }
+      if (CONCEPT_SKILLS.has(skill)) {
+        const t = await generateTeachingBatch({
+          skill, topic, jlpt_level, avoid: avoidHintsFor(skill, r.items),
+        });
+        totalCost += computeCost(t.usage);
+        const examples = await Promise.all(
+          t.teaching.examples.map(async (e) => ({
+            jp_ruby: await toRubyHtml(e.jp),
+            en: e.en,
+            ...(e.note ? { note: e.note } : {}),
+          })),
+        );
+        await pool.query(
+          `INSERT INTO lesson_sections (lesson_id, section, content)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (lesson_id, section) DO UPDATE SET content = EXCLUDED.content`,
+          [lessonId, skill, JSON.stringify({ explanation: t.teaching.explanation, examples })],
         );
       }
     }

@@ -3,6 +3,7 @@ import request from "supertest";
 import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
 import { lessonsRouter } from "./lessons.js";
+import { pool } from "../db/pool.js";
 
 const PASSCODE = "test-passcode";
 const app = makeTestApp(PASSCODE, (a) => a.use("/api/lessons", lessonsRouter));
@@ -56,5 +57,29 @@ describe("lessons routes", () => {
   it("404s an unknown lesson", async () => {
     const r = await request(app).get("/api/lessons/11111111-1111-1111-1111-111111111111").set("X-Passcode", PASSCODE);
     expect(r.status).toBe(404);
+  });
+
+  it("stores teaching content for concept sections only", async () => {
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ topic: "at the station", jlpt_level: "N4", skills: ["vocab", "particle", "reading"] });
+    const id = create.body.id as string;
+
+    let status = "generating";
+    for (let i = 0; i < 100 && status === "generating"; i++) {
+      const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
+      status = s.body.status;
+      if (status === "generating") await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(status).toBe("ready");
+
+    const rows = await pool.query<{ section: string; content: { explanation: string; examples: unknown[] } }>(
+      `SELECT section, content FROM lesson_sections WHERE lesson_id = $1 ORDER BY section`, [id],
+    );
+    const sections = rows.rows.map((r) => r.section).sort();
+    expect(sections).toEqual(["particle", "vocab"]); // reading (task skill) gets none
+    const particle = rows.rows.find((r) => r.section === "particle")!;
+    expect(particle.content.explanation.length).toBeGreaterThan(0);
+    expect(Array.isArray(particle.content.examples)).toBe(true);
+    expect((particle.content.examples[0] as { jp_ruby: string }).jp_ruby).toContain("<");
   });
 });
