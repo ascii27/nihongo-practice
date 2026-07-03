@@ -446,9 +446,23 @@ export type LessonSummary = z.infer<typeof LessonSummary>;
 export const LessonsListResponse = z.object({ lessons: z.array(LessonSummary) });
 export type LessonsListResponse = z.infer<typeof LessonsListResponse>;
 
+export const TeachingExample = z.object({
+  jp_ruby: z.string(),
+  en: z.string(),
+  note: z.string().optional(),
+});
+export type TeachingExample = z.infer<typeof TeachingExample>;
+
+export const LessonTeaching = z.object({
+  explanation: z.string(),
+  examples: z.array(TeachingExample),
+});
+export type LessonTeaching = z.infer<typeof LessonTeaching>;
+
 export const LessonSectionDetail = z.object({
   section: Skill,
   items: z.array(ItemRecord),
+  teaching: LessonTeaching.nullable(),
 });
 export type LessonSectionDetail = z.infer<typeof LessonSectionDetail>;
 

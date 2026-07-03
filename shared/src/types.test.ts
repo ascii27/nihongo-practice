@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse } from "./types.js";
+import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse, LessonTeaching, LessonSectionDetail } from "./types.js";
 
 describe("listening types", () => {
   it("accepts listening as a Skill", () => {
@@ -59,5 +59,20 @@ describe("lesson types", () => {
   it("parses a LessonDetail with grouped sections", () => {
     const d = { id: "11111111-1111-1111-1111-111111111111", title: "t", topic: "x", jlpt_level: "N4", status: "ready", progress: "not_started", current_section: null, sections: [] };
     expect(LessonDetail.parse(d)).toEqual(d);
+  });
+});
+
+describe("LessonTeaching", () => {
+  it("parses explanation + examples with optional note", () => {
+    const t = LessonTeaching.parse({
+      explanation: "は marks the topic.",
+      examples: [{ jp_ruby: "<ruby>私<rt>わたし</rt></ruby>は", en: "As for me" }],
+    });
+    expect(t.examples[0]!.en).toBe("As for me");
+  });
+
+  it("allows a section with null teaching", () => {
+    const s = LessonSectionDetail.parse({ section: "reading", items: [], teaching: null });
+    expect(s.teaching).toBeNull();
   });
 });
