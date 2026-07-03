@@ -7,7 +7,6 @@ import { DashboardScreen } from "./screens/DashboardScreen";
 import { LessonsScreen } from "./screens/LessonsScreen";
 import { LessonWalkthroughScreen } from "./screens/LessonWalkthroughScreen";
 import { PracticeScreen } from "./screens/PracticeScreen";
-import { BrowseScreen } from "./screens/BrowseScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { BottomTabs, type Tab } from "./components/BottomTabs";
@@ -49,8 +48,6 @@ export default function App() {
       : <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "practice") {
     active = <PracticeScreen skill={practiceSkill} onDone={() => setRoute("today")} />;
-  } else if (route === "browse") {
-    active = <BrowseScreen />;
   } else if (route === "stats") {
     active = <StatsScreen />;
   } else {
