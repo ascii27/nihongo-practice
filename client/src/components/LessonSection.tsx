@@ -1,15 +1,15 @@
 import { useState } from "react";
-import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
+import type { ItemRecord, LessonTeaching, ReviewResult, Skill } from "@nihongo/shared";
 import { FlipCard } from "./FlipCard";
 import { MultipleChoiceCard } from "./MultipleChoiceCard";
 import { TypedInputCard } from "./TypedInputCard";
 import { ProductionCard } from "./ProductionCard";
 import { ListeningCard } from "./ListeningCard";
 import { RubyText } from "./RubyText";
-import { SKILL_META } from "../lib/skills";
+import { SKILL_META, TASK_INTRO } from "../lib/skills";
 import { submitReview } from "../api-hooks";
 
-type Props = { section: Skill; items: ItemRecord[]; onDone: () => void };
+type Props = { section: Skill; items: ItemRecord[]; teaching: LessonTeaching | null; onDone: () => void };
 
 // A compact face-up "study" line for the teach view — pulls the most useful
 // fields per skill straight from the stored prompt/answer.
@@ -27,7 +27,7 @@ function TeachLine({ item }: { item: ItemRecord }) {
   );
 }
 
-export function LessonSection({ section, items, onDone }: Props) {
+export function LessonSection({ section, items, teaching, onDone }: Props) {
   const [phase, setPhase] = useState<"teach" | "check">("teach");
   const [i, setI] = useState(0);
 
@@ -44,9 +44,26 @@ export function LessonSection({ section, items, onDone }: Props) {
     return (
       <div className="teach">
         <h2 className="teach__heading">{SKILL_META[section].label}</h2>
-        <div className="teach__lines">
-          {items.map((it) => <TeachLine key={it.id} item={it} />)}
-        </div>
+        {teaching ? (
+          <div className="teach__body">
+            <p className="teach__explanation">{teaching.explanation}</p>
+            <div className="teach__examples">
+              {teaching.examples.map((ex, idx) => (
+                <div className="teach__example" key={idx}>
+                  <RubyText html={ex.jp_ruby} className="teach__ruby" />
+                  <span className="teach__gloss">{ex.en}</span>
+                  {ex.note ? <span className="teach__note">{ex.note}</span> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : TASK_INTRO[section] ? (
+          <p className="teach__explanation">{TASK_INTRO[section]}</p>
+        ) : (
+          <div className="teach__lines">
+            {items.map((it) => <TeachLine key={it.id} item={it} />)}
+          </div>
+        )}
         <button type="button" className="cta cta--primary cta--block" onClick={() => setPhase("check")}>Start check →</button>
       </div>
     );

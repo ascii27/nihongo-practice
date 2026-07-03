@@ -27,6 +27,9 @@ test("create a lesson, walk it to completion", async ({ page }) => {
   await expect(openBtn).toBeEnabled({ timeout: 30_000 });
   await openBtn.click();
 
+  // The first (Vocab) section shows generated teaching content, not just cards.
+  await expect(page.locator(".teach__explanation").first()).toBeVisible({ timeout: 15_000 });
+
   // Walk each section: teach → check. Loop until the completion screen.
   for (let i = 0; i < 60; i++) {
     if (await page.getByText(/Lesson complete/i).isVisible().catch(() => false)) break;

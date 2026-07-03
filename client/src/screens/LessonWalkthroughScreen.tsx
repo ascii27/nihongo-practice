@@ -73,7 +73,7 @@ export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
         <span className="practice-bar__count">{sectionIdx + 1}/{detail!.sections.length}</span>
       </div>
       <div className="practice-stage">
-        <LessonSection key={section.section} section={section.section} items={section.items} onDone={nextSection} />
+        <LessonSection key={section.section} section={section.section} items={section.items} teaching={section.teaching} onDone={nextSection} />
       </div>
     </main>
   );

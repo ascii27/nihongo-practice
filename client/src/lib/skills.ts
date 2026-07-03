@@ -13,3 +13,10 @@ export const SKILL_META: Record<Skill, { label: string; ja: string; short: strin
   explain: { label: "Explain", ja: "説明", short: "説" },
   listening: { label: "Listening", ja: "聴解", short: "聴" },
 };
+
+// Static one-line intros for task skills, which have no generated teaching block.
+export const TASK_INTRO: Partial<Record<Skill, string>> = {
+  reading: "Read the short passage, then answer the comprehension question.",
+  listening: "Listen to the audio, then answer the questions.",
+  explain: "Write a short explanation in Japanese using the required connectives.",
+};
