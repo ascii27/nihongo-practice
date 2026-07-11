@@ -417,6 +417,24 @@ export type LessonProgress = z.infer<typeof LessonProgress>;
 export const LessonKind = z.enum(["lesson", "assessment"]);
 export type LessonKind = z.infer<typeof LessonKind>;
 
+export const JlptLevel = z.enum(["N5", "N4", "N3", "N2", "N1"]);
+export type JlptLevel = z.infer<typeof JlptLevel>;
+
+// A grammar point from the JLPT catalog. Lessons are built around 1–3 of these.
+export const GrammarPoint = z.object({
+  id: z.string().uuid(),
+  jlpt_level: JlptLevel,
+  sort_order: z.number().int(),
+  title: z.string(),          // the grammar point in Japanese
+  romaji: z.string().nullable(),
+  meaning: z.string(),        // short English gloss
+  slug: z.string(),
+});
+export type GrammarPoint = z.infer<typeof GrammarPoint>;
+
+export const GrammarPointsResponse = z.object({ grammar_points: z.array(GrammarPoint) });
+export type GrammarPointsResponse = z.infer<typeof GrammarPointsResponse>;
+
 export const CreateLessonRequest = z.object({
   topic: z.string().min(1).max(120),
   jlpt_level: z.string().min(1).max(4),
