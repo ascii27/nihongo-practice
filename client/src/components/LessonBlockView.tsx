@@ -3,13 +3,13 @@ import type {
   ItemRecord,
   LessonBlock,
   ReviewResult,
+  QuizQuestion,
   VocabPrompt,
   VocabAnswer,
   ReadingPrompt,
   ReadingAnswer,
 } from "@nihongo/shared";
 import { FlipCard } from "./FlipCard";
-import { MultipleChoiceCard } from "./MultipleChoiceCard";
 import { ListeningCard } from "./ListeningCard";
 import { RubyText } from "./RubyText";
 import { submitReview } from "../api-hooks";
@@ -27,8 +27,7 @@ export function LessonBlockView({ block, onDone }: Props) {
     case "listening":
       return <ListeningCard key={block.item.id} item={block.item} onAnswer={() => onDone()} />;
     case "quiz":
-    case "cloze":
-      return <ReviewItemsView items={block.items} onDone={onDone} />;
+      return <QuizBlockView questions={block.questions} onDone={onDone} />;
     default:
       return null;
   }
@@ -140,25 +139,75 @@ function ReadingBlockView({ item, onDone }: { item: ItemRecord; onDone: () => vo
   );
 }
 
-function ReviewItemsView({ items, onDone }: { items: ItemRecord[]; onDone: () => void }) {
+// The final quiz — a mix of question formats, scored, lesson-only (no SRS
+// submit). Shows progress through the questions and a score at the end.
+function QuizBlockView({ questions, onDone }: { questions: QuizQuestion[]; onDone: () => void }) {
   const [i, setI] = useState(0);
-  const current = items[i];
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [score, setScore] = useState(0);
+  const [finished, setFinished] = useState(false);
 
+  const empty = questions.length === 0;
   useEffect(() => {
-    if (!current) onDone();
+    if (empty) onDone();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current]);
+  }, [empty]);
+  if (empty) return null;
 
-  if (!current) return null;
-
-  function handleAnswer(result: ReviewResult) {
-    const item = items[i];
-    if (item) {
-      void submitReview({ item_id: item.id, result, reviewed_at: new Date().toISOString() }).catch(() => {});
-    }
-    if (i + 1 >= items.length) onDone();
-    else setI(i + 1);
+  if (finished) {
+    return (
+      <div className="quiz-result">
+        <div className="quiz-result__score">{score}<span className="quiz-result__total">/{questions.length}</span></div>
+        <p className="quiz-result__label">Quiz complete</p>
+        <button type="button" className="cta cta--primary cta--lg cta--block" onClick={onDone}>Finish lesson →</button>
+      </div>
+    );
   }
 
-  return <MultipleChoiceCard key={current.id} item={current} onAnswer={handleAnswer} />;
+  const q = questions[i]!;
+  const decided = chosen !== null;
+  const isLast = i + 1 >= questions.length;
+
+  function choose(idx: number) {
+    if (decided) return;
+    setChosen(idx);
+    if (idx === q.answer_index) setScore((s) => s + 1);
+  }
+  function next() {
+    if (isLast) { setFinished(true); return; }
+    setI(i + 1);
+    setChosen(null);
+  }
+
+  return (
+    <div className="mc-card quiz">
+      <div className="quiz__progress">Question {i + 1} / {questions.length}</div>
+      <p className="quiz__question">{q.question}</p>
+      {q.sentence_ruby ? <RubyText html={q.sentence_ruby} className="mc-card__sentence" /> : null}
+      <div className="mc-card__options">
+        {q.options.map((opt, idx) => {
+          const isChosen = chosen === idx;
+          const isCorrect = idx === q.answer_index;
+          const cls = !decided ? "mc-option"
+            : isChosen && isCorrect ? "mc-option mc-option--correct"
+            : isChosen && !isCorrect ? "mc-option mc-option--wrong"
+            : isCorrect ? "mc-option mc-option--correct-reveal"
+            : "mc-option mc-option--muted";
+          return (
+            <button key={idx} type="button" className={cls} disabled={decided} onClick={() => choose(idx)}>
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      {decided ? (
+        <>
+          <p className={`mc-card__feedback ${chosen === q.answer_index ? "is-correct" : "is-wrong"}`}>{q.explanation}</p>
+          <button type="button" className="cta cta--primary cta--block" onClick={next}>
+            {isLast ? "See score →" : "Next →"}
+          </button>
+        </>
+      ) : null}
+    </div>
+  );
 }

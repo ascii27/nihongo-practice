@@ -284,6 +284,40 @@ export type GrammarLesson = {
   explanation: string;
 };
 
+// A single end-of-lesson quiz question (mixed formats). Raw from the model —
+// `sentence_japanese` is enriched to ruby by the server.
+export type QuizQuestionRaw = {
+  question: string;
+  sentence_japanese?: string;
+  options: string[];
+  answer_index: number;
+  explanation: string;
+};
+
+export function parseLessonQuiz(raw: string): QuizQuestionRaw[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const questions = parsed?.questions;
+  if (!Array.isArray(questions)) throw new Error("quiz missing 'questions' array");
+  for (const q of questions) {
+    if (
+      typeof q?.question !== "string" ||
+      !Array.isArray(q?.options) ||
+      q.options.length !== 4 ||
+      q.options.some((o: unknown) => typeof o !== "string") ||
+      typeof q?.answer_index !== "number" ||
+      !Number.isInteger(q.answer_index) ||
+      q.answer_index < 0 || q.answer_index > 3 ||
+      typeof q?.explanation !== "string"
+    ) {
+      throw new Error("quiz question missing or invalid required fields");
+    }
+    if (q.sentence_japanese !== undefined && typeof q.sentence_japanese !== "string") {
+      throw new Error("quiz question has invalid 'sentence_japanese'");
+    }
+  }
+  return questions as QuizQuestionRaw[];
+}
+
 export function parseGrammarLesson(raw: string): GrammarLesson {
   const parsed = JSON.parse(stripFences(raw));
   if (!Array.isArray(parsed?.dialog) || parsed.dialog.length === 0) {

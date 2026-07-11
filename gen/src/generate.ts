@@ -13,8 +13,7 @@ import {
   buildListeningPrompt,
   buildGrammarLessonPrompt,
   buildGrammarSelectionPrompt,
-  buildGrammarQuizPrompt,
-  buildGrammarClozePrompt,
+  buildLessonQuizPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -30,10 +29,12 @@ import {
   parseListeningBatch,
   parseGrammarLesson,
   parseGrammarSelection,
+  parseLessonQuiz,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
   type ParticleItem,
+  type QuizQuestionRaw,
   type ConjugationItem,
   type ReadingItem,
   type ManualVocabItem,
@@ -461,41 +462,27 @@ export async function generateGrammarSelection(args: {
   return { ids, usage, raw };
 }
 
-export async function generateGrammarQuiz(args: {
+const LESSON_QUIZ_FAKE: QuizQuestionRaw[] = [
+  { question: "Fill in the blank:", sentence_japanese: "これを使っても___。", options: ["いい", "だめ", "ない", "です"], answer_index: 0, explanation: "〜てもいい grants permission." },
+  { question: "What does the target grammar mean?", options: ["may / is allowed to", "must not", "want to", "because"], answer_index: 0, explanation: "It expresses permission." },
+];
+
+export async function generateLessonQuiz(args: {
   point: { title: string; meaning: string };
   vocab: string[];
   jlpt_level: string;
   count: number;
   client?: ClientLike;
   signal?: AbortSignal;
-}): Promise<{ items: ParticleItem[]; usage: Usage; raw: string }> {
+}): Promise<{ questions: QuizQuestionRaw[]; usage: Usage; raw: string }> {
   if (process.env.NIHONGO_FAKE_AI === "1") {
-    const items = PARTICLE_FAKE.slice(0, Math.min(args.count, PARTICLE_FAKE.length));
-    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+    const questions = LESSON_QUIZ_FAKE.slice(0, Math.min(args.count, LESSON_QUIZ_FAKE.length));
+    return { questions, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ questions }) };
   }
-  const { system, user } = buildGrammarQuizPrompt(args);
+  const { system, user } = buildLessonQuizPrompt(args);
   const client = (args.client ?? new Anthropic()) as ClientLike;
-  const { value, usage, raw } = await callWithRetry<ParticleItem[]>({
-    system, user, parse: parseParticleBatch, client, signal: args.signal,
+  const { value, usage, raw } = await callWithRetry<QuizQuestionRaw[]>({
+    system, user, parse: parseLessonQuiz, client, signal: args.signal,
   });
-  return { items: value, usage, raw };
-}
-
-export async function generateGrammarCloze(args: {
-  point: { title: string; meaning: string };
-  jlpt_level: string;
-  count: number;
-  client?: ClientLike;
-  signal?: AbortSignal;
-}): Promise<{ items: ParticleItem[]; usage: Usage; raw: string }> {
-  if (process.env.NIHONGO_FAKE_AI === "1") {
-    const items = PARTICLE_FAKE.slice(0, Math.min(args.count, PARTICLE_FAKE.length));
-    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
-  }
-  const { system, user } = buildGrammarClozePrompt(args);
-  const client = (args.client ?? new Anthropic()) as ClientLike;
-  const { value, usage, raw } = await callWithRetry<ParticleItem[]>({
-    system, user, parse: parseParticleBatch, client, signal: args.signal,
-  });
-  return { items: value, usage, raw };
+  return { questions: value, usage, raw };
 }

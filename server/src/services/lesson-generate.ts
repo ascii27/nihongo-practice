@@ -5,21 +5,19 @@ import { listGrammarPoints, getGrammarPointsByIds } from "./grammar-points.js";
 import {
   generateGrammarLesson,
   generateGrammarSelection,
-  generateGrammarQuiz,
-  generateGrammarCloze,
+  generateLessonQuiz,
   generateReadingBatch,
   generateListeningBatch,
   toRubyHtml,
   computeCost,
-  type ParticleItem,
 } from "@nihongo/gen";
 import type { ItemRecord, GrammarPoint, JlptLevel } from "@nihongo/shared";
 
 // Per-lesson counts. A lesson teaches 1–3 grammar points, introduces 5 new
-// vocab, and drills them; reading/listening are single lesson-only tasks.
+// vocab; reading/listening are single lesson-only tasks; the final quiz is a
+// short mixed-format assessment.
 const VOCAB_COUNT = 5;
-const QUIZ_COUNT = 4;
-const CLOZE_COUNT = 4;
+const QUIZ_COUNT = 5;
 
 type LessonRow = {
   mode: string;
@@ -93,21 +91,21 @@ export async function generateLessonInto(lessonId: string): Promise<void> {
       await storeSyntheticBlock(lessonId, "listening", "listening", enr);
     }
 
-    // 6. Quiz — vocab-in-context MCQ (real items → SRS), particle-shaped.
-    const quiz = await generateGrammarQuiz({
+    // 6. Final quiz — a mixed-format assessment testing the grammar + vocab.
+    //    Lesson-only content (scored once, not added to the SRS review queue).
+    const quiz = await generateLessonQuiz({
       point: { title: points[0]!.title, meaning: points[0]!.meaning },
       vocab: vocabWords, jlpt_level: jlpt, count: QUIZ_COUNT,
     });
     addCost(computeCost(quiz.usage));
-    await insertParticleItems(lessonId, quiz.items, "quiz");
-
-    // 7. Cloze — grammar fill-in-the-blank MCQ (real items → SRS).
-    const cloze = await generateGrammarCloze({
-      point: { title: points[0]!.title, meaning: points[0]!.meaning },
-      jlpt_level: jlpt, count: CLOZE_COUNT,
-    });
-    addCost(computeCost(cloze.usage));
-    await insertParticleItems(lessonId, cloze.items, "cloze");
+    const questions = await Promise.all(quiz.questions.map(async (q) => ({
+      question: q.question,
+      ...(q.sentence_japanese && q.sentence_japanese.trim() ? { sentence_ruby: await toRubyHtml(q.sentence_japanese) } : {}),
+      options: q.options,
+      answer_index: q.answer_index,
+      explanation: q.explanation,
+    })));
+    await storeSection(lessonId, "quiz", { questions });
 
     await pool.query(
       `UPDATE lessons SET status = 'ready', cost_usd = $2, generated_at = now() WHERE id = $1`,
@@ -163,31 +161,6 @@ async function linkItems(lessonId: string, items: ItemRecord[], section: string)
       [lessonId, item.id, section, i],
     );
   }
-}
-
-// Enrich particle-shaped MCQ drills, insert them as real `items` (skill
-// 'particle', so they render as MCQ in review too), then link to the lesson.
-async function insertParticleItems(lessonId: string, raw: ParticleItem[], section: string): Promise<void> {
-  const records: ItemRecord[] = [];
-  for (const r of raw) {
-    const enr = await enrichFor("particle", r);
-    const res = await pool.query<{
-      id: string; skill: string; prompt: unknown; answer: unknown;
-      source: string; external_id: string | null; tags: string[]; created_at: Date;
-    }>(
-      `INSERT INTO items (skill, prompt, answer, source, external_id)
-       VALUES ('particle', $1, $2, 'ai', $3)
-       RETURNING id, skill, prompt, answer, source, external_id, tags, created_at`,
-      [JSON.stringify(enr.prompt), JSON.stringify(enr.answer), `ai-${randomUUID()}`],
-    );
-    const row = res.rows[0]!;
-    records.push({
-      id: row.id, skill: row.skill as ItemRecord["skill"], prompt: row.prompt, answer: row.answer,
-      source: row.source as ItemRecord["source"], external_id: row.external_id,
-      tags: row.tags, created_at: row.created_at.toISOString(),
-    });
-  }
-  await linkItems(lessonId, records, section);
 }
 
 async function storeSection(lessonId: string, section: string, content: unknown): Promise<void> {

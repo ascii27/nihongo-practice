@@ -187,43 +187,29 @@ export function buildGrammarSelectionPrompt(args: {
   return { system: GRAMMAR_SELECTION_SYSTEM, user: lines.join("\n") };
 }
 
-const GRAMMAR_QUIZ_SYSTEM = `You generate Japanese grammar drill cards. Each card is a natural sentence that uses the target grammar point and blanks one target vocabulary word with '___'. Provide four options (the correct vocabulary word plus three plausible distractors). The correct option's position should vary across the batch.
+const LESSON_QUIZ_SYSTEM = `You write a short end-of-lesson quiz that tests a learner's understanding of one Japanese grammar point plus some target vocabulary. MIX the question formats across the batch.
 Reply ONLY with valid JSON in this exact shape, no prose, no fences:
-{ "items": [ { "sentence_japanese_blanked": "<JA with ___>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }`;
+{ "questions": [ { "question": "<EN question stem>", "sentence_japanese": "<optional JA sentence/context, may contain ___, else empty>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }
 
-export function buildGrammarQuizPrompt(args: {
+Rules:
+- Vary the format across the batch: some fill-in-the-blank (put a natural JA sentence containing '___' in "sentence_japanese" and ask which word/grammar fits), some meaning questions ("What does 〜X mean?"), some usage / "which sentence is correct?" questions.
+- Always provide exactly four "options" and one correct "answer_index" (0–3); vary the correct position across the batch.
+- Do NOT always make the target grammar the answer — mix in easier, lower-level grammar or vocabulary as correct answers and as distractors, so the learner must actually read each question.
+- "sentence_japanese" has NO furigana markup; use an empty string when the question needs no Japanese sentence.`;
+
+export function buildLessonQuizPrompt(args: {
   point: { title: string; meaning: string };
   vocab: string[];
   jlpt_level: string;
   count: number;
 }): PromptPair {
   const lines = [
-    `Generate ${args.count} grammar quiz cards.`,
-    `Grammar point: ${args.point.title} (${args.point.meaning})`,
+    `Generate ${args.count} quiz questions.`,
+    `Grammar point being tested: ${args.point.title} (${args.point.meaning})`,
     `Target JLPT level: ${args.jlpt_level}.`,
-    `Each sentence must use this grammar point and blank one of these target vocabulary words: ${args.vocab.join("、")}`,
-    `Vary the correct answer across the batch — the answer must NOT always be the target vocabulary. In some cards blank an easier, lower-level word instead, and include easier words among the distractors, so the learner has to actually read the sentence.`,
+    `Also test these target vocabulary words: ${args.vocab.join("、")}`,
   ];
-  return { system: GRAMMAR_QUIZ_SYSTEM, user: lines.join("\n") };
-}
-
-const GRAMMAR_CLOZE_SYSTEM = `You generate Japanese grammar cloze cards. Each card is a natural sentence where the target grammar expression (or its key part) is blanked with '___'. Provide four options (the correct grammar form plus three plausible distractors). The correct option's position should vary across the batch.
-Reply ONLY with valid JSON in this exact shape, no prose, no fences:
-{ "items": [ { "sentence_japanese_blanked": "<JA with ___>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }`;
-
-export function buildGrammarClozePrompt(args: {
-  point: { title: string; meaning: string };
-  jlpt_level: string;
-  count: number;
-}): PromptPair {
-  const lines = [
-    `Generate ${args.count} grammar cloze cards.`,
-    `Grammar point: ${args.point.title} (${args.point.meaning})`,
-    `Target JLPT level: ${args.jlpt_level}.`,
-    `Most cards should blank the grammar expression "${args.point.title}" (or its key part).`,
-    `But intentionally mix in some cards whose correct answer is an EASIER, lower-JLPT-level grammar point or particle (with "${args.point.title}" among the distractors), so the correct answer is not always the target grammar and the learner must read the sentence to decide.`,
-  ];
-  return { system: GRAMMAR_CLOZE_SYSTEM, user: lines.join("\n") };
+  return { system: LESSON_QUIZ_SYSTEM, user: lines.join("\n") };
 }
 
 export function buildExplainGradePrompt(args: {

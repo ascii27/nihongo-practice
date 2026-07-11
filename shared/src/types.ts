@@ -502,11 +502,23 @@ export const GrammarBlock = z.object({
 export const VocabBlock = z.object({ type: z.literal("vocab"), items: z.array(ItemRecord) });
 export const ReadingBlock = z.object({ type: z.literal("reading"), item: ItemRecord });
 export const ListeningBlock = z.object({ type: z.literal("listening"), item: ItemRecord });
-export const QuizBlock = z.object({ type: z.literal("quiz"), items: z.array(ItemRecord) });
-export const ClozeBlock = z.object({ type: z.literal("cloze"), items: z.array(ItemRecord) });
+
+// The final quiz — a mix of question formats testing the lesson's grammar +
+// vocab. Lesson-only (scored once, not added to the SRS review queue). Each
+// question has a stem plus an optional Japanese sentence/context.
+export const QuizQuestion = z.object({
+  question: z.string(),                   // the question stem, in English
+  sentence_ruby: z.string().optional(),   // optional JP context/sentence (furigana HTML), may contain ___
+  options: z.array(z.string()),
+  answer_index: z.number().int(),
+  explanation: z.string(),
+});
+export type QuizQuestion = z.infer<typeof QuizQuestion>;
+
+export const QuizBlock = z.object({ type: z.literal("quiz"), questions: z.array(QuizQuestion) });
 
 export const LessonBlock = z.discriminatedUnion("type", [
-  GrammarBlock, VocabBlock, ReadingBlock, ListeningBlock, QuizBlock, ClozeBlock,
+  GrammarBlock, VocabBlock, ReadingBlock, ListeningBlock, QuizBlock,
 ]);
 export type LessonBlock = z.infer<typeof LessonBlock>;
 export type LessonBlockType = LessonBlock["type"];

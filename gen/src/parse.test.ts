@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
-import { parseGrammarLesson, parseGrammarSelection } from "./parse.js";
+import { parseGrammarLesson, parseGrammarSelection, parseLessonQuiz } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -344,6 +344,34 @@ describe("parseListeningBatch", () => {
   it("rejects a segment with an out-of-range speaker", () => {
     const bad = { ...one, segments: [{ text: "x", speaker: 2 }] };
     expect(() => parseListeningBatch(JSON.stringify({ items: [bad] }))).toThrow();
+  });
+});
+
+describe("parseLessonQuiz", () => {
+  const good = JSON.stringify({
+    questions: [
+      { question: "Fill in the blank:", sentence_japanese: "これを使っても___。", options: ["いい", "だめ", "ない", "です"], answer_index: 0, explanation: "permission" },
+      { question: "What does 〜てもいい mean?", options: ["may", "must not", "want", "because"], answer_index: 0, explanation: "permission" },
+    ],
+  });
+
+  it("accepts well-formed mixed quiz questions", () => {
+    const qs = parseLessonQuiz(good);
+    expect(qs).toHaveLength(2);
+    expect(qs[0]!.options).toHaveLength(4);
+    expect(qs[1]!.sentence_japanese).toBeUndefined();
+  });
+
+  it("rejects a missing questions array", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({}))).toThrow();
+  });
+
+  it("rejects a question without four options", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({ questions: [{ question: "q", options: ["a", "b"], answer_index: 0, explanation: "e" }] }))).toThrow();
+  });
+
+  it("rejects an out-of-range answer_index", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({ questions: [{ question: "q", options: ["a", "b", "c", "d"], answer_index: 5, explanation: "e" }] }))).toThrow();
   });
 });
 

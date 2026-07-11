@@ -1,8 +1,8 @@
 export { computeCost, MODEL, INPUT_PER_MTOK, OUTPUT_PER_MTOK, type Usage } from "./pricing.js";
 export { computeTtsCost, TTS_MODEL, TTS_USD_PER_1K_CHARS } from "./pricing.js";
 export { synthesizeSpeech, type Segment } from "./tts.js";
-export { stripFences, parseVocabBatch, parseSentencesForCards, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade, parseListeningBatch, parseGrammarLesson, parseGrammarSelection, type VocabItem, type SentenceForCard, type GrammarItem, type ParticleItem, type ConjugationItem, type ReadingItem, type ManualVocabItem, type ExplainItem, type ExplainGradeRaw, type ListeningGenItem, type GrammarLesson, type GrammarSelection } from "./parse.js";
-export { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt, buildManualVocabPrompt, buildExplainPrompt, buildExplainGradePrompt, buildListeningPrompt, buildGrammarLessonPrompt, buildGrammarSelectionPrompt, buildGrammarQuizPrompt, buildGrammarClozePrompt, type CardInput } from "./prompt.js";
+export { stripFences, parseVocabBatch, parseSentencesForCards, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade, parseListeningBatch, parseGrammarLesson, parseGrammarSelection, parseLessonQuiz, type VocabItem, type SentenceForCard, type GrammarItem, type ParticleItem, type ConjugationItem, type ReadingItem, type ManualVocabItem, type ExplainItem, type ExplainGradeRaw, type ListeningGenItem, type GrammarLesson, type GrammarSelection, type QuizQuestionRaw } from "./parse.js";
+export { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt, buildManualVocabPrompt, buildExplainPrompt, buildExplainGradePrompt, buildListeningPrompt, buildGrammarLessonPrompt, buildGrammarSelectionPrompt, buildLessonQuizPrompt, type CardInput } from "./prompt.js";
 export { toRubyHtml, readingFor, getTokenizer } from "./furigana.js";
 export {
   generateVocabBatch,
@@ -17,7 +17,6 @@ export {
   generateListeningBatch,
   generateGrammarLesson,
   generateGrammarSelection,
-  generateGrammarQuiz,
-  generateGrammarCloze,
+  generateLessonQuiz,
   GenerateError,
 } from "./generate.js";

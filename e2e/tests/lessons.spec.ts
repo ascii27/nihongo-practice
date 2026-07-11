@@ -41,9 +41,9 @@ test("create a grammar lesson (auto) and walk it to completion", async ({ page }
     const opt = page.locator(".mc-option").first();
     if (await opt.isVisible().catch(() => false)) { await opt.click(); }
 
-    // Any advance/grade affordance across teach / MC / flip / listening states.
+    // Any advance/grade affordance across teach / MC / flip / listening / quiz states.
     const advance = page.getByRole("button", {
-      name: /Continue|Next|Finish|Got it|Reveal|Show|Again|Hard|Good|Easy/i,
+      name: /Continue|Next|Finish|Score|Got it|Reveal|Show|Again|Hard|Good|Easy/i,
     }).first();
     if (await advance.isVisible().catch(() => false)) { await advance.click(); }
 

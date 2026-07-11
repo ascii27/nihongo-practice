@@ -1,6 +1,6 @@
 import { pool } from "../db/pool.js";
 import type {
-  CreateLessonRequest, LessonSummary, LessonDetail, LessonBlock,
+  CreateLessonRequest, LessonSummary, LessonDetail, LessonBlock, QuizQuestion,
   DialogLine, TodayLessonResponse, LessonStateUpdate, ItemRecord, GrammarPoint, Skill,
 } from "@nihongo/shared";
 import { getGrammarPointsByIds } from "./grammar-points.js";
@@ -148,10 +148,9 @@ export async function getLessonDetail(id: string): Promise<LessonDetail | null> 
   if (reading) blocks.push({ type: "reading", item: reading.item });
   const listening = contentBySection.get("listening") as { item: ItemRecord } | undefined;
   if (listening) blocks.push({ type: "listening", item: listening.item });
-  const quiz = itemsBySection.get("quiz");
-  if (quiz?.length) blocks.push({ type: "quiz", items: quiz });
-  const cloze = itemsBySection.get("cloze");
-  if (cloze?.length) blocks.push({ type: "cloze", items: cloze });
+  // Quiz always comes last — a mixed-format assessment stored as content.
+  const quiz = contentBySection.get("quiz") as { questions: QuizQuestion[] } | undefined;
+  if (quiz?.questions?.length) blocks.push({ type: "quiz", questions: quiz.questions });
 
   return {
     id: lesson.id, title: lesson.title, topic: lesson.topic, jlpt_level: lesson.jlpt_level,

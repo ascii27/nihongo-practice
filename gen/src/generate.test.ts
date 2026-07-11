@@ -300,8 +300,7 @@ describe("generateListeningBatch (fake mode)", () => {
 import {
   generateGrammarLesson,
   generateGrammarSelection,
-  generateGrammarQuiz,
-  generateGrammarCloze,
+  generateLessonQuiz,
 } from "./generate.js";
 
 describe("generateGrammarLesson (fake AI)", () => {
@@ -361,44 +360,23 @@ describe("generateGrammarSelection (fake AI)", () => {
   });
 });
 
-describe("generateGrammarQuiz (fake AI)", () => {
-  it("returns non-empty particle-shaped items", async () => {
+describe("generateLessonQuiz (fake AI)", () => {
+  it("returns mixed-format quiz questions with four options each", async () => {
     const prev = process.env.NIHONGO_FAKE_AI;
     process.env.NIHONGO_FAKE_AI = "1";
     try {
-      const r = await generateGrammarQuiz({
-        point: { title: "〜ながら", meaning: "while doing" },
+      const r = await generateLessonQuiz({
+        point: { title: "〜てもいい", meaning: "may; is allowed to" },
         vocab: ["食べる", "歩く"],
         jlpt_level: "N4",
         count: 2,
       });
-      expect(r.items.length).toBeGreaterThan(0);
-      for (const it of r.items) {
-        expect(it.options).toHaveLength(4);
-        expect(it.answer_index).toBeGreaterThanOrEqual(0);
-        expect(it.answer_index).toBeLessThanOrEqual(3);
-      }
-      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
-    } finally {
-      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
-      else process.env.NIHONGO_FAKE_AI = prev;
-    }
-  });
-});
-
-describe("generateGrammarCloze (fake AI)", () => {
-  it("returns non-empty particle-shaped items", async () => {
-    const prev = process.env.NIHONGO_FAKE_AI;
-    process.env.NIHONGO_FAKE_AI = "1";
-    try {
-      const r = await generateGrammarCloze({
-        point: { title: "〜ながら", meaning: "while doing" },
-        jlpt_level: "N4",
-        count: 2,
-      });
-      expect(r.items.length).toBeGreaterThan(0);
-      for (const it of r.items) {
-        expect(it.options).toHaveLength(4);
+      expect(r.questions.length).toBeGreaterThan(0);
+      for (const q of r.questions) {
+        expect(typeof q.question).toBe("string");
+        expect(q.options).toHaveLength(4);
+        expect(q.answer_index).toBeGreaterThanOrEqual(0);
+        expect(q.answer_index).toBeLessThanOrEqual(3);
       }
       expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
     } finally {

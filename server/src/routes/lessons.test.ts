@@ -37,13 +37,13 @@ describe("lessons routes (grammar-centered)", () => {
     const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
     expect(detail.status).toBe(200);
     const types = detail.body.blocks.map((b: { type: string }) => b.type);
-    // grammar first, then vocab, then the practice block ending in cloze.
+    // grammar first, vocab/reading/listening in the middle, quiz last.
     expect(types[0]).toBe("grammar");
     expect(types).toContain("vocab");
     expect(types).toContain("reading");
     expect(types).toContain("listening");
-    expect(types).toContain("quiz");
-    expect(types[types.length - 1]).toBe("cloze");
+    expect(types).not.toContain("cloze");
+    expect(types[types.length - 1]).toBe("quiz");
 
     const grammar = detail.body.blocks.find((b: { type: string }) => b.type === "grammar");
     expect(Array.isArray(grammar.dialog)).toBe(true);
@@ -51,30 +51,31 @@ describe("lessons routes (grammar-centered)", () => {
     expect(grammar.dialog[0].jp_ruby.length).toBeGreaterThan(0);
     expect(typeof grammar.explanation).toBe("string");
     expect(grammar.point.title.length).toBeGreaterThan(0);
+
+    const quiz = detail.body.blocks.find((b: { type: string }) => b.type === "quiz");
+    expect(Array.isArray(quiz.questions)).toBe(true);
+    expect(quiz.questions.length).toBeGreaterThan(0);
+    expect(quiz.questions[0].options).toHaveLength(4);
   });
 
-  it("keeps reading/listening out of the SRS while vocab/quiz/cloze enter it", async () => {
+  it("only the vocab feeds the SRS; reading/listening/quiz are lesson-only", async () => {
     const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
       .send({ mode: "auto", theme: "at the station", jlpt_level: "N5" });
     const id = create.body.id as string;
     expect(await pollReady(id)).toBe("ready");
 
-    // No reading/listening rows were ever inserted into `items`.
+    // Only vocab was inserted into `items`; reading/listening/quiz are content.
     const skills = await pool.query<{ skill: string }>(
       `SELECT DISTINCT i.skill FROM items i JOIN lesson_items li ON li.item_id = i.id WHERE li.lesson_id = $1`,
       [id],
     );
     const skillSet = skills.rows.map((r) => r.skill);
-    expect(skillSet).not.toContain("reading");
-    expect(skillSet).not.toContain("listening");
-    expect(skillSet).toContain("vocab");
-    expect(skillSet).toContain("particle"); // quiz + cloze are particle-shaped MCQ
+    expect(skillSet).toEqual(["vocab"]);
 
-    // The review queue's "new" bucket contains lesson items but no reading/listening.
+    // The review queue's "new" bucket contains only vocab items from the lesson.
     const queue = await buildQueue({ limit: 50, tz: "UTC" });
     for (const rec of queue.new) {
-      expect(rec.skill).not.toBe("reading");
-      expect(rec.skill).not.toBe("listening");
+      expect(rec.skill).toBe("vocab");
     }
     expect(queue.new.length).toBeGreaterThan(0);
   });

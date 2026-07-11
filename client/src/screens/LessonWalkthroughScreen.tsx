@@ -13,7 +13,7 @@ function blockId(block: LessonBlock): string {
 
 const BLOCK_LABEL: Record<LessonBlock["type"], string> = {
   grammar: "Grammar", vocab: "Vocab", reading: "Reading",
-  listening: "Listening", quiz: "Quiz", cloze: "Practice",
+  listening: "Listening", quiz: "Quiz",
 };
 
 export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
