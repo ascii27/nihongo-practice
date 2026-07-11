@@ -435,11 +435,23 @@ export type GrammarPoint = z.infer<typeof GrammarPoint>;
 export const GrammarPointsResponse = z.object({ grammar_points: z.array(GrammarPoint) });
 export type GrammarPointsResponse = z.infer<typeof GrammarPointsResponse>;
 
-export const CreateLessonRequest = z.object({
-  topic: z.string().min(1).max(120),
-  jlpt_level: z.string().min(1).max(4),
-  skills: z.array(Skill).min(1).max(7),
+// Two ways to create a lesson. Auto: give a theme + level, the AI picks 1–3
+// related grammar points from the catalog. Manual: pick the grammar points
+// yourself. Both build a lesson around 1–3 grammar points.
+export const CreateLessonRequestAuto = z.object({
+  mode: z.literal("auto"),
+  theme: z.string().min(1).max(120),
+  jlpt_level: JlptLevel,
 });
+export const CreateLessonRequestManual = z.object({
+  mode: z.literal("manual"),
+  grammar_point_ids: z.array(z.string().uuid()).min(1).max(3),
+  jlpt_level: JlptLevel,
+});
+export const CreateLessonRequest = z.discriminatedUnion("mode", [
+  CreateLessonRequestAuto,
+  CreateLessonRequestManual,
+]);
 export type CreateLessonRequest = z.infer<typeof CreateLessonRequest>;
 
 export const CreateLessonResponse = z.object({
@@ -464,6 +476,7 @@ export type LessonSummary = z.infer<typeof LessonSummary>;
 export const LessonsListResponse = z.object({ lessons: z.array(LessonSummary) });
 export type LessonsListResponse = z.infer<typeof LessonsListResponse>;
 
+// A worked example sentence used in grammar teaching.
 export const TeachingExample = z.object({
   jp_ruby: z.string(),
   en: z.string(),
@@ -471,28 +484,43 @@ export const TeachingExample = z.object({
 });
 export type TeachingExample = z.infer<typeof TeachingExample>;
 
-export const LessonTeaching = z.object({
-  explanation: z.string(),
-  examples: z.array(TeachingExample),
+// A lesson is an ordered list of blocks, walked top to bottom:
+//   grammar (teach) → vocab (teach + review) → reading / listening (lesson-only)
+//   → quiz / cloze (review). Grammar/vocab/quiz/cloze feed the SRS via real
+//   `items`; reading/listening are lesson-only synthetic records.
+export const GrammarBlock = z.object({
+  type: z.literal("grammar"),
+  point: z.object({
+    id: z.string().uuid(),
+    title: z.string(),
+    romaji: z.string().nullable(),
+    meaning: z.string(),
+  }),
+  steps: z.array(z.string()),            // step-by-step English explanation
+  examples: z.array(TeachingExample),    // worked examples for the point
 });
-export type LessonTeaching = z.infer<typeof LessonTeaching>;
+export const VocabBlock = z.object({ type: z.literal("vocab"), items: z.array(ItemRecord) });
+export const ReadingBlock = z.object({ type: z.literal("reading"), item: ItemRecord });
+export const ListeningBlock = z.object({ type: z.literal("listening"), item: ItemRecord });
+export const QuizBlock = z.object({ type: z.literal("quiz"), items: z.array(ItemRecord) });
+export const ClozeBlock = z.object({ type: z.literal("cloze"), items: z.array(ItemRecord) });
 
-export const LessonSectionDetail = z.object({
-  section: Skill,
-  items: z.array(ItemRecord),
-  teaching: LessonTeaching.nullable(),
-});
-export type LessonSectionDetail = z.infer<typeof LessonSectionDetail>;
+export const LessonBlock = z.discriminatedUnion("type", [
+  GrammarBlock, VocabBlock, ReadingBlock, ListeningBlock, QuizBlock, ClozeBlock,
+]);
+export type LessonBlock = z.infer<typeof LessonBlock>;
+export type LessonBlockType = LessonBlock["type"];
 
 export const LessonDetail = z.object({
   id: z.string().uuid(),
   title: z.string(),
-  topic: z.string(),
+  topic: z.string(),                        // the theme (auto) or synthesized title (manual)
   jlpt_level: z.string(),
+  mode: z.enum(["auto", "manual"]),
   status: LessonStatus,
   progress: LessonProgress,
-  current_section: z.string().nullable(),   // resume point (skill of the in-progress section)
-  sections: z.array(LessonSectionDetail),
+  current_section: z.string().nullable(),   // resume point: id of the in-progress block
+  blocks: z.array(LessonBlock),
 });
 export type LessonDetail = z.infer<typeof LessonDetail>;
 

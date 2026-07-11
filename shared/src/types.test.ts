@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse, LessonTeaching, LessonSectionDetail } from "./types.js";
+import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse, LessonBlock } from "./types.js";
 
 describe("listening types", () => {
   it("accepts listening as a Skill", () => {
@@ -43,36 +43,46 @@ describe("listening types", () => {
 });
 
 describe("lesson types", () => {
-  it("accepts a valid CreateLessonRequest", () => {
-    const r = { topic: "keigo basics", jlpt_level: "N4", skills: ["vocab", "grammar", "listening"] };
+  it("accepts a valid auto CreateLessonRequest", () => {
+    const r = { mode: "auto", theme: "giving advice", jlpt_level: "N4" };
     expect(CreateLessonRequest.parse(r)).toEqual(r);
   });
-  it("rejects a CreateLessonRequest with no skills", () => {
-    expect(CreateLessonRequest.safeParse({ topic: "x", jlpt_level: "N5", skills: [] }).success).toBe(false);
+  it("accepts a valid manual CreateLessonRequest", () => {
+    const r = { mode: "manual", grammar_point_ids: ["11111111-1111-1111-1111-111111111111"], jlpt_level: "N4" };
+    expect(CreateLessonRequest.parse(r)).toEqual(r);
   });
-  it("rejects an unknown skill", () => {
-    expect(CreateLessonRequest.safeParse({ topic: "x", jlpt_level: "N5", skills: ["speaking"] }).success).toBe(false);
+  it("rejects a manual request with no grammar points", () => {
+    expect(CreateLessonRequest.safeParse({ mode: "manual", grammar_point_ids: [], jlpt_level: "N5" }).success).toBe(false);
+  });
+  it("rejects a manual request with more than 3 grammar points", () => {
+    const ids = Array.from({ length: 4 }, (_, i) => `1111111${i}-1111-1111-1111-111111111111`);
+    expect(CreateLessonRequest.safeParse({ mode: "manual", grammar_point_ids: ids, jlpt_level: "N5" }).success).toBe(false);
+  });
+  it("rejects an invalid jlpt level", () => {
+    expect(CreateLessonRequest.safeParse({ mode: "auto", theme: "x", jlpt_level: "N9" }).success).toBe(false);
   });
   it("parses TodayLessonResponse with a null lesson", () => {
     expect(TodayLessonResponse.parse({ lesson: null, generating: true })).toEqual({ lesson: null, generating: true });
   });
-  it("parses a LessonDetail with grouped sections", () => {
-    const d = { id: "11111111-1111-1111-1111-111111111111", title: "t", topic: "x", jlpt_level: "N4", status: "ready", progress: "not_started", current_section: null, sections: [] };
+  it("parses a LessonDetail with ordered blocks", () => {
+    const d = { id: "11111111-1111-1111-1111-111111111111", title: "t", topic: "x", jlpt_level: "N4", mode: "auto", status: "ready", progress: "not_started", current_section: null, blocks: [] };
     expect(LessonDetail.parse(d)).toEqual(d);
   });
 });
 
-describe("LessonTeaching", () => {
-  it("parses explanation + examples with optional note", () => {
-    const t = LessonTeaching.parse({
-      explanation: "は marks the topic.",
-      examples: [{ jp_ruby: "<ruby>私<rt>わたし</rt></ruby>は", en: "As for me" }],
+describe("LessonBlock", () => {
+  it("parses a grammar block with steps + examples", () => {
+    const b = LessonBlock.parse({
+      type: "grammar",
+      point: { id: "11111111-1111-1111-1111-111111111111", title: "〜てもいい", romaji: "te mo ii", meaning: "may; is allowed to" },
+      steps: ["Step 1: attach て-form.", "Step 2: add もいい."],
+      examples: [{ jp_ruby: "<ruby>行<rt>い</rt></ruby>ってもいい", en: "You may go" }],
     });
-    expect(t.examples[0]!.en).toBe("As for me");
+    expect(b.type).toBe("grammar");
   });
-
-  it("allows a section with null teaching", () => {
-    const s = LessonSectionDetail.parse({ section: "reading", items: [], teaching: null });
-    expect(s.teaching).toBeNull();
+  it("parses a reading block carrying a single item", () => {
+    const item = { id: "22222222-2222-2222-2222-222222222222", skill: "reading", prompt: {}, answer: {}, source: "ai", tags: [], created_at: "2026-07-11T00:00:00.000Z" };
+    const b = LessonBlock.parse({ type: "reading", item });
+    expect(b.type).toBe("reading");
   });
 });
