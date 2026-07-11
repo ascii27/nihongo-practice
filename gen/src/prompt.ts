@@ -1,5 +1,3 @@
-import type { Skill } from "@nihongo/shared";
-
 export type CardInput = {
   external_id: string;
   japanese: string;
@@ -150,35 +148,80 @@ export function buildListeningPrompt(args: { count: number; weakness_hint?: stri
   return { system: LISTENING_SYSTEM, user: lines.join("\n") };
 }
 
-const TEACHING_SYSTEM = `You write a short teaching block that prepares a Japanese learner for a set of practice cards on one skill. Explain the concept clearly in ENGLISH, then give worked example sentences.
-
-Reply ONLY with valid JSON matching this exact schema:
-{"explanation": string, "examples": [{"jp": string, "en": string, "note": string}]}
+const GRAMMAR_LESSON_SYSTEM = `You write a step-by-step teaching block for a single Japanese grammar point, pitched at the learner's JLPT level.
+Reply ONLY with valid JSON matching this exact schema, no prose, no fences:
+{"steps": string[], "examples": [{"jp": string, "en": string, "note": string}]}
 
 Rules:
-- "explanation" is 2–4 sentences of plain English teaching the concept at the given JLPT level.
-- Provide 2–3 examples. "jp" is a natural Japanese sentence (no furigana markup), "en" is its English translation, "note" is a short English note on why it works.
-- The items listed under the "will be tested on" list are the words/patterns/concepts the learner's practice cards will test. Make sure your explanation and examples PREPARE the learner for every one of them (cover the same words/patterns/concepts) — but write your OWN natural example sentences rather than copying the practice cards verbatim.`;
+- "steps" is a STEP-BY-STEP explanation IN ENGLISH of the grammar point and its usage: 3–5 short steps covering formation, meaning, when to use it, and nuance/caveats.
+- Provide 3 examples. "jp" is a natural Japanese sentence using the grammar (no furigana markup), "en" is its English translation, "note" is a short English note.`;
 
-const PARTICLE_TEACHING_EXTRA = ` This is a particle lesson: explicitly explain in English what each particle does, and contrast the commonly confused ones (e.g. は vs が, に vs で).`;
-
-export function buildTeachingPrompt(args: {
-  skill: Skill;
-  topic: string;
+export function buildGrammarLessonPrompt(args: {
+  point: { title: string; meaning: string };
   jlpt_level: string;
-  avoid: string[];
 }): PromptPair {
-  const system = args.skill === "particle" ? TEACHING_SYSTEM + PARTICLE_TEACHING_EXTRA : TEACHING_SYSTEM;
-  const lines = [
-    `Skill: ${args.skill}.`,
-    `Topic: ${args.topic}.`,
+  const user = [
+    `Grammar point: ${args.point.title}`,
+    `Meaning: ${args.point.meaning}`,
     `Target JLPT level: ${args.jlpt_level}.`,
+  ].join("\n");
+  return { system: GRAMMAR_LESSON_SYSTEM, user };
+}
+
+const GRAMMAR_SELECTION_SYSTEM = `You are helping a Japanese learner pick grammar points for a themed lesson. From the numbered candidate grammar points, choose the 1–3 that best fit the learner's theme and level.
+Reply ONLY with valid JSON matching this exact schema, no prose, no fences:
+{"ids": string[]}
+Use the exact "id" values given for the candidates you choose.`;
+
+export function buildGrammarSelectionPrompt(args: {
+  theme: string;
+  jlpt_level: string;
+  candidates: { id: string; title: string; meaning: string }[];
+}): PromptPair {
+  const lines = [
+    `Theme: ${args.theme}`,
+    `Target JLPT level: ${args.jlpt_level}`,
+    `Candidates:`,
+    ...args.candidates.map((c) => `- id=${c.id} | ${c.title} — ${c.meaning}`),
   ];
-  if (args.avoid.length) {
-    lines.push("The learner will be tested on these — prepare them:");
-    for (const a of args.avoid) lines.push(`- ${a}`);
-  }
-  return { system, user: lines.join("\n") };
+  return { system: GRAMMAR_SELECTION_SYSTEM, user: lines.join("\n") };
+}
+
+const GRAMMAR_QUIZ_SYSTEM = `You generate Japanese grammar drill cards. Each card is a natural sentence that uses the target grammar point and blanks one target vocabulary word with '___'. Provide four options (the correct vocabulary word plus three plausible distractors). The correct option's position should vary across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "sentence_japanese_blanked": "<JA with ___>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }`;
+
+export function buildGrammarQuizPrompt(args: {
+  point: { title: string; meaning: string };
+  vocab: string[];
+  jlpt_level: string;
+  count: number;
+}): PromptPair {
+  const lines = [
+    `Generate ${args.count} grammar quiz cards.`,
+    `Grammar point: ${args.point.title} (${args.point.meaning})`,
+    `Target JLPT level: ${args.jlpt_level}.`,
+    `Each sentence must use this grammar point and blank one of these target vocabulary words: ${args.vocab.join("、")}`,
+  ];
+  return { system: GRAMMAR_QUIZ_SYSTEM, user: lines.join("\n") };
+}
+
+const GRAMMAR_CLOZE_SYSTEM = `You generate Japanese grammar cloze cards. Each card is a natural sentence where the target grammar expression (or its key part) is blanked with '___'. Provide four options (the correct grammar form plus three plausible distractors). The correct option's position should vary across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "items": [ { "sentence_japanese_blanked": "<JA with ___>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }`;
+
+export function buildGrammarClozePrompt(args: {
+  point: { title: string; meaning: string };
+  jlpt_level: string;
+  count: number;
+}): PromptPair {
+  const lines = [
+    `Generate ${args.count} grammar cloze cards.`,
+    `Grammar point: ${args.point.title} (${args.point.meaning})`,
+    `Target JLPT level: ${args.jlpt_level}.`,
+    `Blank the grammar expression "${args.point.title}" (or its key part) in each sentence.`,
+  ];
+  return { system: GRAMMAR_CLOZE_SYSTEM, user: lines.join("\n") };
 }
 
 export function buildExplainGradePrompt(args: {

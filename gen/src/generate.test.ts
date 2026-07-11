@@ -297,15 +297,112 @@ describe("generateListeningBatch (fake mode)", () => {
   });
 });
 
-import { generateTeachingBatch } from "./generate.js";
+import {
+  generateGrammarLesson,
+  generateGrammarSelection,
+  generateGrammarQuiz,
+  generateGrammarCloze,
+} from "./generate.js";
 
-describe("generateTeachingBatch (fake AI)", () => {
-  it("returns deterministic teaching content without a client", async () => {
+describe("generateGrammarLesson (fake AI)", () => {
+  it("returns deterministic steps + examples without a client", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
     process.env.NIHONGO_FAKE_AI = "1";
-    const r = await generateTeachingBatch({ skill: "particle", topic: "at the station", jlpt_level: "N4", avoid: ["は — topic"] });
-    expect(r.teaching.explanation.length).toBeGreaterThan(0);
-    expect(r.teaching.examples.length).toBeGreaterThan(0);
-    expect(r.teaching.examples[0]!.jp).toBeTruthy();
-    expect(r.teaching.examples[0]!.en).toBeTruthy();
+    try {
+      const r = await generateGrammarLesson({
+        point: { title: "〜ながら", meaning: "while doing" },
+        jlpt_level: "N4",
+      });
+      expect(r.steps.length).toBeGreaterThan(0);
+      expect(r.examples.length).toBeGreaterThan(0);
+      expect(r.examples[0]!.jp).toBeTruthy();
+      expect(r.examples[0]!.en).toBeTruthy();
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateGrammarSelection (fake AI)", () => {
+  it("returns the first <=2 candidate ids", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarSelection({
+        theme: "asking for directions",
+        jlpt_level: "N4",
+        candidates: [
+          { id: "g1", title: "〜ながら", meaning: "while doing" },
+          { id: "g2", title: "〜てから", meaning: "after doing" },
+          { id: "g3", title: "〜たい", meaning: "want to" },
+        ],
+      });
+      expect(r.ids).toEqual(["g1", "g2"]);
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+
+  it("returns an empty array when there are no candidates", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarSelection({ theme: "x", jlpt_level: "N4", candidates: [] });
+      expect(r.ids).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateGrammarQuiz (fake AI)", () => {
+  it("returns non-empty particle-shaped items", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarQuiz({
+        point: { title: "〜ながら", meaning: "while doing" },
+        vocab: ["食べる", "歩く"],
+        jlpt_level: "N4",
+        count: 2,
+      });
+      expect(r.items.length).toBeGreaterThan(0);
+      for (const it of r.items) {
+        expect(it.options).toHaveLength(4);
+        expect(it.answer_index).toBeGreaterThanOrEqual(0);
+        expect(it.answer_index).toBeLessThanOrEqual(3);
+      }
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateGrammarCloze (fake AI)", () => {
+  it("returns non-empty particle-shaped items", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarCloze({
+        point: { title: "〜ながら", meaning: "while doing" },
+        jlpt_level: "N4",
+        count: 2,
+      });
+      expect(r.items.length).toBeGreaterThan(0);
+      for (const it of r.items) {
+        expect(it.options).toHaveLength(4);
+      }
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
   });
 });

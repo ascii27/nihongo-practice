@@ -279,28 +279,44 @@ export function parseListeningBatch(raw: string): ListeningGenItem[] {
   return items as ListeningGenItem[];
 }
 
-export type RawTeaching = {
-  explanation: string;
+export type GrammarLesson = {
+  steps: string[];
   examples: { jp: string; en: string; note?: string }[];
 };
 
-export function parseTeaching(raw: string): RawTeaching {
+export function parseGrammarLesson(raw: string): GrammarLesson {
   const parsed = JSON.parse(stripFences(raw));
-  if (typeof parsed?.explanation !== "string" || parsed.explanation.trim() === "") {
-    throw new Error("teaching missing 'explanation'");
+  if (
+    !Array.isArray(parsed?.steps) ||
+    parsed.steps.length === 0 ||
+    parsed.steps.some((s: unknown) => typeof s !== "string")
+  ) {
+    throw new Error("grammar lesson 'steps' must be a non-empty string array");
   }
   if (!Array.isArray(parsed?.examples)) {
-    throw new Error("teaching 'examples' must be an array");
+    throw new Error("grammar lesson 'examples' must be an array");
   }
   for (const ex of parsed.examples) {
     if (typeof ex?.jp !== "string" || typeof ex?.en !== "string") {
-      throw new Error("teaching example missing 'jp'/'en'");
+      throw new Error("grammar lesson example missing 'jp'/'en'");
     }
     if (ex.note !== undefined && typeof ex.note !== "string") {
-      throw new Error("teaching example has invalid 'note'");
+      throw new Error("grammar lesson example has invalid 'note'");
     }
   }
-  return parsed as RawTeaching;
+  return parsed as GrammarLesson;
+}
+
+export type GrammarSelection = {
+  ids: string[];
+};
+
+export function parseGrammarSelection(raw: string): GrammarSelection {
+  const parsed = JSON.parse(stripFences(raw));
+  if (!Array.isArray(parsed?.ids) || parsed.ids.some((id: unknown) => typeof id !== "string")) {
+    throw new Error("grammar selection 'ids' must be a string array");
+  }
+  return { ids: parsed.ids as string[] };
 }
 
 export function parseSentencesForCards(raw: string): SentenceForCard[] {

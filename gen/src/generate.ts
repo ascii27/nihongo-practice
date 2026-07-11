@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Skill } from "@nihongo/shared";
 import { MODEL, type Usage } from "./pricing.js";
 import {
   buildVocabPrompt,
@@ -12,7 +11,10 @@ import {
   buildExplainPrompt,
   buildExplainGradePrompt,
   buildListeningPrompt,
-  buildTeachingPrompt,
+  buildGrammarLessonPrompt,
+  buildGrammarSelectionPrompt,
+  buildGrammarQuizPrompt,
+  buildGrammarClozePrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -26,7 +28,8 @@ import {
   parseExplainBatch,
   parseExplainGrade,
   parseListeningBatch,
-  parseTeaching,
+  parseGrammarLesson,
+  parseGrammarSelection,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
@@ -37,10 +40,11 @@ import {
   type ExplainItem,
   type ExplainGradeRaw,
   type ListeningGenItem,
-  type RawTeaching,
+  type GrammarLesson,
+  type GrammarSelection,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 // Raised from 2000: explain items are token-heavy (~450 tok each), so even a
@@ -397,29 +401,98 @@ export async function generateListeningBatch(args: {
   return { items: value, usage, raw };
 }
 
-const TEACHING_FAKE: RawTeaching = {
-  explanation: "This is a fake teaching explanation used in tests.",
-  examples: [
-    { jp: "これは例文です。", en: "This is an example sentence.", note: "fake note" },
-    { jp: "もう一つの例です。", en: "Here is another example." },
-  ],
+const GRAMMAR_LESSON_FAKE: GrammarLesson = {
+  steps: ["Step 1: ...", "Step 2: ..."],
+  examples: [{ jp: "これは例文です。", en: "This is an example.", note: "fake" }],
 };
 
-export async function generateTeachingBatch(args: {
-  skill: Skill;
-  topic: string;
+export async function generateGrammarLesson(args: {
+  point: { title: string; meaning: string };
   jlpt_level: string;
-  avoid: string[];
   client?: ClientLike;
   signal?: AbortSignal;
-}): Promise<{ teaching: RawTeaching; usage: Usage; raw: string }> {
+}): Promise<{ steps: string[]; examples: { jp: string; en: string; note?: string }[]; usage: Usage; raw: string }> {
   if (process.env.NIHONGO_FAKE_AI === "1") {
-    return { teaching: TEACHING_FAKE, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify(TEACHING_FAKE) };
+    return {
+      steps: GRAMMAR_LESSON_FAKE.steps,
+      examples: GRAMMAR_LESSON_FAKE.examples,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(GRAMMAR_LESSON_FAKE),
+    };
   }
-  const { system, user } = buildTeachingPrompt(args);
+  const { system, user } = buildGrammarLessonPrompt(args);
   const client = (args.client ?? new Anthropic()) as ClientLike;
-  const { value, usage, raw } = await callWithRetry<RawTeaching>({
-    system, user, parse: parseTeaching, client, signal: args.signal,
+  const { value, usage, raw } = await callWithRetry<GrammarLesson>({
+    system, user, parse: parseGrammarLesson, client, signal: args.signal,
   });
-  return { teaching: value, usage, raw };
+  return { steps: value.steps, examples: value.examples, usage, raw };
+}
+
+function cleanSelectionIds(ids: string[], candidates: { id: string }[]): string[] {
+  const validIds = new Set(candidates.map((c) => c.id));
+  const cleaned = ids.filter((id) => validIds.has(id)).slice(0, 3);
+  if (cleaned.length === 0 && candidates.length > 0) {
+    return [candidates[0]!.id];
+  }
+  return cleaned;
+}
+
+export async function generateGrammarSelection(args: {
+  theme: string;
+  jlpt_level: string;
+  candidates: { id: string; title: string; meaning: string }[];
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ ids: string[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const fake: GrammarSelection = { ids: args.candidates.slice(0, 2).map((c) => c.id) };
+    const ids = cleanSelectionIds(fake.ids, args.candidates);
+    return { ids, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify(fake) };
+  }
+  const { system, user } = buildGrammarSelectionPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<GrammarSelection>({
+    system, user, parse: parseGrammarSelection, client, signal: args.signal,
+  });
+  const ids = cleanSelectionIds(value.ids, args.candidates);
+  return { ids, usage, raw };
+}
+
+export async function generateGrammarQuiz(args: {
+  point: { title: string; meaning: string };
+  vocab: string[];
+  jlpt_level: string;
+  count: number;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ParticleItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = PARTICLE_FAKE.slice(0, Math.min(args.count, PARTICLE_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildGrammarQuizPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ParticleItem[]>({
+    system, user, parse: parseParticleBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
+}
+
+export async function generateGrammarCloze(args: {
+  point: { title: string; meaning: string };
+  jlpt_level: string;
+  count: number;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ items: ParticleItem[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const items = PARTICLE_FAKE.slice(0, Math.min(args.count, PARTICLE_FAKE.length));
+    return { items, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ items }) };
+  }
+  const { system, user } = buildGrammarClozePrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ParticleItem[]>({
+    system, user, parse: parseParticleBatch, client, signal: args.signal,
+  });
+  return { items: value, usage, raw };
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
-import { parseTeaching } from "./parse.js";
+import { parseGrammarLesson, parseGrammarSelection } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -347,37 +347,70 @@ describe("parseListeningBatch", () => {
   });
 });
 
-describe("parseTeaching", () => {
+describe("parseGrammarLesson", () => {
   const good = JSON.stringify({
-    explanation: "は marks the topic of the sentence.",
+    steps: [
+      "Step 1: Attach ながら to the masu-stem of a verb.",
+      "Step 2: It means 'while doing X'.",
+      "Step 3: Use it when the two actions happen simultaneously by the same subject.",
+    ],
     examples: [
-      { jp: "私は学生です。", en: "I am a student.", note: "は marks 私 as the topic" },
-      { jp: "今日は寒いです。", en: "It is cold today." },
+      { jp: "音楽を聞きながら勉強します。", en: "I study while listening to music.", note: "ながら links the two simultaneous actions" },
+      { jp: "歩きながら話す。", en: "Talk while walking." },
     ],
   });
 
-  it("accepts well-formed teaching content", () => {
-    const t = parseTeaching(good);
-    expect(t.explanation).toContain("topic");
-    expect(t.examples).toHaveLength(2);
-    expect(t.examples[0]!.jp).toBe("私は学生です。");
-    expect(t.examples[0]!.note).toBe("は marks 私 as the topic");
-    expect(t.examples[1]!.note).toBeUndefined();
+  it("accepts a well-formed grammar lesson", () => {
+    const l = parseGrammarLesson(good);
+    expect(l.steps.length).toBeGreaterThan(0);
+    expect(l.steps[0]).toContain("ながら");
+    expect(l.examples).toHaveLength(2);
+    expect(l.examples[0]!.jp).toBe("音楽を聞きながら勉強します。");
+    expect(l.examples[0]!.note).toBe("ながら links the two simultaneous actions");
+    expect(l.examples[1]!.note).toBeUndefined();
   });
 
   it("strips code fences before parsing", () => {
-    expect(parseTeaching("```json\n" + good + "\n```").examples).toHaveLength(2);
+    expect(parseGrammarLesson("```json\n" + good + "\n```").steps.length).toBeGreaterThan(0);
   });
 
-  it("rejects a missing explanation", () => {
-    expect(() => parseTeaching(JSON.stringify({ examples: [] }))).toThrow();
+  it("rejects a missing steps array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ examples: [] }))).toThrow();
+  });
+
+  it("rejects an empty steps array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ steps: [], examples: [] }))).toThrow();
   });
 
   it("rejects examples that are not an array", () => {
-    expect(() => parseTeaching(JSON.stringify({ explanation: "x", examples: {} }))).toThrow();
+    expect(() => parseGrammarLesson(JSON.stringify({ steps: ["x"], examples: {} }))).toThrow();
   });
 
   it("rejects an example missing jp/en", () => {
-    expect(() => parseTeaching(JSON.stringify({ explanation: "x", examples: [{ jp: "あ" }] }))).toThrow();
+    expect(() => parseGrammarLesson(JSON.stringify({ steps: ["x"], examples: [{ jp: "あ" }] }))).toThrow();
+  });
+});
+
+describe("parseGrammarSelection", () => {
+  it("accepts a well-formed ids array", () => {
+    const raw = JSON.stringify({ ids: ["a", "b"] });
+    expect(parseGrammarSelection(raw)).toEqual({ ids: ["a", "b"] });
+  });
+
+  it("strips code fences before parsing", () => {
+    const inner = JSON.stringify({ ids: ["a"] });
+    expect(parseGrammarSelection("```json\n" + inner + "\n```").ids).toEqual(["a"]);
+  });
+
+  it("rejects a missing ids field", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({}))).toThrow();
+  });
+
+  it("rejects a non-array ids field", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({ ids: "a" }))).toThrow();
+  });
+
+  it("rejects ids containing non-strings", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({ ids: ["a", 1] }))).toThrow();
   });
 });
