@@ -120,10 +120,14 @@ export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGra
 import type {
   CreateLessonRequest, CreateLessonResponse, LessonsListResponse,
   LessonDetail, LessonStatusResponse, TodayLessonResponse, LessonStateUpdate,
+  GrammarPointsResponse,
 } from "@nihongo/shared";
 
 export function createLesson(body: CreateLessonRequest): Promise<CreateLessonResponse> {
   return api<CreateLessonResponse>("/api/lessons", { method: "POST", body: JSON.stringify(body) });
+}
+export function fetchGrammarPoints(level: string): Promise<GrammarPointsResponse> {
+  return api<GrammarPointsResponse>(`/api/grammar-points?level=${level}`);
 }
 export function fetchLessons(): Promise<LessonsListResponse> {
   return api<LessonsListResponse>("/api/lessons");

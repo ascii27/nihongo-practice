@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
-import type { LessonDetail } from "@nihongo/shared";
+import type { LessonBlock, LessonDetail } from "@nihongo/shared";
 import { fetchLessonDetail, updateLessonState } from "../api-hooks";
-import { LessonSection } from "../components/LessonSection";
+import { LessonBlockView } from "../components/LessonBlockView";
 import { IconClose } from "../components/icons";
 
 type Props = { lessonId: string; onExit: () => void };
 type Phase = "loading" | "walking" | "done" | "error";
 
+function blockId(block: LessonBlock): string {
+  return block.type === "grammar" ? `grammar:${block.point.id}` : block.type;
+}
+
 export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [detail, setDetail] = useState<LessonDetail | null>(null);
-  const [sectionIdx, setSectionIdx] = useState(0);
+  const [blockIdx, setBlockIdx] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -19,15 +23,15 @@ export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
         const d = await fetchLessonDetail(lessonId);
         if (cancelled) return;
         setDetail(d);
-        setPhase(d.sections.length ? "walking" : "done");
-        if (d.sections.length) {
-          // Resume at the persisted section if this lesson was already in progress.
+        setPhase(d.blocks.length ? "walking" : "done");
+        if (d.blocks.length) {
+          // Resume at the persisted block if this lesson was already in progress.
           const resumeAt = d.current_section
-            ? d.sections.findIndex((s) => s.section === d.current_section)
+            ? d.blocks.findIndex((b) => blockId(b) === d.current_section)
             : -1;
           const startIdx = resumeAt >= 0 ? resumeAt : 0;
-          setSectionIdx(startIdx);
-          void updateLessonState(lessonId, { progress: "in_progress", current_section: d.sections[startIdx]!.section, current_index: 0 }).catch(() => {});
+          setBlockIdx(startIdx);
+          void updateLessonState(lessonId, { progress: "in_progress", current_section: blockId(d.blocks[startIdx]!), current_index: 0 }).catch(() => {});
         }
       } catch {
         if (!cancelled) setPhase("error");
@@ -36,15 +40,15 @@ export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
     return () => { cancelled = true; };
   }, [lessonId]);
 
-  function nextSection() {
+  function nextBlock() {
     if (!detail) return;
-    const next = sectionIdx + 1;
-    if (next >= detail.sections.length) {
+    const next = blockIdx + 1;
+    if (next >= detail.blocks.length) {
       void updateLessonState(lessonId, { progress: "completed", current_section: null, current_index: 0 }).catch(() => {});
       setPhase("done");
     } else {
-      setSectionIdx(next);
-      void updateLessonState(lessonId, { progress: "in_progress", current_section: detail.sections[next]!.section, current_index: 0 }).catch(() => {});
+      setBlockIdx(next);
+      void updateLessonState(lessonId, { progress: "in_progress", current_section: blockId(detail.blocks[next]!), current_index: 0 }).catch(() => {});
     }
   }
 
@@ -63,17 +67,17 @@ export function LessonWalkthroughScreen({ lessonId, onExit }: Props) {
     );
   }
 
-  const section = detail!.sections[sectionIdx]!;
-  const progress = (sectionIdx / detail!.sections.length) * 100;
+  const block = detail!.blocks[blockIdx]!;
+  const progress = (blockIdx / detail!.blocks.length) * 100;
   return (
     <main className="screen screen--practice">
       <div className="practice-bar">
         <button type="button" className="practice-bar__close" onClick={onExit} aria-label="Exit lesson"><IconClose /></button>
         <div className="practice-bar__progress"><div className="practice-bar__progress-fill" style={{ width: `${progress}%` }} /></div>
-        <span className="practice-bar__count">{sectionIdx + 1}/{detail!.sections.length}</span>
+        <span className="practice-bar__count">{blockIdx + 1}/{detail!.blocks.length}</span>
       </div>
       <div className="practice-stage">
-        <LessonSection key={section.section} section={section.section} items={section.items} teaching={section.teaching} onDone={nextSection} />
+        <LessonBlockView key={blockId(block)} block={block} lessonId={lessonId} onDone={nextBlock} />
       </div>
     </main>
   );

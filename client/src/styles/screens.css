@@ -688,9 +688,15 @@
 .lessons { padding: 20px 16px 88px; }
 .lessons__title { font-family: var(--font-display); font-size: 24px; font-weight: 500; margin: 0 0 16px; }
 .lessons__form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-.lessons__skills { display: flex; flex-wrap: wrap; gap: 8px; }
-.lessons__skill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; }
-.lessons__skill.is-on { border-color: var(--fg); }
+.lessons__mode-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+.lessons__mode-btn { flex: 1; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); background: none; font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--fg-secondary); }
+.lessons__mode-btn.is-active { border-color: var(--fg); color: var(--fg); background: var(--bg-raised); }
+.lessons__grammar-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.lessons__grammar-item { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 13px; }
+.lessons__grammar-item.is-on { border-color: var(--fg); background: var(--bg-raised); }
+.lessons__grammar-title { font-weight: 500; }
+.lessons__grammar-romaji { font-weight: 400; color: var(--fg-secondary); }
+.lessons__grammar-meaning { grid-column: 2; font-size: 12px; color: var(--fg-secondary); }
 .lessons__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lessons__item-btn { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: none; text-align: left; }
 .lessons__item-btn:disabled { opacity: 0.6; }
@@ -701,11 +707,16 @@
 /* Lesson teach view */
 .teach { display: flex; flex-direction: column; gap: 16px; padding: 24px; flex: 1; }
 .teach__heading { font-family: var(--font-display); font-size: 20px; font-weight: 500; margin: 0; }
+.teach__romaji { font-size: 14px; font-weight: 400; color: var(--fg-secondary); }
+.teach__meaning { font-size: 14px; color: var(--fg-secondary); margin: -8px 0 0; }
 .teach__lines { display: flex; flex-direction: column; gap: 12px; flex: 1; }
 .teach__line { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .teach__ruby { font-size: 18px; }
+.teach__ruby.is-passage { font-size: 17px; line-height: 2.2; }
+.teach__target { font-family: var(--font-jp); font-size: 16px; font-weight: 500; color: var(--fg); }
 .teach__gloss { font-size: 13px; color: var(--fg-secondary); }
 .teach__body { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.teach__steps { display: flex; flex-direction: column; gap: 8px; padding-left: 20px; margin: 0; font-size: 15px; line-height: 1.6; color: var(--fg); }
 .teach__explanation { font-size: 15px; line-height: 1.6; color: var(--fg); margin: 0; }
 .teach__examples { display: flex; flex-direction: column; gap: 12px; }
 .teach__example { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
