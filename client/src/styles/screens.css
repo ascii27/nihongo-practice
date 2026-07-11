@@ -359,18 +359,19 @@
 .mc-card { display: flex; flex-direction: column; flex: 1; padding: 28px 24px 20px; gap: 18px; overflow-y: auto; scrollbar-width: none; }
 .mc-card::-webkit-scrollbar { display: none; }
 .mc-card__sentence { font-family: var(--font-jp); font-size: 22px; line-height: 2.0; color: var(--fg); }
-.mc-card__options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mc-card__options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .mc-option {
-  padding: 18px 12px;
+  padding: 12px 14px;
   border-radius: var(--radius-md);
   background: var(--bg-sunken);
   border: 1.5px solid var(--border);
   font-family: var(--font-jp);
-  font-size: 24px;
+  font-size: 17px;
+  line-height: 1.35;
   color: var(--fg);
   transition: all var(--duration-fast) ease;
   text-align: center;
-  min-height: 64px;
+  min-height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -718,6 +719,21 @@
 .teach__body { display: flex; flex-direction: column; gap: 16px; flex: 1; }
 .teach__steps { display: flex; flex-direction: column; gap: 8px; padding-left: 20px; margin: 0; font-size: 15px; line-height: 1.6; color: var(--fg); }
 .teach__explanation { font-size: 15px; line-height: 1.6; color: var(--fg); margin: 0; }
+
+/* Grammar example dialogue */
+.teach__dialog { display: flex; flex-direction: column; gap: 12px; padding: 14px; background: var(--bg-sunken); border-radius: var(--radius-md); }
+.teach__dialog-line { display: flex; gap: 10px; align-items: flex-start; }
+.teach__dialog-speaker { flex: 0 0 auto; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--bg); border: 1px solid var(--border); font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--fg-secondary); }
+.teach__dialog-text { display: flex; flex-direction: column; gap: 2px; }
+
+/* Lesson outline breadcrumb */
+.lesson-crumbs { display: flex; gap: 6px; overflow-x: auto; padding: 8px 16px 0; -webkit-overflow-scrolling: touch; }
+.lesson-crumb { flex: 0 0 auto; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--border); background: none; font-family: var(--font-ui); font-size: 12px; white-space: nowrap; color: var(--fg-secondary); transition: all var(--duration-fast) ease; }
+.lesson-crumb.is-current { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.lesson-crumb.is-done { color: var(--fg); border-color: var(--fg-secondary); }
+.lesson-crumb.is-visited { color: var(--fg); }
+.lesson-crumb.is-future { opacity: 0.45; }
+.lesson-crumb:disabled { cursor: default; }
 .teach__examples { display: flex; flex-direction: column; gap: 12px; }
 .teach__example { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .teach__note { font-size: 12px; color: var(--fg-secondary); font-style: italic; }

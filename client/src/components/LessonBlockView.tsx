@@ -35,7 +35,7 @@ export function LessonBlockView({ block, onDone }: Props) {
 }
 
 function GrammarBlockView({ block, onDone }: { block: Extract<LessonBlock, { type: "grammar" }>; onDone: () => void }) {
-  const { point, steps, examples } = block;
+  const { point, dialog, explanation } = block;
   return (
     <div className="teach">
       <h2 className="teach__heading">
@@ -44,20 +44,18 @@ function GrammarBlockView({ block, onDone }: { block: Extract<LessonBlock, { typ
       </h2>
       <p className="teach__meaning">{point.meaning}</p>
       <div className="teach__body">
-        <ol className="teach__steps">
-          {steps.map((step, idx) => (
-            <li key={idx}>{step}</li>
-          ))}
-        </ol>
-        <div className="teach__examples">
-          {examples.map((ex, idx) => (
-            <div className="teach__example" key={idx}>
-              <RubyText html={ex.jp_ruby} className="teach__ruby" />
-              <span className="teach__gloss">{ex.en}</span>
-              {ex.note ? <span className="teach__note">{ex.note}</span> : null}
+        <div className="teach__dialog">
+          {dialog.map((line, idx) => (
+            <div className="teach__dialog-line" key={idx}>
+              <span className="teach__dialog-speaker">{line.speaker}</span>
+              <div className="teach__dialog-text">
+                <RubyText html={line.jp_ruby} className="teach__ruby" />
+                <span className="teach__gloss">{line.en}</span>
+              </div>
             </div>
           ))}
         </div>
+        <p className="teach__explanation">{explanation}</p>
       </div>
       <button type="button" className="cta cta--primary cta--block" onClick={onDone}>Continue →</button>
     </div>
