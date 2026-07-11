@@ -349,45 +349,39 @@ describe("parseListeningBatch", () => {
 
 describe("parseGrammarLesson", () => {
   const good = JSON.stringify({
-    steps: [
-      "Step 1: Attach ながら to the masu-stem of a verb.",
-      "Step 2: It means 'while doing X'.",
-      "Step 3: Use it when the two actions happen simultaneously by the same subject.",
+    dialog: [
+      { speaker: "A", jp: "音楽を聞きながら勉強してもいいですか。", en: "May I study while listening to music?" },
+      { speaker: "B", jp: "はい、聞きながらでもいいですよ。", en: "Yes, doing it while listening is fine." },
     ],
-    examples: [
-      { jp: "音楽を聞きながら勉強します。", en: "I study while listening to music.", note: "ながら links the two simultaneous actions" },
-      { jp: "歩きながら話す。", en: "Talk while walking." },
-    ],
+    explanation: "ながら attaches to the masu-stem and means 'while doing X'; the two actions are simultaneous and share one subject.",
   });
 
   it("accepts a well-formed grammar lesson", () => {
     const l = parseGrammarLesson(good);
-    expect(l.steps.length).toBeGreaterThan(0);
-    expect(l.steps[0]).toContain("ながら");
-    expect(l.examples).toHaveLength(2);
-    expect(l.examples[0]!.jp).toBe("音楽を聞きながら勉強します。");
-    expect(l.examples[0]!.note).toBe("ながら links the two simultaneous actions");
-    expect(l.examples[1]!.note).toBeUndefined();
+    expect(l.dialog).toHaveLength(2);
+    expect(l.dialog[0]!.speaker).toBe("A");
+    expect(l.dialog[0]!.jp).toContain("ながら");
+    expect(l.explanation).toContain("ながら");
   });
 
   it("strips code fences before parsing", () => {
-    expect(parseGrammarLesson("```json\n" + good + "\n```").steps.length).toBeGreaterThan(0);
+    expect(parseGrammarLesson("```json\n" + good + "\n```").dialog.length).toBeGreaterThan(0);
   });
 
-  it("rejects a missing steps array", () => {
-    expect(() => parseGrammarLesson(JSON.stringify({ examples: [] }))).toThrow();
+  it("rejects a missing dialog array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ explanation: "x" }))).toThrow();
   });
 
-  it("rejects an empty steps array", () => {
-    expect(() => parseGrammarLesson(JSON.stringify({ steps: [], examples: [] }))).toThrow();
+  it("rejects an empty dialog array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [], explanation: "x" }))).toThrow();
   });
 
-  it("rejects examples that are not an array", () => {
-    expect(() => parseGrammarLesson(JSON.stringify({ steps: ["x"], examples: {} }))).toThrow();
+  it("rejects a dialog line missing speaker/jp/en", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [{ jp: "あ", en: "a" }], explanation: "x" }))).toThrow();
   });
 
-  it("rejects an example missing jp/en", () => {
-    expect(() => parseGrammarLesson(JSON.stringify({ steps: ["x"], examples: [{ jp: "あ" }] }))).toThrow();
+  it("rejects a missing explanation", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [{ speaker: "A", jp: "あ", en: "a" }] }))).toThrow();
   });
 });
 

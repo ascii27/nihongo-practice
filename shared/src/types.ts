@@ -476,13 +476,13 @@ export type LessonSummary = z.infer<typeof LessonSummary>;
 export const LessonsListResponse = z.object({ lessons: z.array(LessonSummary) });
 export type LessonsListResponse = z.infer<typeof LessonsListResponse>;
 
-// A worked example sentence used in grammar teaching.
-export const TeachingExample = z.object({
+// A line of the example dialogue shown in grammar teaching.
+export const DialogLine = z.object({
+  speaker: z.string(),
   jp_ruby: z.string(),
   en: z.string(),
-  note: z.string().optional(),
 });
-export type TeachingExample = z.infer<typeof TeachingExample>;
+export type DialogLine = z.infer<typeof DialogLine>;
 
 // A lesson is an ordered list of blocks, walked top to bottom:
 //   grammar (teach) → vocab (teach + review) → reading / listening (lesson-only)
@@ -496,8 +496,8 @@ export const GrammarBlock = z.object({
     romaji: z.string().nullable(),
     meaning: z.string(),
   }),
-  steps: z.array(z.string()),            // step-by-step English explanation
-  examples: z.array(TeachingExample),    // worked examples for the point
+  dialog: z.array(DialogLine),           // short example dialogue in context
+  explanation: z.string(),               // English explanation of the point + nuances
 });
 export const VocabBlock = z.object({ type: z.literal("vocab"), items: z.array(ItemRecord) });
 export const ReadingBlock = z.object({ type: z.literal("reading"), item: ItemRecord });

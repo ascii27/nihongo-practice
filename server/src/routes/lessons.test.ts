@@ -46,8 +46,10 @@ describe("lessons routes (grammar-centered)", () => {
     expect(types[types.length - 1]).toBe("cloze");
 
     const grammar = detail.body.blocks.find((b: { type: string }) => b.type === "grammar");
-    expect(Array.isArray(grammar.steps)).toBe(true);
-    expect(grammar.steps.length).toBeGreaterThan(0);
+    expect(Array.isArray(grammar.dialog)).toBe(true);
+    expect(grammar.dialog.length).toBeGreaterThan(0);
+    expect(grammar.dialog[0].jp_ruby.length).toBeGreaterThan(0);
+    expect(typeof grammar.explanation).toBe("string");
     expect(grammar.point.title.length).toBeGreaterThan(0);
   });
 

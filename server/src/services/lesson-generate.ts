@@ -52,15 +52,15 @@ export async function generateLessonInto(lessonId: string): Promise<void> {
     for (const p of points) {
       const gl = await generateGrammarLesson({ point: { title: p.title, meaning: p.meaning }, jlpt_level: jlpt });
       addCost(computeCost(gl.usage));
-      const examples = await Promise.all(gl.examples.map(async (e) => ({
-        jp_ruby: await toRubyHtml(e.jp),
-        en: e.en,
-        ...(e.note ? { note: e.note } : {}),
+      const dialog = await Promise.all(gl.dialog.map(async (line) => ({
+        speaker: line.speaker,
+        jp_ruby: await toRubyHtml(line.jp),
+        en: line.en,
       })));
       const content = {
         point: { id: p.id, title: p.title, romaji: p.romaji, meaning: p.meaning },
-        steps: gl.steps,
-        examples,
+        dialog,
+        explanation: gl.explanation,
       };
       await storeSection(lessonId, `grammar:${p.id}`, content);
     }

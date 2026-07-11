@@ -305,7 +305,7 @@ import {
 } from "./generate.js";
 
 describe("generateGrammarLesson (fake AI)", () => {
-  it("returns deterministic steps + examples without a client", async () => {
+  it("returns a deterministic dialogue + explanation without a client", async () => {
     const prev = process.env.NIHONGO_FAKE_AI;
     process.env.NIHONGO_FAKE_AI = "1";
     try {
@@ -313,10 +313,11 @@ describe("generateGrammarLesson (fake AI)", () => {
         point: { title: "〜ながら", meaning: "while doing" },
         jlpt_level: "N4",
       });
-      expect(r.steps.length).toBeGreaterThan(0);
-      expect(r.examples.length).toBeGreaterThan(0);
-      expect(r.examples[0]!.jp).toBeTruthy();
-      expect(r.examples[0]!.en).toBeTruthy();
+      expect(r.dialog.length).toBeGreaterThan(0);
+      expect(r.dialog[0]!.speaker).toBeTruthy();
+      expect(r.dialog[0]!.jp).toBeTruthy();
+      expect(r.dialog[0]!.en).toBeTruthy();
+      expect(r.explanation.length).toBeGreaterThan(0);
       expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
     } finally {
       if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;

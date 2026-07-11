@@ -280,29 +280,22 @@ export function parseListeningBatch(raw: string): ListeningGenItem[] {
 }
 
 export type GrammarLesson = {
-  steps: string[];
-  examples: { jp: string; en: string; note?: string }[];
+  dialog: { speaker: string; jp: string; en: string }[];
+  explanation: string;
 };
 
 export function parseGrammarLesson(raw: string): GrammarLesson {
   const parsed = JSON.parse(stripFences(raw));
-  if (
-    !Array.isArray(parsed?.steps) ||
-    parsed.steps.length === 0 ||
-    parsed.steps.some((s: unknown) => typeof s !== "string")
-  ) {
-    throw new Error("grammar lesson 'steps' must be a non-empty string array");
+  if (!Array.isArray(parsed?.dialog) || parsed.dialog.length === 0) {
+    throw new Error("grammar lesson 'dialog' must be a non-empty array");
   }
-  if (!Array.isArray(parsed?.examples)) {
-    throw new Error("grammar lesson 'examples' must be an array");
+  for (const line of parsed.dialog) {
+    if (typeof line?.speaker !== "string" || typeof line?.jp !== "string" || typeof line?.en !== "string") {
+      throw new Error("grammar lesson dialog line missing 'speaker'/'jp'/'en'");
+    }
   }
-  for (const ex of parsed.examples) {
-    if (typeof ex?.jp !== "string" || typeof ex?.en !== "string") {
-      throw new Error("grammar lesson example missing 'jp'/'en'");
-    }
-    if (ex.note !== undefined && typeof ex.note !== "string") {
-      throw new Error("grammar lesson example has invalid 'note'");
-    }
+  if (typeof parsed?.explanation !== "string" || parsed.explanation.trim() === "") {
+    throw new Error("grammar lesson 'explanation' must be a non-empty string");
   }
   return parsed as GrammarLesson;
 }

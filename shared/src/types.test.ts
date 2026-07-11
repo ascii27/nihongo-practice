@@ -71,12 +71,12 @@ describe("lesson types", () => {
 });
 
 describe("LessonBlock", () => {
-  it("parses a grammar block with steps + examples", () => {
+  it("parses a grammar block with a dialogue + explanation", () => {
     const b = LessonBlock.parse({
       type: "grammar",
       point: { id: "11111111-1111-1111-1111-111111111111", title: "〜てもいい", romaji: "te mo ii", meaning: "may; is allowed to" },
-      steps: ["Step 1: attach て-form.", "Step 2: add もいい."],
-      examples: [{ jp_ruby: "<ruby>行<rt>い</rt></ruby>ってもいい", en: "You may go" }],
+      dialog: [{ speaker: "A", jp_ruby: "<ruby>行<rt>い</rt></ruby>ってもいいですか", en: "May I go?" }],
+      explanation: "〜てもいい asks or grants permission. Attach it to the て-form...",
     });
     expect(b.type).toBe("grammar");
   });

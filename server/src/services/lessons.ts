@@ -1,7 +1,7 @@
 import { pool } from "../db/pool.js";
 import type {
   CreateLessonRequest, LessonSummary, LessonDetail, LessonBlock,
-  TeachingExample, TodayLessonResponse, LessonStateUpdate, ItemRecord, GrammarPoint, Skill,
+  DialogLine, TodayLessonResponse, LessonStateUpdate, ItemRecord, GrammarPoint, Skill,
 } from "@nihongo/shared";
 import { getGrammarPointsByIds } from "./grammar-points.js";
 
@@ -90,8 +90,8 @@ type DetailRow = {
 
 type GrammarContent = {
   point: { id: string; title: string; romaji: string | null; meaning: string };
-  steps: string[];
-  examples: TeachingExample[];
+  dialog: DialogLine[];
+  explanation: string;
 };
 
 export async function getLessonDetail(id: string): Promise<LessonDetail | null> {
@@ -140,7 +140,7 @@ export async function getLessonDetail(id: string): Promise<LessonDetail | null> 
   const blocks: LessonBlock[] = [];
   for (const gid of lesson.grammar_point_ids) {
     const c = contentBySection.get(`grammar:${gid}`) as GrammarContent | undefined;
-    if (c) blocks.push({ type: "grammar", point: c.point, steps: c.steps, examples: c.examples });
+    if (c) blocks.push({ type: "grammar", point: c.point, dialog: c.dialog, explanation: c.explanation });
   }
   const vocab = itemsBySection.get("vocab");
   if (vocab?.length) blocks.push({ type: "vocab", items: vocab });

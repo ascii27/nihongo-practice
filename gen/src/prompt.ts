@@ -148,13 +148,13 @@ export function buildListeningPrompt(args: { count: number; weakness_hint?: stri
   return { system: LISTENING_SYSTEM, user: lines.join("\n") };
 }
 
-const GRAMMAR_LESSON_SYSTEM = `You write a step-by-step teaching block for a single Japanese grammar point, pitched at the learner's JLPT level.
+const GRAMMAR_LESSON_SYSTEM = `You write a teaching block for a single Japanese grammar point, pitched at the learner's JLPT level. First a short example dialogue that shows the grammar in use, then an explanation of the point and its nuances.
 Reply ONLY with valid JSON matching this exact schema, no prose, no fences:
-{"steps": string[], "examples": [{"jp": string, "en": string, "note": string}]}
+{"dialog": [{"speaker": string, "jp": string, "en": string}], "explanation": string}
 
 Rules:
-- "steps" is a STEP-BY-STEP explanation IN ENGLISH of the grammar point and its usage: 3–5 short steps covering formation, meaning, when to use it, and nuance/caveats.
-- Provide 3 examples. "jp" is a natural Japanese sentence using the grammar (no furigana markup), "en" is its English translation, "note" is a short English note.`;
+- "dialog" is a short, natural example conversation of 4–6 lines between two speakers that shows the grammar point used in context. "speaker" is a short label such as "A" or "B" (keep it consistent). "jp" is the Japanese line (NO furigana markup); "en" is its English translation. At least two lines should use the grammar point.
+- "explanation" is a clear English explanation (2–4 flowing sentences, NOT a numbered or step-by-step list) of what the grammar point means, how it is formed, and its key nuances or caveats.`;
 
 export function buildGrammarLessonPrompt(args: {
   point: { title: string; meaning: string };
@@ -202,6 +202,7 @@ export function buildGrammarQuizPrompt(args: {
     `Grammar point: ${args.point.title} (${args.point.meaning})`,
     `Target JLPT level: ${args.jlpt_level}.`,
     `Each sentence must use this grammar point and blank one of these target vocabulary words: ${args.vocab.join("、")}`,
+    `Vary the correct answer across the batch — the answer must NOT always be the target vocabulary. In some cards blank an easier, lower-level word instead, and include easier words among the distractors, so the learner has to actually read the sentence.`,
   ];
   return { system: GRAMMAR_QUIZ_SYSTEM, user: lines.join("\n") };
 }
@@ -219,7 +220,8 @@ export function buildGrammarClozePrompt(args: {
     `Generate ${args.count} grammar cloze cards.`,
     `Grammar point: ${args.point.title} (${args.point.meaning})`,
     `Target JLPT level: ${args.jlpt_level}.`,
-    `Blank the grammar expression "${args.point.title}" (or its key part) in each sentence.`,
+    `Most cards should blank the grammar expression "${args.point.title}" (or its key part).`,
+    `But intentionally mix in some cards whose correct answer is an EASIER, lower-JLPT-level grammar point or particle (with "${args.point.title}" among the distractors), so the correct answer is not always the target grammar and the learner must read the sentence to decide.`,
   ];
   return { system: GRAMMAR_CLOZE_SYSTEM, user: lines.join("\n") };
 }

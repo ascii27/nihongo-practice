@@ -402,8 +402,11 @@ export async function generateListeningBatch(args: {
 }
 
 const GRAMMAR_LESSON_FAKE: GrammarLesson = {
-  steps: ["Step 1: ...", "Step 2: ..."],
-  examples: [{ jp: "これは例文です。", en: "This is an example.", note: "fake" }],
+  dialog: [
+    { speaker: "A", jp: "これを使ってもいいですか。", en: "May I use this?" },
+    { speaker: "B", jp: "はい、使ってもいいですよ。", en: "Yes, you may use it." },
+  ],
+  explanation: "This is a fake grammar explanation used in tests. It covers the point and its nuances.",
 };
 
 export async function generateGrammarLesson(args: {
@@ -411,11 +414,11 @@ export async function generateGrammarLesson(args: {
   jlpt_level: string;
   client?: ClientLike;
   signal?: AbortSignal;
-}): Promise<{ steps: string[]; examples: { jp: string; en: string; note?: string }[]; usage: Usage; raw: string }> {
+}): Promise<{ dialog: { speaker: string; jp: string; en: string }[]; explanation: string; usage: Usage; raw: string }> {
   if (process.env.NIHONGO_FAKE_AI === "1") {
     return {
-      steps: GRAMMAR_LESSON_FAKE.steps,
-      examples: GRAMMAR_LESSON_FAKE.examples,
+      dialog: GRAMMAR_LESSON_FAKE.dialog,
+      explanation: GRAMMAR_LESSON_FAKE.explanation,
       usage: { input_tokens: 0, output_tokens: 0 },
       raw: JSON.stringify(GRAMMAR_LESSON_FAKE),
     };
@@ -425,7 +428,7 @@ export async function generateGrammarLesson(args: {
   const { value, usage, raw } = await callWithRetry<GrammarLesson>({
     system, user, parse: parseGrammarLesson, client, signal: args.signal,
   });
-  return { steps: value.steps, examples: value.examples, usage, raw };
+  return { dialog: value.dialog, explanation: value.explanation, usage, raw };
 }
 
 function cleanSelectionIds(ids: string[], candidates: { id: string }[]): string[] {
