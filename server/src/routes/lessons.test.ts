@@ -4,104 +4,103 @@ import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
 import { lessonsRouter } from "./lessons.js";
 import { pool } from "../db/pool.js";
+import { buildQueue } from "../services/queue.js";
 
 const PASSCODE = "test-passcode";
 const app = makeTestApp(PASSCODE, (a) => a.use("/api/lessons", lessonsRouter));
+
+async function pollReady(id: string): Promise<string> {
+  let status = "generating";
+  for (let i = 0; i < 200 && status === "generating"; i++) {
+    const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
+    status = s.body.status;
+    if (status === "generating") await new Promise((r) => setTimeout(r, 50));
+  }
+  return status;
+}
 
 beforeEach(async () => {
   process.env.NIHONGO_FAKE_AI = "1";
   await resetDb();
 });
 
-describe("lessons routes", () => {
-  it("creates a lesson (generating), reaches ready under fake AI, and becomes today's lesson", async () => {
+describe("lessons routes (grammar-centered)", () => {
+  it("creates an auto lesson and walks it through ordered blocks", async () => {
     const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
-      .send({ topic: "at the station", jlpt_level: "N4", skills: ["vocab", "particle"] });
+      .send({ mode: "auto", theme: "giving advice", jlpt_level: "N5" });
     expect(create.status).toBe(200);
     expect(create.body.status).toBe("generating");
     const id = create.body.id as string;
 
-    // Poll status until it leaves 'generating' (fake AI completes quickly).
-    let status = "generating";
-    for (let i = 0; i < 100 && status === "generating"; i++) {
-      const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
-      status = s.body.status;
-      if (status === "generating") await new Promise((r) => setTimeout(r, 50));
-    }
-    expect(status).toBe("ready");
+    expect(await pollReady(id)).toBe("ready");
 
     const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
     expect(detail.status).toBe(200);
-    expect(detail.body.sections.map((s: { section: string }) => s.section)).toEqual(["vocab", "particle"]);
-    expect(detail.body.sections[0].items.length).toBeGreaterThan(0);
+    const types = detail.body.blocks.map((b: { type: string }) => b.type);
+    // grammar first, then vocab, then the practice block ending in cloze.
+    expect(types[0]).toBe("grammar");
+    expect(types).toContain("vocab");
+    expect(types).toContain("reading");
+    expect(types).toContain("listening");
+    expect(types).toContain("quiz");
+    expect(types[types.length - 1]).toBe("cloze");
 
-    const today = await request(app).get("/api/lessons/today").set("X-Passcode", PASSCODE);
-    expect(today.body.lesson.id).toBe(id);
+    const grammar = detail.body.blocks.find((b: { type: string }) => b.type === "grammar");
+    expect(Array.isArray(grammar.steps)).toBe(true);
+    expect(grammar.steps.length).toBeGreaterThan(0);
+    expect(grammar.point.title.length).toBeGreaterThan(0);
   });
 
-  it("advances lesson state via PATCH", async () => {
+  it("keeps reading/listening out of the SRS while vocab/quiz/cloze enter it", async () => {
     const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
-      .send({ topic: "greetings", jlpt_level: "N5", skills: ["vocab"] });
+      .send({ mode: "auto", theme: "at the station", jlpt_level: "N5" });
     const id = create.body.id as string;
-    const patch = await request(app).patch(`/api/lessons/${id}/state`).set("X-Passcode", PASSCODE)
-      .send({ progress: "in_progress", current_section: "vocab", current_index: 0 });
-    expect(patch.status).toBe(204);
+    expect(await pollReady(id)).toBe("ready");
+
+    // No reading/listening rows were ever inserted into `items`.
+    const skills = await pool.query<{ skill: string }>(
+      `SELECT DISTINCT i.skill FROM items i JOIN lesson_items li ON li.item_id = i.id WHERE li.lesson_id = $1`,
+      [id],
+    );
+    const skillSet = skills.rows.map((r) => r.skill);
+    expect(skillSet).not.toContain("reading");
+    expect(skillSet).not.toContain("listening");
+    expect(skillSet).toContain("vocab");
+    expect(skillSet).toContain("particle"); // quiz + cloze are particle-shaped MCQ
+
+    // The review queue's "new" bucket contains lesson items but no reading/listening.
+    const queue = await buildQueue({ limit: 50, tz: "UTC" });
+    for (const rec of queue.new) {
+      expect(rec.skill).not.toBe("reading");
+      expect(rec.skill).not.toBe("listening");
+    }
+    expect(queue.new.length).toBeGreaterThan(0);
+  });
+
+  it("creates a manual lesson from chosen grammar points", async () => {
+    const gp = await pool.query<{ id: string }>(`SELECT id FROM grammar_points WHERE jlpt_level = 'N5' ORDER BY sort_order LIMIT 2`);
+    const ids = gp.rows.map((r) => r.id);
+    expect(ids.length).toBe(2);
+
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ mode: "manual", grammar_point_ids: ids, jlpt_level: "N5" });
+    expect(create.status).toBe(200);
+    const id = create.body.id as string;
+    expect(await pollReady(id)).toBe("ready");
+
+    const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
+    const grammarBlocks = detail.body.blocks.filter((b: { type: string }) => b.type === "grammar");
+    expect(grammarBlocks.length).toBe(2);
   });
 
   it("rejects an invalid create body", async () => {
     const r = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
-      .send({ topic: "", jlpt_level: "N4", skills: [] });
+      .send({ mode: "manual", grammar_point_ids: [], jlpt_level: "N5" });
     expect(r.status).toBe(400);
   });
 
   it("404s an unknown lesson", async () => {
     const r = await request(app).get("/api/lessons/11111111-1111-1111-1111-111111111111").set("X-Passcode", PASSCODE);
     expect(r.status).toBe(404);
-  });
-
-  it("stores teaching content for concept sections only", async () => {
-    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
-      .send({ topic: "at the station", jlpt_level: "N4", skills: ["vocab", "particle", "reading"] });
-    const id = create.body.id as string;
-
-    let status = "generating";
-    for (let i = 0; i < 100 && status === "generating"; i++) {
-      const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
-      status = s.body.status;
-      if (status === "generating") await new Promise((r) => setTimeout(r, 50));
-    }
-    expect(status).toBe("ready");
-
-    const rows = await pool.query<{ section: string; content: { explanation: string; examples: unknown[] } }>(
-      `SELECT section, content FROM lesson_sections WHERE lesson_id = $1 ORDER BY section`, [id],
-    );
-    const sections = rows.rows.map((r) => r.section).sort();
-    expect(sections).toEqual(["particle", "vocab"]); // reading (task skill) gets none
-    const particle = rows.rows.find((r) => r.section === "particle")!;
-    expect(particle.content.explanation.length).toBeGreaterThan(0);
-    expect(Array.isArray(particle.content.examples)).toBe(true);
-    expect((particle.content.examples[0] as { jp_ruby: string }).jp_ruby).toContain("<");
-  });
-
-  it("exposes teaching content on concept sections and null on task sections", async () => {
-    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
-      .send({ topic: "ordering food", jlpt_level: "N4", skills: ["vocab", "reading"] });
-    const id = create.body.id as string;
-
-    let status = "generating";
-    for (let i = 0; i < 100 && status === "generating"; i++) {
-      const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
-      status = s.body.status;
-      if (status === "generating") await new Promise((r) => setTimeout(r, 50));
-    }
-    expect(status).toBe("ready");
-
-    const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
-    const vocab = detail.body.sections.find((s: { section: string }) => s.section === "vocab");
-    const reading = detail.body.sections.find((s: { section: string }) => s.section === "reading");
-    expect(vocab.teaching).not.toBeNull();
-    expect(vocab.teaching.explanation.length).toBeGreaterThan(0);
-    expect(vocab.teaching.examples[0].jp_ruby).toBeTruthy();
-    expect(reading.teaching).toBeNull();
   });
 });

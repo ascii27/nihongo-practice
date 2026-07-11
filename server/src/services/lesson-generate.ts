@@ -1,93 +1,114 @@
+import { randomUUID } from "node:crypto";
 import { pool } from "../db/pool.js";
-import { runGeneration } from "./generate.js";
-import type { Skill } from "@nihongo/shared";
-import { generateTeachingBatch, toRubyHtml, computeCost } from "@nihongo/gen";
-import type { ItemRecord } from "@nihongo/shared";
+import { runGeneration, enrichFor } from "./generate.js";
+import { listGrammarPoints, getGrammarPointsByIds } from "./grammar-points.js";
+import {
+  generateGrammarLesson,
+  generateGrammarSelection,
+  generateGrammarQuiz,
+  generateGrammarCloze,
+  generateReadingBatch,
+  generateListeningBatch,
+  toRubyHtml,
+  computeCost,
+  type ParticleItem,
+} from "@nihongo/gen";
+import type { ItemRecord, GrammarPoint, JlptLevel } from "@nihongo/shared";
 
-const CONCEPT_SKILLS = new Set<Skill>(["vocab", "grammar", "particle", "conjugation"]);
+// Per-lesson counts. A lesson teaches 1–3 grammar points, introduces 5 new
+// vocab, and drills them; reading/listening are single lesson-only tasks.
+const VOCAB_COUNT = 5;
+const QUIZ_COUNT = 4;
+const CLOZE_COUNT = 4;
 
-// Short human-readable hints describing what each check card tests, so the
-// teaching generator can prepare the learner for them while using DIFFERENT
-// example sentences. Reads the same prompt/answer fields the teach view uses.
-export function avoidHintsFor(skill: Skill, items: ItemRecord[]): string[] {
-  return items.map((it) => {
-    const p = it.prompt as Record<string, unknown>;
-    const a = it.answer as Record<string, unknown>;
-    switch (skill) {
-      case "vocab": return `${p.target ?? ""} — ${p.sentence_english ?? ""}`.trim();
-      case "grammar": return `${p.pattern ?? ""} — ${p.sentence_english ?? ""}`.trim();
-      case "particle": return String(a.explanation ?? "");
-      case "conjugation": return `${p.base ?? ""} (${p.tense ?? ""})`.trim();
-      default: return "";
-    }
-  }).filter((s) => s !== "");
-}
-
-// Per-section item counts for a generated lesson. Small, focused sets — a lesson
-// teaches a topic, it is not a bulk drill. Listening/explain are token-heavy so
-// they stay at 1.
-export const SECTION_COUNTS: Record<Skill, number> = {
-  vocab: 5,
-  grammar: 3,
-  particle: 3,
-  conjugation: 3,
-  reading: 1,
-  listening: 1,
-  explain: 1,
+type LessonRow = {
+  mode: string;
+  topic: string;
+  jlpt_level: string;
+  grammar_point_ids: string[];
 };
 
-// The existing per-skill generators accept a free-text `weakness_hint`; we use it
-// to steer generation toward the lesson's topic at the target JLPT level.
-export function buildWeaknessHint(topic: string, jlpt_level: string): string {
-  return `Topic: ${topic}. Target JLPT level: ${jlpt_level}. Keep vocabulary and grammar appropriate to ${jlpt_level}.`;
-}
-
-// Runs the full lesson generation. NEVER throws — records failure on the row.
-export async function generateLessonInto(
-  lessonId: string,
-  topic: string,
-  jlpt_level: string,
-  skills: Skill[],
-): Promise<void> {
-  const hint = buildWeaknessHint(topic, jlpt_level);
+// Runs the full grammar-centered lesson generation. NEVER throws — records
+// failure on the lesson row. Order matters: resolve grammar points → teach the
+// grammar → introduce vocab (before the practice that reuses it) → build the
+// practice block (reading/listening lesson-only; quiz/cloze feed the SRS).
+export async function generateLessonInto(lessonId: string): Promise<void> {
   let totalCost = 0;
+  const addCost = (c: number) => { totalCost += c; };
   try {
-    for (const skill of skills) {
-      const r = await runGeneration({ skill, count: SECTION_COUNTS[skill], weakness_hint: hint });
-      totalCost += r.cost_usd;
-      const tag = `lesson:${lessonId}`;
-      for (const [i, item] of r.items.entries()) {
-        await pool.query(
-          `UPDATE items SET tags = array_append(tags, $2) WHERE id = $1 AND NOT ($2 = ANY(tags))`,
-          [item.id, tag],
-        );
-        await pool.query(
-          `INSERT INTO lesson_items (lesson_id, item_id, section, position)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (lesson_id, item_id) DO NOTHING`,
-          [lessonId, item.id, skill, i],
-        );
-      }
-      if (CONCEPT_SKILLS.has(skill)) {
-        const t = await generateTeachingBatch({
-          skill, topic, jlpt_level, avoid: avoidHintsFor(skill, r.items),
-        });
-        totalCost += computeCost(t.usage);
-        const examples = await Promise.all(
-          t.teaching.examples.map(async (e) => ({
-            jp_ruby: await toRubyHtml(e.jp),
-            en: e.en,
-            ...(e.note ? { note: e.note } : {}),
-          })),
-        );
-        await pool.query(
-          `INSERT INTO lesson_sections (lesson_id, section, content)
-           VALUES ($1, $2, $3)
-           ON CONFLICT (lesson_id, section) DO UPDATE SET content = EXCLUDED.content`,
-          [lessonId, skill, JSON.stringify({ explanation: t.teaching.explanation, examples })],
-        );
-      }
+    const lr = await pool.query<LessonRow>(
+      `SELECT mode, topic, jlpt_level, grammar_point_ids FROM lessons WHERE id = $1`,
+      [lessonId],
+    );
+    const lesson = lr.rows[0];
+    if (!lesson) throw new Error("lesson not found");
+    const jlpt = lesson.jlpt_level;
+
+    // 1. Resolve the grammar points this lesson is built around.
+    const points = await resolvePoints(lessonId, lesson, addCost);
+    if (points.length === 0) throw new Error("no grammar points resolved");
+
+    // 2. Teach each grammar point (step-by-step explanation + examples).
+    for (const p of points) {
+      const gl = await generateGrammarLesson({ point: { title: p.title, meaning: p.meaning }, jlpt_level: jlpt });
+      addCost(computeCost(gl.usage));
+      const examples = await Promise.all(gl.examples.map(async (e) => ({
+        jp_ruby: await toRubyHtml(e.jp),
+        en: e.en,
+        ...(e.note ? { note: e.note } : {}),
+      })));
+      const content = {
+        point: { id: p.id, title: p.title, romaji: p.romaji, meaning: p.meaning },
+        steps: gl.steps,
+        examples,
+      };
+      await storeSection(lessonId, `grammar:${p.id}`, content);
     }
+
+    const grammarTitles = points.map((p) => p.title).join(", ");
+    const hint = `Grammar focus: ${grammarTitles}. Theme: ${lesson.topic}. Target JLPT level: ${jlpt}. Use this grammar and keep vocabulary appropriate to ${jlpt}.`;
+
+    // 3. Introduce 5 new vocab (real items → SRS). Reuse the vocab generator.
+    const vocab = await runGeneration({ skill: "vocab", count: VOCAB_COUNT, weakness_hint: hint });
+    addCost(vocab.cost_usd);
+    await linkItems(lessonId, vocab.items, "vocab");
+    const vocabWords = vocab.items
+      .map((it) => String((it.prompt as Record<string, unknown>).target ?? ""))
+      .filter((w) => w !== "");
+
+    // 4. Reading (lesson-only content, never an SRS item).
+    const rd = await generateReadingBatch({ count: 1, weakness_hint: hint });
+    addCost(computeCost(rd.usage));
+    if (rd.items[0]) {
+      const enr = await enrichFor("reading", rd.items[0]);
+      await storeSyntheticBlock(lessonId, "reading", "reading", enr);
+    }
+
+    // 5. Listening (lesson-only content, never an SRS item).
+    const ls = await generateListeningBatch({ count: 1, weakness_hint: hint, jlpt_level: jlpt });
+    addCost(computeCost(ls.usage));
+    if (ls.items[0]) {
+      const enr = await enrichFor("listening", ls.items[0]);
+      addCost(enr.audio_cost_usd ?? 0);
+      await storeSyntheticBlock(lessonId, "listening", "listening", enr);
+    }
+
+    // 6. Quiz — vocab-in-context MCQ (real items → SRS), particle-shaped.
+    const quiz = await generateGrammarQuiz({
+      point: { title: points[0]!.title, meaning: points[0]!.meaning },
+      vocab: vocabWords, jlpt_level: jlpt, count: QUIZ_COUNT,
+    });
+    addCost(computeCost(quiz.usage));
+    await insertParticleItems(lessonId, quiz.items, "quiz");
+
+    // 7. Cloze — grammar fill-in-the-blank MCQ (real items → SRS).
+    const cloze = await generateGrammarCloze({
+      point: { title: points[0]!.title, meaning: points[0]!.meaning },
+      jlpt_level: jlpt, count: CLOZE_COUNT,
+    });
+    addCost(computeCost(cloze.usage));
+    await insertParticleItems(lessonId, cloze.items, "cloze");
+
     await pool.query(
       `UPDATE lessons SET status = 'ready', cost_usd = $2, generated_at = now() WHERE id = $1`,
       [lessonId, totalCost],
@@ -102,4 +123,98 @@ export async function generateLessonInto(
       console.error("generateLessonInto: failed to record failure", lessonId, writeErr);
     }
   }
+}
+
+// Auto mode: let the model pick 1–3 catalog points for the theme, and persist
+// them. Manual mode: load the points the owner chose.
+async function resolvePoints(
+  lessonId: string,
+  lesson: LessonRow,
+  addCost: (c: number) => void,
+): Promise<GrammarPoint[]> {
+  if (lesson.mode === "auto") {
+    const candidates = await listGrammarPoints(lesson.jlpt_level as JlptLevel);
+    const sel = await generateGrammarSelection({
+      theme: lesson.topic,
+      jlpt_level: lesson.jlpt_level,
+      candidates: candidates.map((c) => ({ id: c.id, title: c.title, meaning: c.meaning })),
+    });
+    addCost(computeCost(sel.usage));
+    const byId = new Map(candidates.map((c) => [c.id, c]));
+    let points = sel.ids.map((id) => byId.get(id)).filter((p): p is GrammarPoint => Boolean(p)).slice(0, 3);
+    if (points.length === 0 && candidates[0]) points = [candidates[0]];
+    await pool.query(`UPDATE lessons SET grammar_point_ids = $2 WHERE id = $1`, [lessonId, points.map((p) => p.id)]);
+    return points;
+  }
+  return getGrammarPointsByIds(lesson.grammar_point_ids);
+}
+
+// Tag already-inserted items and link them to the lesson at a section+position.
+async function linkItems(lessonId: string, items: ItemRecord[], section: string): Promise<void> {
+  const tag = `lesson:${lessonId}`;
+  for (const [i, item] of items.entries()) {
+    await pool.query(
+      `UPDATE items SET tags = array_append(tags, $2) WHERE id = $1 AND NOT ($2 = ANY(tags))`,
+      [item.id, tag],
+    );
+    await pool.query(
+      `INSERT INTO lesson_items (lesson_id, item_id, section, position)
+       VALUES ($1, $2, $3, $4) ON CONFLICT (lesson_id, item_id) DO NOTHING`,
+      [lessonId, item.id, section, i],
+    );
+  }
+}
+
+// Enrich particle-shaped MCQ drills, insert them as real `items` (skill
+// 'particle', so they render as MCQ in review too), then link to the lesson.
+async function insertParticleItems(lessonId: string, raw: ParticleItem[], section: string): Promise<void> {
+  const records: ItemRecord[] = [];
+  for (const r of raw) {
+    const enr = await enrichFor("particle", r);
+    const res = await pool.query<{
+      id: string; skill: string; prompt: unknown; answer: unknown;
+      source: string; external_id: string | null; tags: string[]; created_at: Date;
+    }>(
+      `INSERT INTO items (skill, prompt, answer, source, external_id)
+       VALUES ('particle', $1, $2, 'ai', $3)
+       RETURNING id, skill, prompt, answer, source, external_id, tags, created_at`,
+      [JSON.stringify(enr.prompt), JSON.stringify(enr.answer), `ai-${randomUUID()}`],
+    );
+    const row = res.rows[0]!;
+    records.push({
+      id: row.id, skill: row.skill as ItemRecord["skill"], prompt: row.prompt, answer: row.answer,
+      source: row.source as ItemRecord["source"], external_id: row.external_id,
+      tags: row.tags, created_at: row.created_at.toISOString(),
+    });
+  }
+  await linkItems(lessonId, records, section);
+}
+
+async function storeSection(lessonId: string, section: string, content: unknown): Promise<void> {
+  await pool.query(
+    `INSERT INTO lesson_sections (lesson_id, section, content)
+     VALUES ($1, $2, $3) ON CONFLICT (lesson_id, section) DO UPDATE SET content = EXCLUDED.content`,
+    [lessonId, section, JSON.stringify(content)],
+  );
+}
+
+// Store a lesson-only synthetic item (reading/listening) in lesson_sections. It
+// carries a generated id but is NEVER inserted into `items`, so it stays out of
+// the SRS review queue.
+async function storeSyntheticBlock(
+  lessonId: string,
+  section: string,
+  skill: string,
+  enr: { prompt: unknown; answer: unknown },
+): Promise<void> {
+  const item: ItemRecord = {
+    id: randomUUID(),
+    skill: skill as ItemRecord["skill"],
+    prompt: enr.prompt,
+    answer: enr.answer,
+    source: "ai",
+    tags: [],
+    created_at: new Date().toISOString(),
+  };
+  await storeSection(lessonId, section, { item });
 }

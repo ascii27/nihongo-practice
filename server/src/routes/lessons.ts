@@ -14,8 +14,7 @@ lessonsRouter.post("/", async (req, res) => {
   }
   const { id } = await createLesson(parsed.data);
   // Fire-and-forget: generation runs in the background; client polls status.
-  void generateLessonInto(id, parsed.data.topic, parsed.data.jlpt_level, parsed.data.skills)
-    .catch((err) => console.error("lesson generation failed", id, err));
+  void generateLessonInto(id).catch((err) => console.error("lesson generation failed", id, err));
   res.json({ id, status: "generating" as const });
 });
 
