@@ -2,6 +2,10 @@ import { Router } from "express";
 import { z } from "zod";
 import { pool } from "../db/pool.js";
 import { nextState, type ReviewStateRow } from "../services/leitner.js";
+import { itemDisplay } from "../services/item-display.js";
+import { detectStreakMilestone, ymdInTz } from "../services/streak.js";
+import { emitReviewLogged, emitMilestone } from "../services/hermes.js";
+import type { Skill } from "@nihongo/shared";
 
 export const reviewsRouter = Router();
 
@@ -14,6 +18,7 @@ const Body = z.object({
   reviewed_at: z.string().datetime(),
   session_id: z.string().uuid().optional(),
   answer_given: z.string().max(200).optional(),
+  tz: z.string().optional(), // IANA timezone, for streak-milestone events
 });
 
 reviewsRouter.post("/", async (req, res) => {
@@ -22,14 +27,16 @@ reviewsRouter.post("/", async (req, res) => {
     res.status(400).json({ error: "invalid body", code: "BAD_BODY" });
     return;
   }
-  const { item_id, result, reviewed_at, session_id, answer_given } = parsed.data;
+  const { item_id, result, reviewed_at, session_id, answer_given, tz } = parsed.data;
 
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
 
-    // Verify item exists
-    const itemRes = await client.query(`SELECT id FROM items WHERE id = $1`, [item_id]);
+    // Verify item exists (and load fields used to name the card in Hermes events)
+    const itemRes = await client.query<{ id: string; skill: string; prompt: unknown; answer: unknown }>(
+      `SELECT id, skill, prompt, answer FROM items WHERE id = $1`, [item_id],
+    );
     if (itemRes.rowCount === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ error: "item not found", code: "ITEM_NOT_FOUND" });
@@ -104,6 +111,32 @@ reviewsRouter.post("/", async (req, res) => {
       total_reviews: next.total_reviews,
       total_missed: next.total_missed,
     });
+
+    // Fire-and-forget progress events to Hermes (opt-in; no-op when
+    // unconfigured). Guarded so it can never disturb the already-sent response.
+    try {
+      const item = itemRes.rows[0]!;
+      const display = itemDisplay(item.skill as Skill, item.prompt, item.answer);
+      void emitReviewLogged({
+        item_id, skill: item.skill, result, reviewed_at,
+        box_before: prev?.box ?? 0, box_after: next.box,
+        total_reviews: next.total_reviews, total_missed: next.total_missed,
+        suspended, session_id: session_id ?? null,
+        front: display.front, meaning: display.meaning,
+      }).catch(() => {});
+      if (tz) {
+        void detectStreakMilestone(tz).then((threshold) => {
+          if (threshold) {
+            return emitMilestone(
+              { milestone_type: "streak", streak_days: threshold, session_date: ymdInTz(new Date(), tz), item_id },
+              new Date().toISOString(),
+            );
+          }
+        }).catch(() => {});
+      }
+    } catch (emitErr) {
+      console.error("hermes: emit setup failed", emitErr);
+    }
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;

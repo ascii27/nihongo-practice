@@ -72,9 +72,12 @@ export function submitReview(input: {
   session_id?: string;
   answer_given?: string;
 }): Promise<ReviewStateResponse> {
+  // Attach the caller's IANA timezone so the server can detect streak
+  // milestones ("first review of today"). Harmless if the field is unused.
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   return api<ReviewStateResponse>("/api/reviews", {
     method: "POST",
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, tz }),
   });
 }
 
