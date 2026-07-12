@@ -148,6 +148,70 @@ export function buildListeningPrompt(args: { count: number; weakness_hint?: stri
   return { system: LISTENING_SYSTEM, user: lines.join("\n") };
 }
 
+const GRAMMAR_LESSON_SYSTEM = `You write a teaching block for a single Japanese grammar point, pitched at the learner's JLPT level. First a short example dialogue that shows the grammar in use, then an explanation of the point and its nuances.
+Reply ONLY with valid JSON matching this exact schema, no prose, no fences:
+{"dialog": [{"speaker": string, "jp": string, "en": string}], "explanation": string}
+
+Rules:
+- "dialog" is a short, natural example conversation of 4–6 lines between two speakers that shows the grammar point used in context. "speaker" is a short label such as "A" or "B" (keep it consistent). "jp" is the Japanese line (NO furigana markup); "en" is its English translation. At least two lines should use the grammar point.
+- "explanation" is a clear English explanation (2–4 flowing sentences, NOT a numbered or step-by-step list) of what the grammar point means, how it is formed, and its key nuances or caveats.`;
+
+export function buildGrammarLessonPrompt(args: {
+  point: { title: string; meaning: string };
+  jlpt_level: string;
+}): PromptPair {
+  const user = [
+    `Grammar point: ${args.point.title}`,
+    `Meaning: ${args.point.meaning}`,
+    `Target JLPT level: ${args.jlpt_level}.`,
+  ].join("\n");
+  return { system: GRAMMAR_LESSON_SYSTEM, user };
+}
+
+const GRAMMAR_SELECTION_SYSTEM = `You are helping a Japanese learner pick grammar points for a themed lesson. From the numbered candidate grammar points, choose the 1–3 that best fit the learner's theme and level.
+Reply ONLY with valid JSON matching this exact schema, no prose, no fences:
+{"ids": string[]}
+Use the exact "id" values given for the candidates you choose.`;
+
+export function buildGrammarSelectionPrompt(args: {
+  theme: string;
+  jlpt_level: string;
+  candidates: { id: string; title: string; meaning: string }[];
+}): PromptPair {
+  const lines = [
+    `Theme: ${args.theme}`,
+    `Target JLPT level: ${args.jlpt_level}`,
+    `Candidates:`,
+    ...args.candidates.map((c) => `- id=${c.id} | ${c.title} — ${c.meaning}`),
+  ];
+  return { system: GRAMMAR_SELECTION_SYSTEM, user: lines.join("\n") };
+}
+
+const LESSON_QUIZ_SYSTEM = `You write a short end-of-lesson quiz that tests a learner's understanding of one Japanese grammar point plus some target vocabulary. MIX the question formats across the batch.
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "questions": [ { "question": "<EN question stem>", "sentence_japanese": "<optional JA sentence/context, may contain ___, else empty>", "options": ["<o1>", "<o2>", "<o3>", "<o4>"], "answer_index": 0|1|2|3, "explanation": "<1 sentence EN>" } ] }
+
+Rules:
+- Vary the format across the batch: some fill-in-the-blank (put a natural JA sentence containing '___' in "sentence_japanese" and ask which word/grammar fits), some meaning questions ("What does 〜X mean?"), some usage / "which sentence is correct?" questions.
+- Always provide exactly four "options" and one correct "answer_index" (0–3); vary the correct position across the batch.
+- Do NOT always make the target grammar the answer — mix in easier, lower-level grammar or vocabulary as correct answers and as distractors, so the learner must actually read each question.
+- "sentence_japanese" has NO furigana markup; use an empty string when the question needs no Japanese sentence.`;
+
+export function buildLessonQuizPrompt(args: {
+  point: { title: string; meaning: string };
+  vocab: string[];
+  jlpt_level: string;
+  count: number;
+}): PromptPair {
+  const lines = [
+    `Generate ${args.count} quiz questions.`,
+    `Grammar point being tested: ${args.point.title} (${args.point.meaning})`,
+    `Target JLPT level: ${args.jlpt_level}.`,
+    `Also test these target vocabulary words: ${args.vocab.join("、")}`,
+  ];
+  return { system: LESSON_QUIZ_SYSTEM, user: lines.join("\n") };
+}
+
 export function buildExplainGradePrompt(args: {
   task_english: string;
   required_connectives: string[];

@@ -296,3 +296,92 @@ describe("generateListeningBatch (fake mode)", () => {
     expect(r.usage.output_tokens).toBe(0);
   });
 });
+
+import {
+  generateGrammarLesson,
+  generateGrammarSelection,
+  generateLessonQuiz,
+} from "./generate.js";
+
+describe("generateGrammarLesson (fake AI)", () => {
+  it("returns a deterministic dialogue + explanation without a client", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarLesson({
+        point: { title: "〜ながら", meaning: "while doing" },
+        jlpt_level: "N4",
+      });
+      expect(r.dialog.length).toBeGreaterThan(0);
+      expect(r.dialog[0]!.speaker).toBeTruthy();
+      expect(r.dialog[0]!.jp).toBeTruthy();
+      expect(r.dialog[0]!.en).toBeTruthy();
+      expect(r.explanation.length).toBeGreaterThan(0);
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateGrammarSelection (fake AI)", () => {
+  it("returns the first <=2 candidate ids", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarSelection({
+        theme: "asking for directions",
+        jlpt_level: "N4",
+        candidates: [
+          { id: "g1", title: "〜ながら", meaning: "while doing" },
+          { id: "g2", title: "〜てから", meaning: "after doing" },
+          { id: "g3", title: "〜たい", meaning: "want to" },
+        ],
+      });
+      expect(r.ids).toEqual(["g1", "g2"]);
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+
+  it("returns an empty array when there are no candidates", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateGrammarSelection({ theme: "x", jlpt_level: "N4", candidates: [] });
+      expect(r.ids).toEqual([]);
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateLessonQuiz (fake AI)", () => {
+  it("returns mixed-format quiz questions with four options each", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const r = await generateLessonQuiz({
+        point: { title: "〜てもいい", meaning: "may; is allowed to" },
+        vocab: ["食べる", "歩く"],
+        jlpt_level: "N4",
+        count: 2,
+      });
+      expect(r.questions.length).toBeGreaterThan(0);
+      for (const q of r.questions) {
+        expect(typeof q.question).toBe("string");
+        expect(q.options).toHaveLength(4);
+        expect(q.answer_index).toBeGreaterThanOrEqual(0);
+        expect(q.answer_index).toBeLessThanOrEqual(3);
+      }
+      expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});

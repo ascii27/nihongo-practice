@@ -279,6 +279,73 @@ export function parseListeningBatch(raw: string): ListeningGenItem[] {
   return items as ListeningGenItem[];
 }
 
+export type GrammarLesson = {
+  dialog: { speaker: string; jp: string; en: string }[];
+  explanation: string;
+};
+
+// A single end-of-lesson quiz question (mixed formats). Raw from the model —
+// `sentence_japanese` is enriched to ruby by the server.
+export type QuizQuestionRaw = {
+  question: string;
+  sentence_japanese?: string;
+  options: string[];
+  answer_index: number;
+  explanation: string;
+};
+
+export function parseLessonQuiz(raw: string): QuizQuestionRaw[] {
+  const parsed = JSON.parse(stripFences(raw));
+  const questions = parsed?.questions;
+  if (!Array.isArray(questions)) throw new Error("quiz missing 'questions' array");
+  for (const q of questions) {
+    if (
+      typeof q?.question !== "string" ||
+      !Array.isArray(q?.options) ||
+      q.options.length !== 4 ||
+      q.options.some((o: unknown) => typeof o !== "string") ||
+      typeof q?.answer_index !== "number" ||
+      !Number.isInteger(q.answer_index) ||
+      q.answer_index < 0 || q.answer_index > 3 ||
+      typeof q?.explanation !== "string"
+    ) {
+      throw new Error("quiz question missing or invalid required fields");
+    }
+    if (q.sentence_japanese !== undefined && typeof q.sentence_japanese !== "string") {
+      throw new Error("quiz question has invalid 'sentence_japanese'");
+    }
+  }
+  return questions as QuizQuestionRaw[];
+}
+
+export function parseGrammarLesson(raw: string): GrammarLesson {
+  const parsed = JSON.parse(stripFences(raw));
+  if (!Array.isArray(parsed?.dialog) || parsed.dialog.length === 0) {
+    throw new Error("grammar lesson 'dialog' must be a non-empty array");
+  }
+  for (const line of parsed.dialog) {
+    if (typeof line?.speaker !== "string" || typeof line?.jp !== "string" || typeof line?.en !== "string") {
+      throw new Error("grammar lesson dialog line missing 'speaker'/'jp'/'en'");
+    }
+  }
+  if (typeof parsed?.explanation !== "string" || parsed.explanation.trim() === "") {
+    throw new Error("grammar lesson 'explanation' must be a non-empty string");
+  }
+  return parsed as GrammarLesson;
+}
+
+export type GrammarSelection = {
+  ids: string[];
+};
+
+export function parseGrammarSelection(raw: string): GrammarSelection {
+  const parsed = JSON.parse(stripFences(raw));
+  if (!Array.isArray(parsed?.ids) || parsed.ids.some((id: unknown) => typeof id !== "string")) {
+    throw new Error("grammar selection 'ids' must be a string array");
+  }
+  return { ids: parsed.ids as string[] };
+}
+
 export function parseSentencesForCards(raw: string): SentenceForCard[] {
   const parsed = JSON.parse(stripFences(raw));
   const sentences = parsed?.sentences;

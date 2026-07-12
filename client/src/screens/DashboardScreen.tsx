@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DashboardResponse, Skill } from "@nihongo/shared";
-import { fetchDashboard } from "../api-hooks";
+import type { DashboardResponse, Skill, TodayLessonResponse } from "@nihongo/shared";
+import { fetchDashboard, fetchTodayLesson } from "../api-hooks";
 import { SKILL_ORDER, SKILL_META } from "../lib/skills";
 import { IconChevron } from "../components/icons";
 
 type Props = {
   onPractice: (skill?: Skill) => void;   // undefined = mixed
   onOpenSettings: () => void;
+  onStartLesson: (id: string) => void;
+  onOpenLessons: () => void;
 };
 
-export function DashboardScreen({ onPractice, onOpenSettings }: Props) {
+export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onOpenLessons }: Props) {
   const [data, setData] = useState<DashboardResponse | null>(null);
+  const [today, setToday] = useState<TodayLessonResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     fetchDashboard()
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : "load failed"));
+    fetchTodayLesson().then(setToday).catch(() => {});
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -35,6 +39,21 @@ export function DashboardScreen({ onPractice, onOpenSettings }: Props) {
         <h1 className="topbar__title">Today</h1>
         <button type="button" className="topbar__action" onClick={onOpenSettings}>Settings</button>
       </header>
+
+      {today?.lesson ? (
+        <button type="button" className="today-hero-lesson" onClick={() => onStartLesson(today.lesson!.id)}>
+          <span className="today-hero-lesson__kicker">Today's lesson</span>
+          <span className="today-hero-lesson__title">{today.lesson.title}</span>
+          <span className="today-hero-lesson__meta">
+            {today.lesson.jlpt_level} · {today.lesson.item_count} items · {today.lesson.progress === "in_progress" ? "Resume" : "Start"} →
+          </span>
+        </button>
+      ) : (
+        <button type="button" className="today-hero-lesson today-hero-lesson--empty" onClick={onOpenLessons}>
+          <span className="today-hero-lesson__kicker">Today's lesson</span>
+          <span className="today-hero-lesson__title">{today?.generating ? "Preparing your lesson…" : "Create a lesson →"}</span>
+        </button>
+      )}
 
       <div className="today__streak">
         <span className="today__streak-flame">日</span>

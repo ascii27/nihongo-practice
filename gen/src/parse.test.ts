@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
+import { parseGrammarLesson, parseGrammarSelection, parseLessonQuiz } from "./parse.js";
 
 describe("stripFences", () => {
   it("strips ```json fences", () => {
@@ -343,5 +344,95 @@ describe("parseListeningBatch", () => {
   it("rejects a segment with an out-of-range speaker", () => {
     const bad = { ...one, segments: [{ text: "x", speaker: 2 }] };
     expect(() => parseListeningBatch(JSON.stringify({ items: [bad] }))).toThrow();
+  });
+});
+
+describe("parseLessonQuiz", () => {
+  const good = JSON.stringify({
+    questions: [
+      { question: "Fill in the blank:", sentence_japanese: "これを使っても___。", options: ["いい", "だめ", "ない", "です"], answer_index: 0, explanation: "permission" },
+      { question: "What does 〜てもいい mean?", options: ["may", "must not", "want", "because"], answer_index: 0, explanation: "permission" },
+    ],
+  });
+
+  it("accepts well-formed mixed quiz questions", () => {
+    const qs = parseLessonQuiz(good);
+    expect(qs).toHaveLength(2);
+    expect(qs[0]!.options).toHaveLength(4);
+    expect(qs[1]!.sentence_japanese).toBeUndefined();
+  });
+
+  it("rejects a missing questions array", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({}))).toThrow();
+  });
+
+  it("rejects a question without four options", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({ questions: [{ question: "q", options: ["a", "b"], answer_index: 0, explanation: "e" }] }))).toThrow();
+  });
+
+  it("rejects an out-of-range answer_index", () => {
+    expect(() => parseLessonQuiz(JSON.stringify({ questions: [{ question: "q", options: ["a", "b", "c", "d"], answer_index: 5, explanation: "e" }] }))).toThrow();
+  });
+});
+
+describe("parseGrammarLesson", () => {
+  const good = JSON.stringify({
+    dialog: [
+      { speaker: "A", jp: "音楽を聞きながら勉強してもいいですか。", en: "May I study while listening to music?" },
+      { speaker: "B", jp: "はい、聞きながらでもいいですよ。", en: "Yes, doing it while listening is fine." },
+    ],
+    explanation: "ながら attaches to the masu-stem and means 'while doing X'; the two actions are simultaneous and share one subject.",
+  });
+
+  it("accepts a well-formed grammar lesson", () => {
+    const l = parseGrammarLesson(good);
+    expect(l.dialog).toHaveLength(2);
+    expect(l.dialog[0]!.speaker).toBe("A");
+    expect(l.dialog[0]!.jp).toContain("ながら");
+    expect(l.explanation).toContain("ながら");
+  });
+
+  it("strips code fences before parsing", () => {
+    expect(parseGrammarLesson("```json\n" + good + "\n```").dialog.length).toBeGreaterThan(0);
+  });
+
+  it("rejects a missing dialog array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ explanation: "x" }))).toThrow();
+  });
+
+  it("rejects an empty dialog array", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [], explanation: "x" }))).toThrow();
+  });
+
+  it("rejects a dialog line missing speaker/jp/en", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [{ jp: "あ", en: "a" }], explanation: "x" }))).toThrow();
+  });
+
+  it("rejects a missing explanation", () => {
+    expect(() => parseGrammarLesson(JSON.stringify({ dialog: [{ speaker: "A", jp: "あ", en: "a" }] }))).toThrow();
+  });
+});
+
+describe("parseGrammarSelection", () => {
+  it("accepts a well-formed ids array", () => {
+    const raw = JSON.stringify({ ids: ["a", "b"] });
+    expect(parseGrammarSelection(raw)).toEqual({ ids: ["a", "b"] });
+  });
+
+  it("strips code fences before parsing", () => {
+    const inner = JSON.stringify({ ids: ["a"] });
+    expect(parseGrammarSelection("```json\n" + inner + "\n```").ids).toEqual(["a"]);
+  });
+
+  it("rejects a missing ids field", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({}))).toThrow();
+  });
+
+  it("rejects a non-array ids field", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({ ids: "a" }))).toThrow();
+  });
+
+  it("rejects ids containing non-strings", () => {
+    expect(() => parseGrammarSelection(JSON.stringify({ ids: ["a", 1] }))).toThrow();
   });
 });

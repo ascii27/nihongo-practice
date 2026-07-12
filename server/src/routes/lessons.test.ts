@@ -1,0 +1,109 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import request from "supertest";
+import { makeTestApp } from "../test-helpers/app.js";
+import { resetDb } from "../db/reset.js";
+import { lessonsRouter } from "./lessons.js";
+import { pool } from "../db/pool.js";
+import { buildQueue } from "../services/queue.js";
+
+const PASSCODE = "test-passcode";
+const app = makeTestApp(PASSCODE, (a) => a.use("/api/lessons", lessonsRouter));
+
+async function pollReady(id: string): Promise<string> {
+  let status = "generating";
+  for (let i = 0; i < 200 && status === "generating"; i++) {
+    const s = await request(app).get(`/api/lessons/${id}/status`).set("X-Passcode", PASSCODE);
+    status = s.body.status;
+    if (status === "generating") await new Promise((r) => setTimeout(r, 50));
+  }
+  return status;
+}
+
+beforeEach(async () => {
+  process.env.NIHONGO_FAKE_AI = "1";
+  await resetDb();
+});
+
+describe("lessons routes (grammar-centered)", () => {
+  it("creates an auto lesson and walks it through ordered blocks", async () => {
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ mode: "auto", theme: "giving advice", jlpt_level: "N5" });
+    expect(create.status).toBe(200);
+    expect(create.body.status).toBe("generating");
+    const id = create.body.id as string;
+
+    expect(await pollReady(id)).toBe("ready");
+
+    const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
+    expect(detail.status).toBe(200);
+    const types = detail.body.blocks.map((b: { type: string }) => b.type);
+    // grammar first, vocab/reading/listening in the middle, quiz last.
+    expect(types[0]).toBe("grammar");
+    expect(types).toContain("vocab");
+    expect(types).toContain("reading");
+    expect(types).toContain("listening");
+    expect(types).not.toContain("cloze");
+    expect(types[types.length - 1]).toBe("quiz");
+
+    const grammar = detail.body.blocks.find((b: { type: string }) => b.type === "grammar");
+    expect(Array.isArray(grammar.dialog)).toBe(true);
+    expect(grammar.dialog.length).toBeGreaterThan(0);
+    expect(grammar.dialog[0].jp_ruby.length).toBeGreaterThan(0);
+    expect(typeof grammar.explanation).toBe("string");
+    expect(grammar.point.title.length).toBeGreaterThan(0);
+
+    const quiz = detail.body.blocks.find((b: { type: string }) => b.type === "quiz");
+    expect(Array.isArray(quiz.questions)).toBe(true);
+    expect(quiz.questions.length).toBeGreaterThan(0);
+    expect(quiz.questions[0].options).toHaveLength(4);
+  });
+
+  it("only the vocab feeds the SRS; reading/listening/quiz are lesson-only", async () => {
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ mode: "auto", theme: "at the station", jlpt_level: "N5" });
+    const id = create.body.id as string;
+    expect(await pollReady(id)).toBe("ready");
+
+    // Only vocab was inserted into `items`; reading/listening/quiz are content.
+    const skills = await pool.query<{ skill: string }>(
+      `SELECT DISTINCT i.skill FROM items i JOIN lesson_items li ON li.item_id = i.id WHERE li.lesson_id = $1`,
+      [id],
+    );
+    const skillSet = skills.rows.map((r) => r.skill);
+    expect(skillSet).toEqual(["vocab"]);
+
+    // The review queue's "new" bucket contains only vocab items from the lesson.
+    const queue = await buildQueue({ limit: 50, tz: "UTC" });
+    for (const rec of queue.new) {
+      expect(rec.skill).toBe("vocab");
+    }
+    expect(queue.new.length).toBeGreaterThan(0);
+  });
+
+  it("creates a manual lesson from chosen grammar points", async () => {
+    const gp = await pool.query<{ id: string }>(`SELECT id FROM grammar_points WHERE jlpt_level = 'N5' ORDER BY sort_order LIMIT 2`);
+    const ids = gp.rows.map((r) => r.id);
+    expect(ids.length).toBe(2);
+
+    const create = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ mode: "manual", grammar_point_ids: ids, jlpt_level: "N5" });
+    expect(create.status).toBe(200);
+    const id = create.body.id as string;
+    expect(await pollReady(id)).toBe("ready");
+
+    const detail = await request(app).get(`/api/lessons/${id}`).set("X-Passcode", PASSCODE);
+    const grammarBlocks = detail.body.blocks.filter((b: { type: string }) => b.type === "grammar");
+    expect(grammarBlocks.length).toBe(2);
+  });
+
+  it("rejects an invalid create body", async () => {
+    const r = await request(app).post("/api/lessons").set("X-Passcode", PASSCODE)
+      .send({ mode: "manual", grammar_point_ids: [], jlpt_level: "N5" });
+    expect(r.status).toBe(400);
+  });
+
+  it("404s an unknown lesson", async () => {
+    const r = await request(app).get("/api/lessons/11111111-1111-1111-1111-111111111111").set("X-Passcode", PASSCODE);
+    expect(r.status).toBe(404);
+  });
+});

@@ -115,3 +115,32 @@ export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGra
     body: JSON.stringify(input),
   });
 }
+
+// ----- Lessons (Phase 2) -----
+import type {
+  CreateLessonRequest, CreateLessonResponse, LessonsListResponse,
+  LessonDetail, LessonStatusResponse, TodayLessonResponse, LessonStateUpdate,
+  GrammarPointsResponse,
+} from "@nihongo/shared";
+
+export function createLesson(body: CreateLessonRequest): Promise<CreateLessonResponse> {
+  return api<CreateLessonResponse>("/api/lessons", { method: "POST", body: JSON.stringify(body) });
+}
+export function fetchGrammarPoints(level: string): Promise<GrammarPointsResponse> {
+  return api<GrammarPointsResponse>(`/api/grammar-points?level=${level}`);
+}
+export function fetchLessons(): Promise<LessonsListResponse> {
+  return api<LessonsListResponse>("/api/lessons");
+}
+export function fetchLessonDetail(id: string): Promise<LessonDetail> {
+  return api<LessonDetail>(`/api/lessons/${id}`);
+}
+export function fetchLessonStatus(id: string): Promise<LessonStatusResponse> {
+  return api<LessonStatusResponse>(`/api/lessons/${id}/status`);
+}
+export function fetchTodayLesson(): Promise<TodayLessonResponse> {
+  return api<TodayLessonResponse>("/api/lessons/today");
+}
+export function updateLessonState(id: string, body: LessonStateUpdate): Promise<void> {
+  return api<void>(`/api/lessons/${id}/state`, { method: "PATCH", body: JSON.stringify(body) });
+}

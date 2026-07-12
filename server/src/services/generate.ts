@@ -38,7 +38,7 @@ type AnthropicLike = { messages: { create: (body: unknown, opts?: { signal?: Abo
 
 // Each skill provides (a) a batch generator and (b) an enricher that turns
 // the parsed item into the {prompt, answer} jsonb pair stored in `items`.
-type Enriched = { prompt: unknown; answer: unknown; audio_cost_usd?: number };
+export type Enriched = { prompt: unknown; answer: unknown; audio_cost_usd?: number };
 
 async function genFor(
   skill: Skill,
@@ -56,7 +56,7 @@ async function genFor(
   }
 }
 
-async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
+export async function enrichFor(skill: Skill, raw: unknown): Promise<Enriched> {
   switch (skill) {
     case "vocab": {
       const it = raw as VocabItem;

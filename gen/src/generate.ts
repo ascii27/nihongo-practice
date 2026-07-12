@@ -11,6 +11,9 @@ import {
   buildExplainPrompt,
   buildExplainGradePrompt,
   buildListeningPrompt,
+  buildGrammarLessonPrompt,
+  buildGrammarSelectionPrompt,
+  buildLessonQuizPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -24,19 +27,25 @@ import {
   parseExplainBatch,
   parseExplainGrade,
   parseListeningBatch,
+  parseGrammarLesson,
+  parseGrammarSelection,
+  parseLessonQuiz,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
   type ParticleItem,
+  type QuizQuestionRaw,
   type ConjugationItem,
   type ReadingItem,
   type ManualVocabItem,
   type ExplainItem,
   type ExplainGradeRaw,
   type ListeningGenItem,
+  type GrammarLesson,
+  type GrammarSelection,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 // Raised from 2000: explain items are token-heavy (~450 tok each), so even a
@@ -391,4 +400,89 @@ export async function generateListeningBatch(args: {
     system, user, parse: parseListeningBatch, client, signal: args.signal,
   });
   return { items: value, usage, raw };
+}
+
+const GRAMMAR_LESSON_FAKE: GrammarLesson = {
+  dialog: [
+    { speaker: "A", jp: "これを使ってもいいですか。", en: "May I use this?" },
+    { speaker: "B", jp: "はい、使ってもいいですよ。", en: "Yes, you may use it." },
+  ],
+  explanation: "This is a fake grammar explanation used in tests. It covers the point and its nuances.",
+};
+
+export async function generateGrammarLesson(args: {
+  point: { title: string; meaning: string };
+  jlpt_level: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ dialog: { speaker: string; jp: string; en: string }[]; explanation: string; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return {
+      dialog: GRAMMAR_LESSON_FAKE.dialog,
+      explanation: GRAMMAR_LESSON_FAKE.explanation,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(GRAMMAR_LESSON_FAKE),
+    };
+  }
+  const { system, user } = buildGrammarLessonPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<GrammarLesson>({
+    system, user, parse: parseGrammarLesson, client, signal: args.signal,
+  });
+  return { dialog: value.dialog, explanation: value.explanation, usage, raw };
+}
+
+function cleanSelectionIds(ids: string[], candidates: { id: string }[]): string[] {
+  const validIds = new Set(candidates.map((c) => c.id));
+  const cleaned = ids.filter((id) => validIds.has(id)).slice(0, 3);
+  if (cleaned.length === 0 && candidates.length > 0) {
+    return [candidates[0]!.id];
+  }
+  return cleaned;
+}
+
+export async function generateGrammarSelection(args: {
+  theme: string;
+  jlpt_level: string;
+  candidates: { id: string; title: string; meaning: string }[];
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ ids: string[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const fake: GrammarSelection = { ids: args.candidates.slice(0, 2).map((c) => c.id) };
+    const ids = cleanSelectionIds(fake.ids, args.candidates);
+    return { ids, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify(fake) };
+  }
+  const { system, user } = buildGrammarSelectionPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<GrammarSelection>({
+    system, user, parse: parseGrammarSelection, client, signal: args.signal,
+  });
+  const ids = cleanSelectionIds(value.ids, args.candidates);
+  return { ids, usage, raw };
+}
+
+const LESSON_QUIZ_FAKE: QuizQuestionRaw[] = [
+  { question: "Fill in the blank:", sentence_japanese: "これを使っても___。", options: ["いい", "だめ", "ない", "です"], answer_index: 0, explanation: "〜てもいい grants permission." },
+  { question: "What does the target grammar mean?", options: ["may / is allowed to", "must not", "want to", "because"], answer_index: 0, explanation: "It expresses permission." },
+];
+
+export async function generateLessonQuiz(args: {
+  point: { title: string; meaning: string };
+  vocab: string[];
+  jlpt_level: string;
+  count: number;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ questions: QuizQuestionRaw[]; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    const questions = LESSON_QUIZ_FAKE.slice(0, Math.min(args.count, LESSON_QUIZ_FAKE.length));
+    return { questions, usage: { input_tokens: 0, output_tokens: 0 }, raw: JSON.stringify({ questions }) };
+  }
+  const { system, user } = buildLessonQuizPrompt(args);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<QuizQuestionRaw[]>({
+    system, user, parse: parseLessonQuiz, client, signal: args.signal,
+  });
+  return { questions: value, usage, raw };
 }

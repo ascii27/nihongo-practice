@@ -405,3 +405,152 @@ export const StatsOverviewResponse = z.object({
   hardest_cards: z.array(HardestCard),                    // up to 5, lowest accuracy
 });
 export type StatsOverviewResponse = z.infer<typeof StatsOverviewResponse>;
+
+// ----- Lessons (Phase 2) -----
+
+export const LessonStatus = z.enum(["generating", "ready", "failed"]);
+export type LessonStatus = z.infer<typeof LessonStatus>;
+
+export const LessonProgress = z.enum(["not_started", "in_progress", "completed"]);
+export type LessonProgress = z.infer<typeof LessonProgress>;
+
+export const LessonKind = z.enum(["lesson", "assessment"]);
+export type LessonKind = z.infer<typeof LessonKind>;
+
+export const JlptLevel = z.enum(["N5", "N4", "N3", "N2", "N1"]);
+export type JlptLevel = z.infer<typeof JlptLevel>;
+
+// A grammar point from the JLPT catalog. Lessons are built around 1–3 of these.
+export const GrammarPoint = z.object({
+  id: z.string().uuid(),
+  jlpt_level: JlptLevel,
+  sort_order: z.number().int(),
+  title: z.string(),          // the grammar point in Japanese
+  romaji: z.string().nullable(),
+  meaning: z.string(),        // short English gloss
+  slug: z.string(),
+});
+export type GrammarPoint = z.infer<typeof GrammarPoint>;
+
+export const GrammarPointsResponse = z.object({ grammar_points: z.array(GrammarPoint) });
+export type GrammarPointsResponse = z.infer<typeof GrammarPointsResponse>;
+
+// Two ways to create a lesson. Auto: give a theme + level, the AI picks 1–3
+// related grammar points from the catalog. Manual: pick the grammar points
+// yourself. Both build a lesson around 1–3 grammar points.
+export const CreateLessonRequestAuto = z.object({
+  mode: z.literal("auto"),
+  theme: z.string().min(1).max(120),
+  jlpt_level: JlptLevel,
+});
+export const CreateLessonRequestManual = z.object({
+  mode: z.literal("manual"),
+  grammar_point_ids: z.array(z.string().uuid()).min(1).max(3),
+  jlpt_level: JlptLevel,
+});
+export const CreateLessonRequest = z.discriminatedUnion("mode", [
+  CreateLessonRequestAuto,
+  CreateLessonRequestManual,
+]);
+export type CreateLessonRequest = z.infer<typeof CreateLessonRequest>;
+
+export const CreateLessonResponse = z.object({
+  id: z.string().uuid(),
+  status: LessonStatus,
+});
+export type CreateLessonResponse = z.infer<typeof CreateLessonResponse>;
+
+export const LessonSummary = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  topic: z.string(),
+  jlpt_level: z.string(),
+  kind: LessonKind,
+  status: LessonStatus,
+  progress: LessonProgress,
+  item_count: z.number().int().nonnegative(),
+  created_at: z.string(),
+});
+export type LessonSummary = z.infer<typeof LessonSummary>;
+
+export const LessonsListResponse = z.object({ lessons: z.array(LessonSummary) });
+export type LessonsListResponse = z.infer<typeof LessonsListResponse>;
+
+// A line of the example dialogue shown in grammar teaching.
+export const DialogLine = z.object({
+  speaker: z.string(),
+  jp_ruby: z.string(),
+  en: z.string(),
+});
+export type DialogLine = z.infer<typeof DialogLine>;
+
+// A lesson is an ordered list of blocks, walked top to bottom:
+//   grammar (teach) → vocab (teach + review) → reading / listening (lesson-only)
+//   → quiz / cloze (review). Grammar/vocab/quiz/cloze feed the SRS via real
+//   `items`; reading/listening are lesson-only synthetic records.
+export const GrammarBlock = z.object({
+  type: z.literal("grammar"),
+  point: z.object({
+    id: z.string().uuid(),
+    title: z.string(),
+    romaji: z.string().nullable(),
+    meaning: z.string(),
+  }),
+  dialog: z.array(DialogLine),           // short example dialogue in context
+  explanation: z.string(),               // English explanation of the point + nuances
+});
+export const VocabBlock = z.object({ type: z.literal("vocab"), items: z.array(ItemRecord) });
+export const ReadingBlock = z.object({ type: z.literal("reading"), item: ItemRecord });
+export const ListeningBlock = z.object({ type: z.literal("listening"), item: ItemRecord });
+
+// The final quiz — a mix of question formats testing the lesson's grammar +
+// vocab. Lesson-only (scored once, not added to the SRS review queue). Each
+// question has a stem plus an optional Japanese sentence/context.
+export const QuizQuestion = z.object({
+  question: z.string(),                   // the question stem, in English
+  sentence_ruby: z.string().optional(),   // optional JP context/sentence (furigana HTML), may contain ___
+  options: z.array(z.string()),
+  answer_index: z.number().int(),
+  explanation: z.string(),
+});
+export type QuizQuestion = z.infer<typeof QuizQuestion>;
+
+export const QuizBlock = z.object({ type: z.literal("quiz"), questions: z.array(QuizQuestion) });
+
+export const LessonBlock = z.discriminatedUnion("type", [
+  GrammarBlock, VocabBlock, ReadingBlock, ListeningBlock, QuizBlock,
+]);
+export type LessonBlock = z.infer<typeof LessonBlock>;
+export type LessonBlockType = LessonBlock["type"];
+
+export const LessonDetail = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  topic: z.string(),                        // the theme (auto) or synthesized title (manual)
+  jlpt_level: z.string(),
+  mode: z.enum(["auto", "manual"]),
+  status: LessonStatus,
+  progress: LessonProgress,
+  current_section: z.string().nullable(),   // resume point: id of the in-progress block
+  blocks: z.array(LessonBlock),
+});
+export type LessonDetail = z.infer<typeof LessonDetail>;
+
+export const LessonStatusResponse = z.object({
+  status: LessonStatus,
+  error: z.string().nullable(),
+});
+export type LessonStatusResponse = z.infer<typeof LessonStatusResponse>;
+
+export const TodayLessonResponse = z.object({
+  lesson: LessonSummary.nullable(),
+  generating: z.boolean(),
+});
+export type TodayLessonResponse = z.infer<typeof TodayLessonResponse>;
+
+export const LessonStateUpdate = z.object({
+  progress: LessonProgress,
+  current_section: z.string().nullable(),
+  current_index: z.number().int().nonnegative(),
+});
+export type LessonStateUpdate = z.infer<typeof LessonStateUpdate>;
