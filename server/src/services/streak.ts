@@ -27,6 +27,30 @@ export async function computeStreak(tz: string): Promise<number> {
   return count;
 }
 
+const STREAK_THRESHOLDS = [7, 14, 30] as const;
+export type StreakThreshold = (typeof STREAK_THRESHOLDS)[number];
+
+export function isStreakThreshold(n: number): n is StreakThreshold {
+  return (STREAK_THRESHOLDS as readonly number[]).includes(n);
+}
+
+// After a fresh review commits: if it is the FIRST review of "today" in the
+// caller's timezone AND the current streak has just reached a milestone
+// threshold (7/14/30), return that threshold; otherwise null. The
+// first-of-today gate prevents re-emitting the milestone on later same-day
+// reviews (natural key = streak_days + session_date).
+export async function detectStreakMilestone(tz: string): Promise<StreakThreshold | null> {
+  const todayStr = ymdInTz(new Date(), tz);
+  const r = await pool.query<{ c: string }>(
+    `SELECT count(*)::text AS c FROM reviews
+      WHERE to_char(date_trunc('day', reviewed_at AT TIME ZONE $1), 'YYYY-MM-DD') = $2`,
+    [tz, todayStr],
+  );
+  if (Number(r.rows[0]?.c ?? 0) !== 1) return null; // not the first review of today
+  const streak = await computeStreak(tz);
+  return isStreakThreshold(streak) ? streak : null;
+}
+
 // Returns the longest run of consecutive review days anywhere in history
 // (not just the run ending today), in the caller's timezone.
 export async function longestStreak(tz: string): Promise<number> {

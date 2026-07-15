@@ -1,8 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
 import { pool } from "../db/pool.js";
+
+vi.mock("../services/hermes.js", () => ({
+  emitReviewLogged: vi.fn(() => Promise.resolve()),
+  emitMilestone: vi.fn(() => Promise.resolve()),
+}));
+import { emitReviewLogged } from "../services/hermes.js";
 import { reviewsRouter } from "./reviews.js";
 
 const PASSCODE = "test-passcode";
@@ -24,6 +30,29 @@ async function insertItem(): Promise<string> {
 beforeEach(() => resetDb());
 
 describe("POST /api/reviews", () => {
+  it("emits a review_logged event on fresh insert but not on idempotent duplicate", async () => {
+    vi.mocked(emitReviewLogged).mockClear();
+    const itemId = await insertItem();
+    const reviewedAt = new Date().toISOString();
+
+    await request(app).post("/api/reviews").set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: reviewedAt });
+    await new Promise((r) => setTimeout(r, 25)); // let the fire-and-forget emit settle
+    expect(emitReviewLogged).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(emitReviewLogged).mock.calls[0]![0];
+    expect(arg.item_id).toBe(itemId);
+    expect(arg.skill).toBe("vocab");
+    expect(arg.result).toBe("got_it");
+    expect(arg.box_before).toBe(0);
+    expect(arg.box_after).toBe(1);
+
+    // Re-submitting the same (item_id, reviewed_at) is idempotent — no new event.
+    await request(app).post("/api/reviews").set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: reviewedAt });
+    await new Promise((r) => setTimeout(r, 25));
+    expect(emitReviewLogged).toHaveBeenCalledTimes(1);
+  });
+
   it("creates state on first review and returns it", async () => {
     const itemId = await insertItem();
     const reviewedAt = new Date().toISOString();

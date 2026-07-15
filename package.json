@@ -12,6 +12,7 @@
     "e2e": "npm --workspace e2e test",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
-    "db:migrate": "npm --workspace server run db:migrate"
+    "db:migrate": "npm --workspace server run db:migrate",
+  "hermes:type": "node scripts/hermes-type.mjs"
   }
 }
