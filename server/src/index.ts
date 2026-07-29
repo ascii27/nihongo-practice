@@ -17,6 +17,7 @@ import { itemsRouter } from "./routes/items.js";
 import { explainRouter } from "./routes/explain.js";
 import { lessonsRouter } from "./routes/lessons.js";
 import { grammarPointsRouter } from "./routes/grammar-points.js";
+import { kanjiRouter } from "./routes/kanji.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDist = path.resolve(__dirname, "../../client/dist");
@@ -41,6 +42,7 @@ export function createApp() {
   app.use("/api/settings", settingsRouter);
   app.use("/api/lessons", lessonsRouter);
   app.use("/api/grammar-points", grammarPointsRouter);
+  app.use("/api/kanji", kanjiRouter);
 
   if (env.NODE_ENV === "production") {
     app.use(express.static(clientDist));

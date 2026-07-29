@@ -5,7 +5,7 @@ import { pool } from "./pool.js";
 // schema stays migrated and the grammar catalog stays available to tests.
 export async function resetDb(): Promise<void> {
   await pool.query(`
-    TRUNCATE TABLE reviews, review_state, items, sessions, generations, lessons
+    TRUNCATE TABLE reviews, review_state, items, sessions, generations, lessons, kanji
     RESTART IDENTITY CASCADE
   `);
 }

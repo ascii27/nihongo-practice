@@ -75,6 +75,17 @@ export function itemDisplay(skill: Skill, prompt: unknown, answer: unknown): Ite
         meaning: `${n} question${n === 1 ? "" : "s"}`,
       };
     }
+    case "kanji": {
+      const on = Array.isArray(a.on) ? (a.on as unknown[]).map(str) : [];
+      const kun = Array.isArray(a.kun) ? (a.kun as unknown[]).map(str) : [];
+      const meanings = Array.isArray(a.meanings) ? (a.meanings as unknown[]).map(str) : [];
+      const readings = [...on, ...kun].filter(Boolean);
+      return {
+        front: str(p.character),
+        reading: readings.length ? readings.join("、") : null,
+        meaning: meanings.join(", "),
+      };
+    }
     default:
       return { front: "", reading: null, meaning: "" };
   }

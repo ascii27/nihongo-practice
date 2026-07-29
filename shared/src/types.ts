@@ -24,7 +24,7 @@ export const VocabAnswer = z.object({
 });
 export type VocabAnswer = z.infer<typeof VocabAnswer>;
 
-export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening"]);
+export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening", "kanji"]);
 export type Skill = z.infer<typeof Skill>;
 
 export const Source = z.enum(["seed", "ai", "user"]);
@@ -249,6 +249,52 @@ export const ExplainGradeResponse = z.object({
 });
 export type ExplainGradeResponse = z.infer<typeof ExplainGradeResponse>;
 
+// ----- Kanji item -----
+//
+// Kanji cards are seeded from KanjiVG (ordered stroke paths) + KANJIDIC2
+// (meanings/readings). The item carries only the light display fields; the
+// heavy stroke-path data lives in the `kanji` reference table and is fetched
+// on demand (KanjiDetail) by the drawing card.
+
+export const KanjiPrompt = z.object({
+  character: z.string(),
+});
+export type KanjiPrompt = z.infer<typeof KanjiPrompt>;
+
+export const KanjiAnswer = z.object({
+  meanings: z.array(z.string()),
+  on: z.array(z.string()),        // on'yomi readings
+  kun: z.array(z.string()),       // kun'yomi readings
+  stroke_count: z.number().int().nonnegative(),
+});
+export type KanjiAnswer = z.infer<typeof KanjiAnswer>;
+
+// GET /api/kanji — browse/search row (no stroke paths)
+export const KanjiBrowseItem = z.object({
+  character: z.string(),
+  meanings: z.array(z.string()),
+  stroke_count: z.number().int().nonnegative(),
+  jlpt: z.string().nullable(),
+});
+export type KanjiBrowseItem = z.infer<typeof KanjiBrowseItem>;
+
+export const KanjiBrowseResponse = z.object({ kanji: z.array(KanjiBrowseItem) });
+export type KanjiBrowseResponse = z.infer<typeof KanjiBrowseResponse>;
+
+// GET /api/kanji/:character — full detail including ordered stroke paths, used
+// by the drawing card for the stroke-order animation.
+export const KanjiDetail = z.object({
+  character: z.string(),
+  strokes: z.array(z.string()),   // ordered SVG path 'd' strings, KanjiVG order
+  stroke_count: z.number().int().nonnegative(),
+  radical: z.string().nullable(),
+  meanings: z.array(z.string()),
+  on: z.array(z.string()),
+  kun: z.array(z.string()),
+  jlpt: z.string().nullable(),
+});
+export type KanjiDetail = z.infer<typeof KanjiDetail>;
+
 // ----- Listening item -----
 
 export const ListeningQuestion = z.object({
@@ -293,6 +339,7 @@ export const DashboardResponse = z.object({
     particle: SkillCounts,
     explain: SkillCounts,
     listening: SkillCounts,
+    kanji: SkillCounts,
   }),
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
@@ -314,6 +361,7 @@ export const StatsBySkillResponse = z.object({
     particle: SkillStats,
     explain: SkillStats,
     listening: SkillStats,
+    kanji: SkillStats,
   }),
 });
 export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
@@ -348,6 +396,7 @@ export const LibraryResponse = z.object({
     particle: LibrarySkillGroup,
     explain: LibrarySkillGroup,
     listening: LibrarySkillGroup,
+    kanji: LibrarySkillGroup,
   }),
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;

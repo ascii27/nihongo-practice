@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "import": "tsx src/import.ts",
+    "import:kanji": "tsx src/import-kanji.ts",
     "test": "vitest run"
   },
   "dependencies": {

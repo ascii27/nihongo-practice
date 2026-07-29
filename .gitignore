@@ -11,6 +11,11 @@ test-results/
 *.log
 *.png
 
+# Large kanji source datasets — download per seed/data/README.md
+seed/data/*.xml
+seed/data/*.xml.gz
+seed/data/*.gz
+
 # TypeScript incremental build artifacts
 *.tsbuildinfo
 

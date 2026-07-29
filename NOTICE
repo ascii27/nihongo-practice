@@ -1,0 +1,25 @@
+nihongo-practice — third-party data attributions
+=================================================
+
+Kanji practice uses two openly-licensed datasets. Redistribution of this data
+(including the derived rows in the `kanji` table and `kanji`-skill items) is
+subject to the terms below.
+
+KanjiVG
+-------
+Stroke-order path data for each kanji.
+Copyright © 2009-2024 Ulrich Apel.
+Released under the Creative Commons Attribution-ShareAlike 3.0 license
+(CC BY-SA 3.0): https://creativecommons.org/licenses/by-sa/3.0/
+Project: https://kanjivg.tagaini.net
+
+KANJIDIC2
+---------
+Kanji meanings, on'yomi/kun'yomi readings, and grade metadata.
+Copyright © The Electronic Dictionary Research and Development Group (EDRDG),
+Monash University. Used under the EDRDG License Agreement, which is a
+Creative Commons Attribution-ShareAlike 4.0 license (CC BY-SA 4.0):
+https://www.edrdg.org/edrdg/licence.html
+Project: https://www.edrdg.org/wiki/index.php/KANJIDIC_Project
+
+An in-app credit to both projects is shown on the kanji practice screens.
