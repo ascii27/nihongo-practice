@@ -794,3 +794,34 @@
 
 /* In-app dataset credit. */
 .kanji-credit { font-family: var(--font-ui); font-size: 11px; color: var(--fg-tertiary); text-align: center; margin-top: 8px; }
+
+/* ===== Study lists ======================================================= */
+
+.study__intro { font-size: 13px; color: var(--fg-secondary); margin: -4px 0 4px; }
+.study__empty { padding: 16px 4px; }
+
+/* Detail screen */
+.study-detail { padding-bottom: 96px; }
+.study-detail__actions { margin: 12px 0 8px; }
+.study-detail__items { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0; }
+.study-detail__delete { margin: 20px auto 0; display: block; color: var(--fg-tertiary); }
+
+/* A single card row (member or search result) */
+.study-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.study-item__chip { font-family: var(--font-jp); font-size: 16px; width: 32px; height: 32px; display: grid; place-items: center; color: var(--accent); background: var(--accent-muted); border-radius: 999px; }
+.study-item__body { display: flex; flex-direction: column; min-width: 0; }
+.study-item__front { font-family: var(--font-jp); font-size: 17px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.study-item__meaning { font-size: 12px; color: var(--fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.study-item__remove { color: var(--fg-tertiary); background: none; padding: 4px; }
+.study-item__remove svg { width: 16px; height: 16px; }
+.study-item__add { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--accent); background: var(--accent-muted); border-radius: 999px; padding: 6px 14px; }
+
+/* Add section */
+.study-add { margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px; }
+.study-search { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.study-search__row { display: flex; gap: 8px; }
+.study-search__row .settings__input { flex: 1; }
+.study-quick { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.study-quick__kinds { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-sunken); align-self: flex-start; }
+.study-quick__kind { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--fg-tertiary); padding: 6px 14px; border-radius: 999px; background: none; }
+.study-quick__kind.is-active { color: var(--accent-fg); background: var(--accent); }

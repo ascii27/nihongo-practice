@@ -134,6 +134,46 @@ export function fetchKanji(character: string): Promise<KanjiDetail> {
   return api<KanjiDetail>(`/api/kanji/${encodeURIComponent(character)}`);
 }
 
+// ----- Study lists -----
+import type {
+  StudyListsResponse, StudyListDetail, CreateStudyListRequest, CreateStudyListResponse,
+  QuickAddStudyItemRequest, QuickAddStudyItemResponse, StudyCandidatesResponse, StudyCramResponse,
+} from "@nihongo/shared";
+
+export function fetchStudyLists(): Promise<StudyListsResponse> {
+  return api<StudyListsResponse>("/api/study-lists");
+}
+export function fetchStudyList(id: string): Promise<StudyListDetail> {
+  return api<StudyListDetail>(`/api/study-lists/${id}`);
+}
+export function createStudyList(body: CreateStudyListRequest): Promise<CreateStudyListResponse> {
+  return api<CreateStudyListResponse>("/api/study-lists", { method: "POST", body: JSON.stringify(body) });
+}
+export function deleteStudyList(id: string): Promise<void> {
+  return api<void>(`/api/study-lists/${id}`, { method: "DELETE" });
+}
+export function addStudyItem(listId: string, itemId: string): Promise<{ status: string }> {
+  return api<{ status: string }>(`/api/study-lists/${listId}/items`, {
+    method: "POST", body: JSON.stringify({ item_id: itemId }),
+  });
+}
+export function quickAddStudyItem(listId: string, body: QuickAddStudyItemRequest): Promise<QuickAddStudyItemResponse> {
+  return api<QuickAddStudyItemResponse>(`/api/study-lists/${listId}/quick-add`, {
+    method: "POST", body: JSON.stringify(body),
+  });
+}
+export function removeStudyItem(listId: string, itemId: string): Promise<void> {
+  return api<void>(`/api/study-lists/${listId}/items/${itemId}`, { method: "DELETE" });
+}
+export function searchStudyCandidates(listId: string, q: string, skill?: string): Promise<StudyCandidatesResponse> {
+  const params = new URLSearchParams({ q });
+  if (skill) params.set("skill", skill);
+  return api<StudyCandidatesResponse>(`/api/study-lists/${listId}/candidates?${params.toString()}`);
+}
+export function fetchStudyCram(listId: string): Promise<StudyCramResponse> {
+  return api<StudyCramResponse>(`/api/study-lists/${listId}/cram`);
+}
+
 // ----- Lessons (Phase 2) -----
 import type {
   CreateLessonRequest, CreateLessonResponse, LessonsListResponse,

@@ -9,16 +9,21 @@ import { LessonWalkthroughScreen } from "./screens/LessonWalkthroughScreen";
 import { PracticeScreen } from "./screens/PracticeScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { StudyScreen } from "./screens/StudyScreen";
+import { StudyListDetailScreen } from "./screens/StudyListDetailScreen";
 import { BottomTabs, type Tab } from "./components/BottomTabs";
 
 type AuthState = "checking" | "needs-auth" | "authed";
-type Route = Tab | "settings" | "lesson";
+// `practice` stays a valid route (the card-playing engine, reused by cram) even
+// though it no longer has a tab. `study-detail` and `cram` are full-bleed.
+type Route = Tab | "settings" | "lesson" | "practice" | "study-detail" | "cram";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [route, setRoute] = useState<Route>("today");
   const [practiceSkill, setPracticeSkill] = useState<Skill | undefined>(undefined);
   const [lessonId, setLessonId] = useState<string | null>(null);
+  const [studyListId, setStudyListId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!auth.get()) { setAuthState("needs-auth"); return; }
@@ -48,6 +53,21 @@ export default function App() {
       : <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "practice") {
     active = <PracticeScreen skill={practiceSkill} onDone={() => setRoute("today")} />;
+  } else if (route === "study") {
+    active = <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
+  } else if (route === "study-detail") {
+    active = studyListId
+      ? <StudyListDetailScreen
+          listId={studyListId}
+          onBack={() => setRoute("study")}
+          onCram={(id) => { setStudyListId(id); setRoute("cram"); }}
+          onDeleted={() => setRoute("study")}
+        />
+      : <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
+  } else if (route === "cram") {
+    active = studyListId
+      ? <PracticeScreen listId={studyListId} onDone={() => setRoute("study-detail")} />
+      : <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
   } else if (route === "stats") {
     active = <StatsScreen />;
   } else {
@@ -59,9 +79,13 @@ export default function App() {
     );
   }
 
-  // The tab bar is hidden during full-bleed practice and the Settings sub-page.
-  const showTabs = route !== "practice" && route !== "settings" && route !== "lesson";
-  const tab: Tab = route === "settings" || route === "lesson" ? "today" : route;
+  // The tab bar is hidden on full-bleed screens (practice/cram) and sub-pages.
+  const fullBleed = route === "practice" || route === "settings" || route === "lesson" || route === "cram";
+  const showTabs = !fullBleed && route !== "study-detail";
+  const tab: Tab =
+    route === "settings" || route === "lesson" || route === "practice" ? "today"
+    : route === "study-detail" || route === "cram" ? "study"
+    : route;
 
   return (
     <div className="app dir-ink">
