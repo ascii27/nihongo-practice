@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
-import { fetchQueue, startSession, endSession, submitReview } from "../api-hooks";
+import { fetchQueue, startSession, endSession, submitReview, fetchStudyCram } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 import { ListeningCard } from "../components/ListeningCard";
 import { TypedInputCard } from "../components/TypedInputCard";
 import { ProductionCard } from "../components/ProductionCard";
+import { KanjiCard } from "../components/KanjiCard";
 import { IconClose } from "../components/icons";
 
 type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
@@ -13,9 +14,10 @@ type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 type Props = {
   onDone: () => void;
   skill?: Skill;        // optional filter; undefined = mixed
+  listId?: string;      // cram mode: drill every card in a study list, schedule ignored
 };
 
-export function PracticeScreen({ onDone, skill }: Props) {
+export function PracticeScreen({ onDone, skill, listId }: Props) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
@@ -27,6 +29,15 @@ export function PracticeScreen({ onDone, skill }: Props) {
     let cancelled = false;
     (async () => {
       try {
+        if (listId) {
+          // Cram: every card in the list, schedule ignored, no session.
+          const { items: cram } = await fetchStudyCram(listId);
+          if (cancelled) return;
+          sessionIdRef.current = null;
+          setItems(cram);
+          setPhase(cram.length === 0 ? "empty" : "reviewing");
+          return;
+        }
         const [{ id }, queue] = await Promise.all([startSession(skill), fetchQueue(skill)]);
         if (cancelled) return;
         sessionIdRef.current = id;
@@ -40,7 +51,7 @@ export function PracticeScreen({ onDone, skill }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [skill]);
+  }, [skill, listId]);
 
   function handleAnswer(result: ReviewResult) {
     handleAnswerWithText(result);
@@ -83,9 +94,13 @@ export function PracticeScreen({ onDone, skill }: Props) {
   if (phase === "empty") {
     return (
       <main className="screen screen--centered">
-        <p style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500 }}>Nothing due here.</p>
-        <p className="muted">Generate more from Settings.</p>
-        <button type="button" className="cta cta--primary" onClick={onDone}>Back to Today</button>
+        <p style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500 }}>
+          {listId ? "This list is empty." : "Nothing due here."}
+        </p>
+        <p className="muted">{listId ? "Add some cards first." : "Generate more from Settings."}</p>
+        <button type="button" className="cta cta--primary" onClick={onDone}>
+          {listId ? "Back to list" : "Back to Today"}
+        </button>
       </main>
     );
   }
@@ -109,7 +124,9 @@ export function PracticeScreen({ onDone, skill }: Props) {
               <div className="summary__stat-label">Missed</div>
             </div>
           </div>
-          <button type="button" className="cta cta--primary cta--lg cta--block" onClick={onDone}>Back to Today</button>
+          <button type="button" className="cta cta--primary cta--lg cta--block" onClick={onDone}>
+            {listId ? "Back to list" : "Back to Today"}
+          </button>
           <button type="button" className="linkbtn" onClick={practiceAgain}>Practice again</button>
         </div>
       </main>
@@ -140,6 +157,8 @@ export function PracticeScreen({ onDone, skill }: Props) {
           <ListeningCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : current.skill === "conjugation" ? (
           <TypedInputCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
+        ) : current.skill === "kanji" ? (
+          <KanjiCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : (
           <FlipCard key={current.id} item={current} onAnswer={handleAnswer} />
         )}

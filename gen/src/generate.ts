@@ -8,6 +8,7 @@ import {
   buildConjugationPrompt,
   buildReadingPrompt,
   buildManualVocabPrompt,
+  buildManualGrammarPrompt,
   buildExplainPrompt,
   buildExplainGradePrompt,
   buildListeningPrompt,
@@ -24,6 +25,7 @@ import {
   parseConjugationBatch,
   parseReadingBatch,
   parseManualVocab,
+  parseManualGrammar,
   parseExplainBatch,
   parseExplainGrade,
   parseListeningBatch,
@@ -38,6 +40,7 @@ import {
   type ConjugationItem,
   type ReadingItem,
   type ManualVocabItem,
+  type ManualGrammarItem,
   type ExplainItem,
   type ExplainGradeRaw,
   type ListeningGenItem,
@@ -45,7 +48,7 @@ import {
   type GrammarSelection,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ManualGrammarItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 // Raised from 2000: explain items are token-heavy (~450 tok each), so even a
@@ -258,6 +261,13 @@ const MANUAL_VOCAB_FAKE: ManualVocabItem = {
   sentence_english: "This is a test.",
 };
 
+const MANUAL_GRAMMAR_FAKE: ManualGrammarItem = {
+  pattern: "～てから",
+  explanation: "Indicates that one action happens after another is completed: \"after doing X\".",
+  sentence_japanese: "ごはんを食べてから、勉強します。",
+  sentence_english: "After eating, I will study.",
+};
+
 const EXPLAIN_FAKE: ExplainItem[] = [
   {
     task_english: "Explain to a colleague why your team migrated to TiDB.",
@@ -363,6 +373,26 @@ export async function generateManualVocab(args: {
   const client = (args.client ?? new Anthropic()) as ClientLike;
   const { value, usage, raw } = await callWithRetry<ManualVocabItem>({
     system, user, parse: parseManualVocab, client, signal: args.signal,
+  });
+  return { item: value, usage, raw };
+}
+
+export async function generateManualGrammar(args: {
+  input: string;
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ item: ManualGrammarItem; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return {
+      item: MANUAL_GRAMMAR_FAKE,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(MANUAL_GRAMMAR_FAKE),
+    };
+  }
+  const { system, user } = buildManualGrammarPrompt(args.input);
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<ManualGrammarItem>({
+    system, user, parse: parseManualGrammar, client, signal: args.signal,
   });
   return { item: value, usage, raw };
 }

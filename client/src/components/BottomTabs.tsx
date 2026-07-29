@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { IconHome, IconPractice, IconBrowse, IconStats } from "./icons";
+import { IconHome, IconStudy, IconBrowse, IconStats } from "./icons";
 
-export type Tab = "today" | "lessons" | "practice" | "stats";
+export type Tab = "today" | "lessons" | "study" | "stats";
 
 type Props = {
   active: Tab;
@@ -11,7 +11,7 @@ type Props = {
 const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: "today", label: "Today", icon: <IconHome /> },
   { id: "lessons", label: "Lessons", icon: <IconBrowse /> },
-  { id: "practice", label: "Practice", icon: <IconPractice /> },
+  { id: "study", label: "Study", icon: <IconStudy /> },
   { id: "stats", label: "Stats", icon: <IconStats /> },
 ];
 

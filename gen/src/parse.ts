@@ -38,6 +38,34 @@ export function parseManualVocab(raw: string): ManualVocabItem {
   };
 }
 
+// Manual grammar entry: the learner types a grammar pattern (or a description)
+// and the model returns the pattern plus an English explanation and one example
+// sentence. Single object, like manual vocab.
+export type ManualGrammarItem = {
+  pattern: string;
+  explanation: string;
+  sentence_japanese: string;
+  sentence_english: string;
+};
+
+export function parseManualGrammar(raw: string): ManualGrammarItem {
+  const parsed = JSON.parse(stripFences(raw));
+  if (
+    typeof parsed?.pattern !== "string" ||
+    typeof parsed?.explanation !== "string" ||
+    typeof parsed?.sentence_japanese !== "string" ||
+    typeof parsed?.sentence_english !== "string"
+  ) {
+    throw new Error("manual grammar response missing required fields");
+  }
+  return {
+    pattern: parsed.pattern,
+    explanation: parsed.explanation,
+    sentence_japanese: parsed.sentence_japanese,
+    sentence_english: parsed.sentence_english,
+  };
+}
+
 export function stripFences(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);

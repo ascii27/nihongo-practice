@@ -43,6 +43,24 @@ Constraints:
 Reply ONLY with valid JSON in this exact shape, no prose, no fences:
 { "japanese": "<JA>", "english": "<EN>", "sentence_japanese": "<JA>", "sentence_english": "<EN>" }`;
 
+const MANUAL_GRAMMAR_SYSTEM = `You help a Japanese learner add a single grammar point to their study list. The user's input is a grammar pattern (often with a ～ placeholder, e.g. ～てから) or a short description of one. Identify the pattern, explain its usage, and write one natural example sentence that uses it, at about N4 level.
+
+Constraints:
+- "pattern" is the grammar point in Japanese, using ～ for slots where a word attaches (e.g. ～てから, ～なければならない).
+- "explanation" is a concise English explanation of what the pattern means and when to use it (1–2 sentences, no fluff).
+- "sentence_japanese" is a single natural example sentence (under 20 syllables) that clearly uses the pattern.
+- "sentence_english" is the English translation of that example sentence.
+
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "pattern": "<JA>", "explanation": "<EN>", "sentence_japanese": "<JA>", "sentence_english": "<EN>" }`;
+
+export function buildManualGrammarPrompt(input: string): PromptPair {
+  return {
+    system: MANUAL_GRAMMAR_SYSTEM,
+    user: `Input: ${input}`,
+  };
+}
+
 export function buildManualVocabPrompt(input: string): PromptPair {
   return {
     system: MANUAL_VOCAB_SYSTEM,

@@ -24,7 +24,7 @@ export const VocabAnswer = z.object({
 });
 export type VocabAnswer = z.infer<typeof VocabAnswer>;
 
-export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening"]);
+export const Skill = z.enum(["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening", "kanji"]);
 export type Skill = z.infer<typeof Skill>;
 
 export const Source = z.enum(["seed", "ai", "user"]);
@@ -249,6 +249,52 @@ export const ExplainGradeResponse = z.object({
 });
 export type ExplainGradeResponse = z.infer<typeof ExplainGradeResponse>;
 
+// ----- Kanji item -----
+//
+// Kanji cards are seeded from KanjiVG (ordered stroke paths) + KANJIDIC2
+// (meanings/readings). The item carries only the light display fields; the
+// heavy stroke-path data lives in the `kanji` reference table and is fetched
+// on demand (KanjiDetail) by the drawing card.
+
+export const KanjiPrompt = z.object({
+  character: z.string(),
+});
+export type KanjiPrompt = z.infer<typeof KanjiPrompt>;
+
+export const KanjiAnswer = z.object({
+  meanings: z.array(z.string()),
+  on: z.array(z.string()),        // on'yomi readings
+  kun: z.array(z.string()),       // kun'yomi readings
+  stroke_count: z.number().int().nonnegative(),
+});
+export type KanjiAnswer = z.infer<typeof KanjiAnswer>;
+
+// GET /api/kanji — browse/search row (no stroke paths)
+export const KanjiBrowseItem = z.object({
+  character: z.string(),
+  meanings: z.array(z.string()),
+  stroke_count: z.number().int().nonnegative(),
+  jlpt: z.string().nullable(),
+});
+export type KanjiBrowseItem = z.infer<typeof KanjiBrowseItem>;
+
+export const KanjiBrowseResponse = z.object({ kanji: z.array(KanjiBrowseItem) });
+export type KanjiBrowseResponse = z.infer<typeof KanjiBrowseResponse>;
+
+// GET /api/kanji/:character — full detail including ordered stroke paths, used
+// by the drawing card for the stroke-order animation.
+export const KanjiDetail = z.object({
+  character: z.string(),
+  strokes: z.array(z.string()),   // ordered SVG path 'd' strings, KanjiVG order
+  stroke_count: z.number().int().nonnegative(),
+  radical: z.string().nullable(),
+  meanings: z.array(z.string()),
+  on: z.array(z.string()),
+  kun: z.array(z.string()),
+  jlpt: z.string().nullable(),
+});
+export type KanjiDetail = z.infer<typeof KanjiDetail>;
+
 // ----- Listening item -----
 
 export const ListeningQuestion = z.object({
@@ -293,6 +339,7 @@ export const DashboardResponse = z.object({
     particle: SkillCounts,
     explain: SkillCounts,
     listening: SkillCounts,
+    kanji: SkillCounts,
   }),
 });
 export type DashboardResponse = z.infer<typeof DashboardResponse>;
@@ -314,6 +361,7 @@ export const StatsBySkillResponse = z.object({
     particle: SkillStats,
     explain: SkillStats,
     listening: SkillStats,
+    kanji: SkillStats,
   }),
 });
 export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
@@ -348,6 +396,7 @@ export const LibraryResponse = z.object({
     particle: LibrarySkillGroup,
     explain: LibrarySkillGroup,
     listening: LibrarySkillGroup,
+    kanji: LibrarySkillGroup,
   }),
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
@@ -554,3 +603,102 @@ export const LessonStateUpdate = z.object({
   current_index: z.number().int().nonnegative(),
 });
 export type LessonStateUpdate = z.infer<typeof LessonStateUpdate>;
+
+// ----- Study lists -----
+//
+// A user-built collection mixing any skills (vocab / grammar / kanji / …),
+// mainly for class study. Members are ordinary `items`, so they flow through
+// the normal SRS when due; a list can also be "crammed" (all cards, ignoring
+// the schedule). Mirrors the lessons header + join-table shape.
+
+export const StudyListSummary = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  description: z.string(),
+  item_count: z.number().int().nonnegative(),
+  created_at: z.string(),
+});
+export type StudyListSummary = z.infer<typeof StudyListSummary>;
+
+export const StudyListsResponse = z.object({ study_lists: z.array(StudyListSummary) });
+export type StudyListsResponse = z.infer<typeof StudyListsResponse>;
+
+export const StudyListDetail = StudyListSummary.extend({
+  items: z.array(LibraryItem),   // display rows, same shape as Browse
+});
+export type StudyListDetail = z.infer<typeof StudyListDetail>;
+
+export const CreateStudyListRequest = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(400).optional(),
+});
+export type CreateStudyListRequest = z.infer<typeof CreateStudyListRequest>;
+
+export const CreateStudyListResponse = z.object({ id: z.string().uuid() });
+export type CreateStudyListResponse = z.infer<typeof CreateStudyListResponse>;
+
+export const AddStudyItemRequest = z.object({ item_id: z.string().uuid() });
+export type AddStudyItemRequest = z.infer<typeof AddStudyItemRequest>;
+
+// Quick-add is a two-step flow (like manual vocab): the learner types a word /
+// kanji / grammar pattern, the server generates an editable translation +
+// example, the learner tweaks it, then saves. Vocab & grammar use the AI;
+// kanji fills meaning/readings from the seeded reference table.
+
+export const StudyVocabFields = z.object({
+  japanese: z.string().min(1).max(120),
+  english: z.string().min(1).max(120),
+  sentence_japanese: z.string().min(1).max(200),
+  sentence_english: z.string().min(1).max(200),
+});
+export type StudyVocabFields = z.infer<typeof StudyVocabFields>;
+
+export const StudyGrammarFields = z.object({
+  pattern: z.string().min(1).max(120),
+  explanation: z.string().min(1).max(400),
+  sentence_japanese: z.string().max(200),
+  sentence_english: z.string().max(200),
+});
+export type StudyGrammarFields = z.infer<typeof StudyGrammarFields>;
+
+// Preview only (no DB write): generate editable fields from a raw input.
+export const StudyPreviewRequest = z.object({
+  kind: z.enum(["vocab", "kanji", "grammar"]),
+  input: z.string().min(1).max(200),
+});
+export type StudyPreviewRequest = z.infer<typeof StudyPreviewRequest>;
+
+export const StudyPreviewResponse = z.discriminatedUnion("kind", [
+  StudyVocabFields.extend({ kind: z.literal("vocab"), cost_usd: z.number().nonnegative() }),
+  StudyGrammarFields.extend({ kind: z.literal("grammar"), cost_usd: z.number().nonnegative() }),
+  z.object({
+    kind: z.literal("kanji"),
+    character: z.string(),
+    meaning: z.string(),        // editable, comma-joined meanings
+    readings: z.string(),       // display-only, on/kun joined
+    cost_usd: z.number().nonnegative(),
+  }),
+]);
+export type StudyPreviewResponse = z.infer<typeof StudyPreviewResponse>;
+
+// Save the (edited) preview into the list.
+export const QuickAddStudyItemRequest = z.discriminatedUnion("kind", [
+  StudyVocabFields.extend({ kind: z.literal("vocab") }),
+  StudyGrammarFields.extend({ kind: z.literal("grammar") }),
+  z.object({
+    kind: z.literal("kanji"),
+    character: z.string().min(1).max(4),
+    meaning: z.string().max(200),
+  }),
+]);
+export type QuickAddStudyItemRequest = z.infer<typeof QuickAddStudyItemRequest>;
+
+export const QuickAddStudyItemResponse = z.object({ item_id: z.string().uuid() });
+export type QuickAddStudyItemResponse = z.infer<typeof QuickAddStudyItemResponse>;
+
+export const StudyCandidatesResponse = z.object({ items: z.array(LibraryItem) });
+export type StudyCandidatesResponse = z.infer<typeof StudyCandidatesResponse>;
+
+// Cram: every card in the list as review items, schedule ignored.
+export const StudyCramResponse = z.object({ items: z.array(ItemRecord) });
+export type StudyCramResponse = z.infer<typeof StudyCramResponse>;
