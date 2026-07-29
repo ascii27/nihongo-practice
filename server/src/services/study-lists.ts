@@ -1,9 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { toRubyHtml, readingFor } from "@nihongo/gen";
+import {
+  toRubyHtml, readingFor, computeCost,
+  generateManualVocab, generateManualGrammar,
+} from "@nihongo/gen";
 import { pool } from "../db/pool.js";
 import type {
   StudyListSummary, StudyListDetail, LibraryItem, ItemRecord,
-  QuickAddStudyItemRequest, Skill,
+  QuickAddStudyItemRequest, StudyPreviewRequest, StudyPreviewResponse, Skill,
 } from "@nihongo/shared";
 import { itemDisplay, boxToMastery } from "./item-display.js";
 
@@ -74,9 +77,17 @@ export async function getStudyListDetail(id: string): Promise<StudyListDetail | 
   return { ...toSummary(header), items };
 }
 
-// Cram: all members as review items, schedule ignored.
+// Cram: all members as review items, shuffled, schedule ignored.
 export async function getCramItems(id: string): Promise<ItemRecord[]> {
-  const mr = await pool.query<MemberRow>(MEMBER_SELECT, [id]);
+  const mr = await pool.query<MemberRow>(
+    `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.external_id, i.tags, i.created_at, rs.box
+       FROM study_list_items li
+       JOIN items i ON i.id = li.item_id
+       LEFT JOIN review_state rs ON rs.item_id = i.id
+      WHERE li.list_id = $1
+      ORDER BY random()`,
+    [id],
+  );
   return mr.rows.map((row) => ({
     id: row.id, skill: row.skill as Skill, prompt: row.prompt, answer: row.answer,
     source: row.source as ItemRecord["source"], external_id: row.external_id,
@@ -108,26 +119,37 @@ export async function removeItem(listId: string, itemId: string): Promise<boolea
 }
 
 // Build the prompt/answer JSON for a quick-added item, per kind. Offline: vocab
-// furigana/reading come from the local tokenizer; kanji fills from the seeded
-// reference table when the character is known.
+// furigana/reading come from the local tokenizer; kanji reads from the seeded
+// reference table. The (already edited) fields arrive from the preview step.
+type KanjiRef = { meanings: string[]; on_yomi: string[]; kun_yomi: string[]; stroke_count: number };
+
+async function lookupKanji(character: string): Promise<KanjiRef | null> {
+  const ref = await pool.query<KanjiRef>(
+    `SELECT meanings, on_yomi, kun_yomi, stroke_count FROM kanji WHERE character = $1`,
+    [character],
+  );
+  return ref.rows[0] ?? null;
+}
+
 async function buildQuickItem(
   req: QuickAddStudyItemRequest,
 ): Promise<{ skill: Skill; prompt: object; answer: object }> {
   if (req.kind === "vocab") {
-    const sentence_ruby = await toRubyHtml(req.japanese);
+    const sentence_ruby = await toRubyHtml(req.sentence_japanese);
     const reading = await readingFor(req.japanese);
     return {
       skill: "vocab",
-      prompt: { sentence_ruby, target: req.japanese, sentence_english: req.english },
+      prompt: { sentence_ruby, target: req.japanese, sentence_english: req.sentence_english },
       answer: { meaning: req.english, reading },
     };
   }
   if (req.kind === "kanji") {
-    const ref = await pool.query<{
-      meanings: string[]; on_yomi: string[]; kun_yomi: string[]; stroke_count: number;
-    }>(`SELECT meanings, on_yomi, kun_yomi, stroke_count FROM kanji WHERE character = $1`, [req.character]);
-    const k = ref.rows[0];
-    const meanings = k ? k.meanings : req.meaning ? [req.meaning] : [];
+    const k = await lookupKanji(req.character);
+    // The user may have edited the meaning; readings/strokes stay authoritative
+    // from the reference table.
+    const meanings = req.meaning
+      ? req.meaning.split(",").map((m) => m.trim()).filter(Boolean)
+      : k?.meanings ?? [];
     return {
       skill: "kanji",
       prompt: { character: req.character },
@@ -140,11 +162,35 @@ async function buildQuickItem(
     };
   }
   // grammar
-  const sentence_ruby = req.example_japanese ? await toRubyHtml(req.example_japanese) : "";
+  const sentence_ruby = req.sentence_japanese ? await toRubyHtml(req.sentence_japanese) : "";
   return {
     skill: "grammar",
-    prompt: { sentence_ruby, pattern: req.pattern, sentence_english: "" },
+    prompt: { sentence_ruby, pattern: req.pattern, sentence_english: req.sentence_english },
     answer: { explanation: req.explanation },
+  };
+}
+
+// Generate editable fields from a raw input (no DB write). Vocab & grammar use
+// the AI; kanji fills meaning + readings from the reference table.
+export async function previewQuickItem(req: StudyPreviewRequest): Promise<StudyPreviewResponse> {
+  const input = req.input.trim();
+  if (req.kind === "vocab") {
+    const { item, usage } = await generateManualVocab({ input });
+    return { kind: "vocab", ...item, cost_usd: computeCost(usage) };
+  }
+  if (req.kind === "grammar") {
+    const { item, usage } = await generateManualGrammar({ input });
+    return { kind: "grammar", ...item, cost_usd: computeCost(usage) };
+  }
+  // kanji — from the reference table, no AI.
+  const character = input.slice(0, 4);
+  const k = await lookupKanji(character);
+  return {
+    kind: "kanji",
+    character,
+    meaning: k ? k.meanings.join(", ") : "",
+    readings: k ? [...k.on_yomi, ...k.kun_yomi].filter(Boolean).join("、") : "",
+    cost_usd: 0,
   };
 }
 

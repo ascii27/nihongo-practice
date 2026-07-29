@@ -15,12 +15,14 @@ test("study: create list → quick-add + search-add → cram → grade", async (
   await page.getByRole("button", { name: "Create list" }).click();
   await expect(page.getByRole("heading", { name: "Class Week 5" })).toBeVisible();
 
-  // Quick-add a new vocab card.
+  // Quick-add a new vocab card: type → generate (AI draft, editable) → add.
   await page.getByRole("tab", { name: /Quick-add new/ }).click();
-  await page.getByPlaceholder(/Japanese/).fill("学校");
-  await page.getByPlaceholder(/English/).fill("school");
+  await page.getByPlaceholder(/Word/).fill("test");
+  await page.getByRole("button", { name: "Generate" }).click();
+  // Fake AI fills the editable draft (テスト / test + example sentence).
+  await expect(page.getByRole("button", { name: "Add to list" })).toBeVisible();
   await page.getByRole("button", { name: "Add to list" }).click();
-  await expect(page.locator(".study-item__front", { hasText: "学校" })).toBeVisible();
+  await expect(page.locator(".study-item__front", { hasText: "テスト" })).toBeVisible();
 
   // Search an existing card and add it.
   await page.getByRole("tab", { name: /Search & add/ }).click();

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseExplainBatch, parseExplainGrade } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseManualGrammar, parseExplainBatch, parseExplainGrade } from "./parse.js";
 import { parseGrammarLesson, parseGrammarSelection, parseLessonQuiz } from "./parse.js";
 
 describe("stripFences", () => {
@@ -253,6 +253,27 @@ describe("parseManualVocab", () => {
 
   it("throws on missing required field", () => {
     expect(() => parseManualVocab(JSON.stringify({ japanese: "x", english: "y" }))).toThrow();
+  });
+});
+
+describe("parseManualGrammar", () => {
+  it("parses a single grammar object", () => {
+    const raw = JSON.stringify({
+      pattern: "～てから",
+      explanation: "after doing X",
+      sentence_japanese: "食べてから行く。",
+      sentence_english: "I go after eating.",
+    });
+    expect(parseManualGrammar(raw)).toEqual({
+      pattern: "～てから",
+      explanation: "after doing X",
+      sentence_japanese: "食べてから行く。",
+      sentence_english: "I go after eating.",
+    });
+  });
+
+  it("throws on missing required field", () => {
+    expect(() => parseManualGrammar(JSON.stringify({ pattern: "x", explanation: "y" }))).toThrow();
   });
 });
 

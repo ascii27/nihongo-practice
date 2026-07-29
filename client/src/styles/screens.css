@@ -825,3 +825,10 @@
 .study-quick__kinds { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-sunken); align-self: flex-start; }
 .study-quick__kind { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--fg-tertiary); padding: 6px 14px; border-radius: 999px; background: none; }
 .study-quick__kind.is-active { color: var(--accent-fg); background: var(--accent); }
+
+/* Study-detail top bar: round (X) close + centered title, matching practice-bar. */
+.study-detail__bar { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 16px 8px; }
+.study-detail__bar-title { flex: 1; font-family: var(--font-display); font-size: 22px; font-weight: 500; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.study-detail__bar-spacer { width: 32px; flex-shrink: 0; }
+
+.study-quick__note { font-size: 12px; color: var(--fg-tertiary); margin: 2px 0; }

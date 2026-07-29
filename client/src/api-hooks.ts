@@ -138,6 +138,7 @@ export function fetchKanji(character: string): Promise<KanjiDetail> {
 import type {
   StudyListsResponse, StudyListDetail, CreateStudyListRequest, CreateStudyListResponse,
   QuickAddStudyItemRequest, QuickAddStudyItemResponse, StudyCandidatesResponse, StudyCramResponse,
+  StudyPreviewRequest, StudyPreviewResponse,
 } from "@nihongo/shared";
 
 export function fetchStudyLists(): Promise<StudyListsResponse> {
@@ -155,6 +156,11 @@ export function deleteStudyList(id: string): Promise<void> {
 export function addStudyItem(listId: string, itemId: string): Promise<{ status: string }> {
   return api<{ status: string }>(`/api/study-lists/${listId}/items`, {
     method: "POST", body: JSON.stringify({ item_id: itemId }),
+  });
+}
+export function previewStudyItem(body: StudyPreviewRequest): Promise<StudyPreviewResponse> {
+  return api<StudyPreviewResponse>("/api/study-lists/preview", {
+    method: "POST", body: JSON.stringify(body),
   });
 }
 export function quickAddStudyItem(listId: string, body: QuickAddStudyItemRequest): Promise<QuickAddStudyItemResponse> {

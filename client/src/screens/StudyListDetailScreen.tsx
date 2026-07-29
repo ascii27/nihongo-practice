@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { StudyListDetail, LibraryItem, QuickAddStudyItemRequest } from "@nihongo/shared";
 import {
-  fetchStudyList, addStudyItem, removeStudyItem, quickAddStudyItem,
+  fetchStudyList, addStudyItem, removeStudyItem, quickAddStudyItem, previewStudyItem,
   searchStudyCandidates, deleteStudyList,
 } from "../api-hooks";
 import { SKILL_META } from "../lib/skills";
@@ -36,16 +36,28 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
     onDeleted();
   }
 
-  if (!detail) return <main className="screen screen--centered">Loading…</main>;
+  const header = (title: string) => (
+    <div className="study-detail__bar">
+      <button type="button" className="practice-bar__close" onClick={onBack} aria-label="Back to lists">
+        <IconClose />
+      </button>
+      <h1 className="study-detail__bar-title">{title}</h1>
+      <span className="study-detail__bar-spacer" aria-hidden />
+    </div>
+  );
+
+  if (!detail) {
+    return (
+      <main className="screen study-detail">
+        {header("Study")}
+        <p className="muted" style={{ padding: "24px 4px" }}>Loading…</p>
+      </main>
+    );
+  }
 
   return (
     <main className="screen study-detail">
-      <div className="topbar">
-        <button type="button" className="topbar__back" onClick={onBack} aria-label="Back">
-          <IconClose />
-        </button>
-        <h1 className="topbar__title">{detail.title}</h1>
-      </div>
+      {header(detail.title)}
 
       <div className="study-detail__actions">
         <button type="button" className="cta cta--primary cta--block"
@@ -151,78 +163,150 @@ function SearchAdd({ listId, onChanged }: { listId: string; onChanged: () => Pro
   );
 }
 
+type QuickPhase = "input" | "loading" | "preview" | "saving";
+type EditFields = Record<string, string>;
+
+const KIND_INPUT: Record<QuickKind, { label: string; placeholder: string }> = {
+  vocab: { label: "a word", placeholder: "Word — English or Japanese (e.g. school / 学校)" },
+  kanji: { label: "a kanji", placeholder: "Kanji (e.g. 食)" },
+  grammar: { label: "a grammar point", placeholder: "Pattern (e.g. 〜てから)" },
+};
+
 function QuickAdd({ listId, onChanged }: { listId: string; onChanged: () => Promise<void> }) {
   const [kind, setKind] = useState<QuickKind>("vocab");
-  const [busy, setBusy] = useState(false);
-  // Shared fields across kinds; only the relevant ones are read on submit.
-  const [japanese, setJapanese] = useState("");
-  const [english, setEnglish] = useState("");
-  const [character, setCharacter] = useState("");
-  const [pattern, setPattern] = useState("");
-  const [explanation, setExplanation] = useState("");
+  const [phase, setPhase] = useState<QuickPhase>("input");
+  const [input, setInput] = useState("");
+  const [fields, setFields] = useState<EditFields>({});
+  const [readings, setReadings] = useState("");   // kanji only, display-only
+  const [error, setError] = useState<string | null>(null);
 
-  function reset() {
-    setJapanese(""); setEnglish(""); setCharacter(""); setPattern(""); setExplanation("");
+  function restart() {
+    setPhase("input");
+    setInput("");
+    setFields({});
+    setReadings("");
+    setError(null);
   }
 
-  const ready =
-    kind === "vocab" ? japanese.trim() && english.trim()
-    : kind === "kanji" ? character.trim()
-    : pattern.trim() && explanation.trim();
+  function setField(key: string, value: string) {
+    setFields((f) => ({ ...f, [key]: value }));
+  }
 
-  async function submit(e: React.FormEvent) {
+  // Step 1: generate an editable draft from the raw input.
+  async function generate(e: React.FormEvent) {
     e.preventDefault();
-    if (!ready) return;
-    setBusy(true);
+    if (!input.trim()) return;
+    setPhase("loading");
+    setError(null);
     try {
-      let body: QuickAddStudyItemRequest;
-      if (kind === "vocab") body = { kind, japanese: japanese.trim(), english: english.trim() };
-      else if (kind === "kanji") body = { kind, character: character.trim() };
-      else body = { kind, pattern: pattern.trim(), explanation: explanation.trim() };
-      await quickAddStudyItem(listId, body);
-      reset();
-      await onChanged();
-    } finally {
-      setBusy(false);
+      const p = await previewStudyItem({ kind, input: input.trim() });
+      if (p.kind === "vocab") {
+        setFields({ japanese: p.japanese, english: p.english, sentence_japanese: p.sentence_japanese, sentence_english: p.sentence_english });
+      } else if (p.kind === "grammar") {
+        setFields({ pattern: p.pattern, explanation: p.explanation, sentence_japanese: p.sentence_japanese, sentence_english: p.sentence_english });
+      } else {
+        setFields({ character: p.character, meaning: p.meaning });
+        setReadings(p.readings);
+      }
+      setPhase("preview");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "generation failed");
+      setPhase("input");
     }
   }
 
-  return (
-    <form className="study-quick" onSubmit={submit}>
-      <div className="study-quick__kinds" role="tablist" aria-label="Card type">
-        {(["vocab", "kanji", "grammar"] as QuickKind[]).map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={kind === k}
-                  className={`study-quick__kind ${kind === k ? "is-active" : ""}`}
-                  onClick={() => setKind(k)}>
-            {SKILL_META[k].label}
-          </button>
-        ))}
+  // Step 2: save the (edited) draft.
+  async function save() {
+    setPhase("saving");
+    try {
+      const f = (k: string) => (fields[k] ?? "").trim();
+      let body: QuickAddStudyItemRequest;
+      if (kind === "vocab") {
+        body = { kind, japanese: f("japanese"), english: f("english"), sentence_japanese: f("sentence_japanese"), sentence_english: f("sentence_english") };
+      } else if (kind === "grammar") {
+        body = { kind, pattern: f("pattern"), explanation: f("explanation"), sentence_japanese: f("sentence_japanese"), sentence_english: f("sentence_english") };
+      } else {
+        body = { kind, character: f("character"), meaning: f("meaning") };
+      }
+      await quickAddStudyItem(listId, body);
+      restart();
+      await onChanged();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "save failed");
+      setPhase("preview");
+    }
+  }
+
+  const kinds = (
+    <div className="study-quick__kinds" role="tablist" aria-label="Card type">
+      {(["vocab", "kanji", "grammar"] as QuickKind[]).map((k) => (
+        <button key={k} type="button" role="tab" aria-selected={kind === k}
+                className={`study-quick__kind ${kind === k ? "is-active" : ""}`}
+                onClick={() => { setKind(k); restart(); }}>
+          {SKILL_META[k].label}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (phase === "preview" || phase === "saving") {
+    const saving = phase === "saving";
+    return (
+      <div className="study-quick">
+        {kinds}
+        <p className="study-quick__note">Review and edit, then add.</p>
+        {kind === "vocab" && (
+          <>
+            <Labeled label="Japanese"><input className="settings__input jp" value={fields.japanese ?? ""} onChange={(e) => setField("japanese", e.target.value)} maxLength={120} /></Labeled>
+            <Labeled label="English"><input className="settings__input" value={fields.english ?? ""} onChange={(e) => setField("english", e.target.value)} maxLength={120} /></Labeled>
+            <Labeled label="Example sentence"><input className="settings__input jp" value={fields.sentence_japanese ?? ""} onChange={(e) => setField("sentence_japanese", e.target.value)} maxLength={200} /></Labeled>
+            <Labeled label="Sentence translation"><input className="settings__input" value={fields.sentence_english ?? ""} onChange={(e) => setField("sentence_english", e.target.value)} maxLength={200} /></Labeled>
+          </>
+        )}
+        {kind === "grammar" && (
+          <>
+            <Labeled label="Pattern"><input className="settings__input jp" value={fields.pattern ?? ""} onChange={(e) => setField("pattern", e.target.value)} maxLength={120} /></Labeled>
+            <Labeled label="Explanation"><input className="settings__input" value={fields.explanation ?? ""} onChange={(e) => setField("explanation", e.target.value)} maxLength={400} /></Labeled>
+            <Labeled label="Example sentence"><input className="settings__input jp" value={fields.sentence_japanese ?? ""} onChange={(e) => setField("sentence_japanese", e.target.value)} maxLength={200} /></Labeled>
+            <Labeled label="Sentence translation"><input className="settings__input" value={fields.sentence_english ?? ""} onChange={(e) => setField("sentence_english", e.target.value)} maxLength={200} /></Labeled>
+          </>
+        )}
+        {kind === "kanji" && (
+          <>
+            <p className="kanji-card__glyph" style={{ fontSize: 56, margin: "4px 0" }}>{fields.character}</p>
+            <Labeled label="Meaning"><input className="settings__input" value={fields.meaning ?? ""} onChange={(e) => setField("meaning", e.target.value)} maxLength={200} /></Labeled>
+            {readings ? <p className="kanji-draw__reading" style={{ textAlign: "left" }}>{readings}</p>
+              : <p className="muted" style={{ fontSize: 12 }}>Not in the kanji library — add a meaning above.</p>}
+          </>
+        )}
+        {error && <p className="muted" role="alert" style={{ color: "var(--error)" }}>{error}</p>}
+        <button type="button" className="cta cta--primary cta--block" onClick={save} disabled={saving}>
+          {saving ? "Adding…" : "Add to list"}
+        </button>
+        <button type="button" className="linkbtn" onClick={restart} disabled={saving}>Start over</button>
       </div>
+    );
+  }
 
-      {kind === "vocab" && (
-        <>
-          <input className="settings__input" placeholder="Japanese (e.g. 学校)" value={japanese}
-                 onChange={(e) => setJapanese(e.target.value)} maxLength={120} />
-          <input className="settings__input" placeholder="English (e.g. school)" value={english}
-                 onChange={(e) => setEnglish(e.target.value)} maxLength={120} />
-        </>
-      )}
-      {kind === "kanji" && (
-        <input className="settings__input" placeholder="Kanji (e.g. 食)" value={character}
-               onChange={(e) => setCharacter(e.target.value)} maxLength={4} />
-      )}
-      {kind === "grammar" && (
-        <>
-          <input className="settings__input" placeholder="Pattern (e.g. 〜てから)" value={pattern}
-                 onChange={(e) => setPattern(e.target.value)} maxLength={120} />
-          <input className="settings__input" placeholder="Meaning / note" value={explanation}
-                 onChange={(e) => setExplanation(e.target.value)} maxLength={400} />
-        </>
-      )}
-
-      <button type="submit" className="cta cta--primary cta--block" disabled={busy || !ready}>
-        {busy ? "Adding…" : "Add to list"}
+  // input / loading
+  return (
+    <form className="study-quick" onSubmit={generate}>
+      {kinds}
+      <input className="settings__input" placeholder={KIND_INPUT[kind].placeholder} value={input}
+             onChange={(e) => setInput(e.target.value)} maxLength={200} disabled={phase === "loading"} />
+      {error && <p className="muted" role="alert" style={{ color: "var(--error)" }}>{error}</p>}
+      <button type="submit" className="cta cta--primary cta--block" disabled={phase === "loading" || !input.trim()}>
+        {phase === "loading" ? "Generating…" : "Generate"}
       </button>
     </form>
+  );
+}
+
+function Labeled({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="settings__field">
+      <span className="settings__field-label">{label}</span>
+      {children}
+    </label>
   );
 }

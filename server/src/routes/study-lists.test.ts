@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
@@ -31,7 +31,13 @@ async function createList(title = "Class Week 5"): Promise<string> {
   return res.body.id;
 }
 
-beforeEach(() => resetDb());
+beforeEach(async () => {
+  await resetDb();
+  process.env.NIHONGO_FAKE_AI = "1";
+});
+afterEach(() => {
+  delete process.env.NIHONGO_FAKE_AI;
+});
 
 describe("study-lists CRUD", () => {
   it("requires passcode", async () => {
@@ -93,42 +99,80 @@ describe("study-list membership", () => {
   });
 });
 
-describe("quick-add", () => {
-  it("creates a vocab item and adds it", async () => {
+describe("preview (generate editable draft)", () => {
+  it("generates vocab fields (translation + example) from an input", async () => {
+    const res = await auth(request(app).post("/api/study-lists/preview"))
+      .send({ kind: "vocab", input: "test" });
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe("vocab");
+    // Fake AI returns a well-formed vocab item with an example sentence.
+    expect(res.body.japanese).toBeTruthy();
+    expect(res.body.sentence_japanese).toBeTruthy();
+    expect(res.body.sentence_english).toBeTruthy();
+  });
+
+  it("generates grammar fields (explanation + example) from a pattern", async () => {
+    const res = await auth(request(app).post("/api/study-lists/preview"))
+      .send({ kind: "grammar", input: "〜てから" });
+    expect(res.status).toBe(200);
+    expect(res.body.kind).toBe("grammar");
+    expect(res.body.pattern).toBeTruthy();
+    expect(res.body.explanation).toBeTruthy();
+    expect(res.body.sentence_japanese).toBeTruthy();
+  });
+
+  it("fills kanji meaning + readings from the reference table", async () => {
+    await pool.query(
+      `INSERT INTO kanji (character, strokes, stroke_count, meanings, on_yomi, kun_yomi)
+       VALUES ('食', '["a","b"]', 2, ARRAY['eat','food'], ARRAY['ショク'], ARRAY['た.べる'])`,
+    );
+    const res = await auth(request(app).post("/api/study-lists/preview"))
+      .send({ kind: "kanji", input: "食" });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ kind: "kanji", character: "食", meaning: "eat, food" });
+    expect(res.body.readings).toContain("ショク");
+  });
+});
+
+describe("quick-add (save edited draft)", () => {
+  it("creates a vocab item with the edited sentence and adds it", async () => {
     const id = await createList();
     const res = await auth(request(app).post(`/api/study-lists/${id}/quick-add`))
-      .send({ kind: "vocab", japanese: "学校", english: "school" });
+      .send({ kind: "vocab", japanese: "学校", english: "school", sentence_japanese: "学校に行く。", sentence_english: "I go to school." });
     expect(res.status).toBe(201);
     expect(res.body.item_id).toBeTruthy();
 
     const detail = await auth(request(app).get(`/api/study-lists/${id}`));
     expect(detail.body.items[0]).toMatchObject({ skill: "vocab", front: "学校", meaning: "school" });
-    // Stored as a user item.
-    const src = await pool.query(`SELECT source FROM items WHERE id = $1`, [res.body.item_id]);
+    const src = await pool.query(`SELECT source, prompt FROM items WHERE id = $1`, [res.body.item_id]);
     expect(src.rows[0].source).toBe("user");
+    expect(src.rows[0].prompt.sentence_english).toBe("I go to school.");
   });
 
-  it("creates a kanji item, filling from the reference table when known", async () => {
+  it("creates a kanji item, keeping edited meaning but authoritative readings", async () => {
     await pool.query(
       `INSERT INTO kanji (character, strokes, stroke_count, meanings, on_yomi, kun_yomi)
        VALUES ('食', '["a","b"]', 2, ARRAY['eat'], ARRAY['ショク'], ARRAY['た.べる'])`,
     );
     const id = await createList();
     const res = await auth(request(app).post(`/api/study-lists/${id}/quick-add`))
-      .send({ kind: "kanji", character: "食" });
+      .send({ kind: "kanji", character: "食", meaning: "eat, to consume" });
     expect(res.status).toBe(201);
     const item = await pool.query(`SELECT skill, answer FROM items WHERE id = $1`, [res.body.item_id]);
     expect(item.rows[0].skill).toBe("kanji");
-    expect(item.rows[0].answer).toMatchObject({ meanings: ["eat"], on: ["ショク"], stroke_count: 2 });
+    expect(item.rows[0].answer).toMatchObject({ meanings: ["eat", "to consume"], on: ["ショク"], stroke_count: 2 });
   });
 
-  it("creates a grammar item", async () => {
+  it("creates a grammar item with an example sentence", async () => {
     const id = await createList();
     const res = await auth(request(app).post(`/api/study-lists/${id}/quick-add`))
-      .send({ kind: "grammar", pattern: "〜てから", explanation: "after doing" });
+      .send({ kind: "grammar", pattern: "〜てから", explanation: "after doing", sentence_japanese: "食べてから行く。", sentence_english: "Go after eating." });
     expect(res.status).toBe(201);
     const detail = await auth(request(app).get(`/api/study-lists/${id}`));
     expect(detail.body.items[0]).toMatchObject({ skill: "grammar", front: "〜てから" });
+    const item = await pool.query(`SELECT prompt, answer FROM items WHERE id = $1`, [res.body.item_id]);
+    expect(item.rows[0].answer.explanation).toBe("after doing");
+    expect(item.rows[0].prompt.sentence_english).toBe("Go after eating.");
   });
 });
 

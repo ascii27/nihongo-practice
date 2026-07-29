@@ -1,11 +1,30 @@
 import { Router } from "express";
-import { CreateStudyListRequest, AddStudyItemRequest, QuickAddStudyItemRequest } from "@nihongo/shared";
+import {
+  CreateStudyListRequest, AddStudyItemRequest, QuickAddStudyItemRequest, StudyPreviewRequest,
+} from "@nihongo/shared";
+import { GenerateError } from "@nihongo/gen";
 import {
   listStudyLists, createStudyList, deleteStudyList, getStudyListDetail,
-  getCramItems, addItem, removeItem, quickAddItem, searchCandidates,
+  getCramItems, addItem, removeItem, quickAddItem, searchCandidates, previewQuickItem,
 } from "../services/study-lists.js";
 
 export const studyListsRouter = Router();
+
+// POST /api/study-lists/preview — generate editable fields from a raw input
+// (no DB write). Vocab/grammar call the AI; kanji reads the reference table.
+studyListsRouter.post("/preview", async (req, res) => {
+  const parsed = StudyPreviewRequest.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0]?.message ?? "invalid input", code: "BAD_BODY" });
+    return;
+  }
+  try {
+    res.json(await previewQuickItem(parsed.data));
+  } catch (err) {
+    const message = err instanceof GenerateError ? err.message : err instanceof Error ? err.message : "generation failed";
+    res.status(502).json({ error: message, code: "PREVIEW_FAILED" });
+  }
+});
 
 // GET /api/study-lists — all lists with item counts.
 studyListsRouter.get("/", async (_req, res) => {

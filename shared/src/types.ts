@@ -640,25 +640,55 @@ export type CreateStudyListResponse = z.infer<typeof CreateStudyListResponse>;
 export const AddStudyItemRequest = z.object({ item_id: z.string().uuid() });
 export type AddStudyItemRequest = z.infer<typeof AddStudyItemRequest>;
 
-// Quick-add: create a new item from scratch and drop it in the list. Offline
-// (no AI) — vocab furigana/reading come from the local tokenizer, kanji fills
-// from the seeded reference table when the character is known.
-export const QuickAddStudyItemRequest = z.discriminatedUnion("kind", [
+// Quick-add is a two-step flow (like manual vocab): the learner types a word /
+// kanji / grammar pattern, the server generates an editable translation +
+// example, the learner tweaks it, then saves. Vocab & grammar use the AI;
+// kanji fills meaning/readings from the seeded reference table.
+
+export const StudyVocabFields = z.object({
+  japanese: z.string().min(1).max(120),
+  english: z.string().min(1).max(120),
+  sentence_japanese: z.string().min(1).max(200),
+  sentence_english: z.string().min(1).max(200),
+});
+export type StudyVocabFields = z.infer<typeof StudyVocabFields>;
+
+export const StudyGrammarFields = z.object({
+  pattern: z.string().min(1).max(120),
+  explanation: z.string().min(1).max(400),
+  sentence_japanese: z.string().max(200),
+  sentence_english: z.string().max(200),
+});
+export type StudyGrammarFields = z.infer<typeof StudyGrammarFields>;
+
+// Preview only (no DB write): generate editable fields from a raw input.
+export const StudyPreviewRequest = z.object({
+  kind: z.enum(["vocab", "kanji", "grammar"]),
+  input: z.string().min(1).max(200),
+});
+export type StudyPreviewRequest = z.infer<typeof StudyPreviewRequest>;
+
+export const StudyPreviewResponse = z.discriminatedUnion("kind", [
+  StudyVocabFields.extend({ kind: z.literal("vocab"), cost_usd: z.number().nonnegative() }),
+  StudyGrammarFields.extend({ kind: z.literal("grammar"), cost_usd: z.number().nonnegative() }),
   z.object({
-    kind: z.literal("vocab"),
-    japanese: z.string().min(1).max(120),
-    english: z.string().min(1).max(120),
+    kind: z.literal("kanji"),
+    character: z.string(),
+    meaning: z.string(),        // editable, comma-joined meanings
+    readings: z.string(),       // display-only, on/kun joined
+    cost_usd: z.number().nonnegative(),
   }),
+]);
+export type StudyPreviewResponse = z.infer<typeof StudyPreviewResponse>;
+
+// Save the (edited) preview into the list.
+export const QuickAddStudyItemRequest = z.discriminatedUnion("kind", [
+  StudyVocabFields.extend({ kind: z.literal("vocab") }),
+  StudyGrammarFields.extend({ kind: z.literal("grammar") }),
   z.object({
     kind: z.literal("kanji"),
     character: z.string().min(1).max(4),
-    meaning: z.string().max(120).optional(),
-  }),
-  z.object({
-    kind: z.literal("grammar"),
-    pattern: z.string().min(1).max(120),
-    explanation: z.string().min(1).max(400),
-    example_japanese: z.string().max(200).optional(),
+    meaning: z.string().max(200),
   }),
 ]);
 export type QuickAddStudyItemRequest = z.infer<typeof QuickAddStudyItemRequest>;
