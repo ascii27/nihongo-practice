@@ -603,3 +603,72 @@ export const LessonStateUpdate = z.object({
   current_index: z.number().int().nonnegative(),
 });
 export type LessonStateUpdate = z.infer<typeof LessonStateUpdate>;
+
+// ----- Study lists -----
+//
+// A user-built collection mixing any skills (vocab / grammar / kanji / …),
+// mainly for class study. Members are ordinary `items`, so they flow through
+// the normal SRS when due; a list can also be "crammed" (all cards, ignoring
+// the schedule). Mirrors the lessons header + join-table shape.
+
+export const StudyListSummary = z.object({
+  id: z.string().uuid(),
+  title: z.string(),
+  description: z.string(),
+  item_count: z.number().int().nonnegative(),
+  created_at: z.string(),
+});
+export type StudyListSummary = z.infer<typeof StudyListSummary>;
+
+export const StudyListsResponse = z.object({ study_lists: z.array(StudyListSummary) });
+export type StudyListsResponse = z.infer<typeof StudyListsResponse>;
+
+export const StudyListDetail = StudyListSummary.extend({
+  items: z.array(LibraryItem),   // display rows, same shape as Browse
+});
+export type StudyListDetail = z.infer<typeof StudyListDetail>;
+
+export const CreateStudyListRequest = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(400).optional(),
+});
+export type CreateStudyListRequest = z.infer<typeof CreateStudyListRequest>;
+
+export const CreateStudyListResponse = z.object({ id: z.string().uuid() });
+export type CreateStudyListResponse = z.infer<typeof CreateStudyListResponse>;
+
+export const AddStudyItemRequest = z.object({ item_id: z.string().uuid() });
+export type AddStudyItemRequest = z.infer<typeof AddStudyItemRequest>;
+
+// Quick-add: create a new item from scratch and drop it in the list. Offline
+// (no AI) — vocab furigana/reading come from the local tokenizer, kanji fills
+// from the seeded reference table when the character is known.
+export const QuickAddStudyItemRequest = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("vocab"),
+    japanese: z.string().min(1).max(120),
+    english: z.string().min(1).max(120),
+  }),
+  z.object({
+    kind: z.literal("kanji"),
+    character: z.string().min(1).max(4),
+    meaning: z.string().max(120).optional(),
+  }),
+  z.object({
+    kind: z.literal("grammar"),
+    pattern: z.string().min(1).max(120),
+    explanation: z.string().min(1).max(400),
+    example_japanese: z.string().max(200).optional(),
+  }),
+]);
+export type QuickAddStudyItemRequest = z.infer<typeof QuickAddStudyItemRequest>;
+
+export const QuickAddStudyItemResponse = z.object({ item_id: z.string().uuid() });
+export type QuickAddStudyItemResponse = z.infer<typeof QuickAddStudyItemResponse>;
+
+export const StudyCandidatesResponse = z.object({ items: z.array(LibraryItem) });
+export type StudyCandidatesResponse = z.infer<typeof StudyCandidatesResponse>;
+
+// Cram: every card in the list as review items, schedule ignored.
+export const StudyCramResponse = z.object({ items: z.array(ItemRecord) });
+export type StudyCramResponse = z.infer<typeof StudyCramResponse>;
