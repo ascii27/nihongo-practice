@@ -1,6 +1,6 @@
 import type { Skill } from "@nihongo/shared";
 
-export const SKILL_ORDER: Skill[] = ["vocab", "grammar", "particle", "conjugation", "reading", "explain", "listening"];
+export const SKILL_ORDER: Skill[] = ["vocab", "grammar", "particle", "conjugation", "reading", "explain", "listening", "kanji"];
 
 // Display metadata per skill. `ja` is a 2-kanji name; `short` is the single
 // kanji used in the round glyph chips on Today / Browse.
@@ -12,6 +12,7 @@ export const SKILL_META: Record<Skill, { label: string; ja: string; short: strin
   reading: { label: "Reading", ja: "読解", short: "読" },
   explain: { label: "Explain", ja: "説明", short: "説" },
   listening: { label: "Listening", ja: "聴解", short: "聴" },
+  kanji: { label: "Kanji", ja: "漢字", short: "漢" },
 };
 
 // Static one-line intros for task skills, which have no generated teaching block.

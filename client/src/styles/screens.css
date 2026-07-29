@@ -752,3 +752,45 @@
 .today-hero-lesson__kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-secondary); }
 .today-hero-lesson__title { font-family: var(--font-display); font-size: 22px; font-weight: 500; }
 .today-hero-lesson__meta { font-size: 13px; color: var(--fg-secondary); }
+
+/* ===== Kanji practice ===================================================== */
+
+/* Recognize / Draw mode toggle at the top of a kanji card. */
+.kanji-mode { display: inline-flex; align-self: center; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-sunken); }
+.kanji-mode__btn { font-family: var(--font-ui); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--fg-tertiary); padding: 6px 16px; border-radius: 999px; background: none; }
+.kanji-mode__btn.is-active { color: var(--accent-fg); background: var(--accent); }
+
+/* Recognize face — the big glyph. */
+.kanji-card__glyph { font-family: var(--font-jp); font-size: 96px; font-weight: 500; color: var(--fg); line-height: 1; text-align: center; margin: 12px 0; }
+.dir-ink .kanji-card__glyph { font-weight: 400; }
+
+/* Draw mode. */
+.kanji-draw { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.kanji-draw__prompt { text-align: center; }
+.kanji-draw__meaning { font-family: var(--font-ui); font-size: 20px; font-weight: 600; color: var(--accent); }
+.kanji-draw__reading { font-family: var(--font-jp); font-size: 16px; color: var(--fg-secondary); margin-top: 2px; }
+.kanji-draw__hint { font-family: var(--font-ui); font-size: 12px; color: var(--fg-tertiary); margin-top: 6px; }
+
+.kanji-draw__surface { position: relative; width: min(74vw, 300px); aspect-ratio: 1; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-sunken); overflow: hidden; touch-action: none; }
+.kanji-draw__surface > svg, .kanji-draw__canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+.kanji-draw__frame { fill: none; stroke: var(--border); stroke-width: 1; }
+.kanji-draw__guide { stroke: var(--border); stroke-width: 0.6; stroke-dasharray: 3 4; }
+
+/* Faint reference glyph to trace over. KanjiVG paths are centerline strokes,
+   so they must be stroked (not filled). */
+.kanji-draw__reference path { fill: none; stroke: var(--fg-tertiary); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.22; }
+
+/* Ordered stroke animation drawn on top of the reference. */
+.kanji-draw__anim path { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.kanji-draw__anim.is-playing path { animation: kanji-stroke var(--kanji-stroke-ms, 0.64s) ease forwards; }
+@keyframes kanji-stroke { to { stroke-dashoffset: 0; } }
+
+/* Learner ink layer. */
+.kanji-draw__canvas { color: var(--fg); cursor: crosshair; }
+
+.kanji-draw__error { position: absolute; inset: auto 8px 8px; font-size: 12px; color: var(--error); text-align: center; }
+.kanji-draw__tools { display: flex; gap: 20px; }
+
+/* In-app dataset credit. */
+.kanji-credit { font-family: var(--font-ui); font-size: 11px; color: var(--fg-tertiary); text-align: center; margin-top: 8px; }

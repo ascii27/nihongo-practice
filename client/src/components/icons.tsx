@@ -61,3 +61,19 @@ export const IconChevron = ({ className }: IconProps) => (
     <path d="M9 6l6 6-6 6" />
   </svg>
 );
+
+// Study tab — a bookmarked/open study book.
+export const IconStudy = ({ className }: IconProps) => (
+  <svg {...base} className={className} aria-hidden>
+    <path d="M4 5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v15l-5-3-5 3V5z" />
+    <path d="M17 5h1a2 2 0 0 1 2 2v11" />
+  </svg>
+);
+
+// Brush — kanji drawing / stroke practice.
+export const IconBrush = ({ className }: IconProps) => (
+  <svg {...base} className={className} aria-hidden>
+    <path d="M15 4l5 5-8.5 8.5a3 3 0 0 1-1.7.85L6 19l.65-3.8a3 3 0 0 1 .85-1.7L15 4z" />
+    <path d="M13 6l5 5" />
+  </svg>
+);

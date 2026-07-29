@@ -19,6 +19,8 @@ import type {
   ManualVocabSaveResponse,
   ExplainGradeRequest,
   ExplainGradeResponse,
+  KanjiBrowseResponse,
+  KanjiDetail,
   Skill,
 } from "@nihongo/shared";
 
@@ -117,6 +119,19 @@ export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGra
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// ----- Kanji -----
+export function searchKanji(q?: string, jlpt?: string): Promise<KanjiBrowseResponse> {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (jlpt) params.set("jlpt", jlpt);
+  const qs = params.toString();
+  return api<KanjiBrowseResponse>(`/api/kanji${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchKanji(character: string): Promise<KanjiDetail> {
+  return api<KanjiDetail>(`/api/kanji/${encodeURIComponent(character)}`);
 }
 
 // ----- Lessons (Phase 2) -----

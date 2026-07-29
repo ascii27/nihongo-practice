@@ -6,6 +6,7 @@ import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 import { ListeningCard } from "../components/ListeningCard";
 import { TypedInputCard } from "../components/TypedInputCard";
 import { ProductionCard } from "../components/ProductionCard";
+import { KanjiCard } from "../components/KanjiCard";
 import { IconClose } from "../components/icons";
 
 type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
@@ -140,6 +141,8 @@ export function PracticeScreen({ onDone, skill }: Props) {
           <ListeningCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : current.skill === "conjugation" ? (
           <TypedInputCard key={current.id} item={current} onAnswer={handleAnswerWithText} />
+        ) : current.skill === "kanji" ? (
+          <KanjiCard key={current.id} item={current} onAnswer={handleAnswer} />
         ) : (
           <FlipCard key={current.id} item={current} onAnswer={handleAnswer} />
         )}

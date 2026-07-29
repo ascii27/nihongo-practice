@@ -18,7 +18,9 @@ type Props = {
   onSuccess?: () => void;
 };
 
-const SKILL_LABELS: Record<Skill, string> = {
+// AI-generatable skills only. Kanji is seed-sourced (KanjiVG/KANJIDIC2), not
+// generated, so it is intentionally absent here.
+const SKILL_LABELS: Partial<Record<Skill, string>> = {
   vocab: "Vocabulary",
   grammar: "Grammar",
   reading: "Reading",
@@ -39,7 +41,7 @@ export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", 
   const submitting = status.kind === "submitting";
   const buttonLabel = submitting
     ? "Generating…"
-    : `Generate ${count} ${SKILL_LABELS[skill].toLowerCase()} (${estimateLabel})`;
+    : `Generate ${count} ${(SKILL_LABELS[skill] ?? skill).toLowerCase()} (${estimateLabel})`;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
