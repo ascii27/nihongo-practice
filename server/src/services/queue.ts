@@ -1,8 +1,6 @@
 import { pool } from "../db/pool.js";
 import type { ItemRecord } from "@nihongo/shared";
-
-const DAILY_NEW_CAP = 10;
-const DUE_CAP = 20;
+import { getDailyBudget, countIntroducedToday } from "./daily-budget.js";
 
 type Row = {
   id: string;
@@ -31,40 +29,21 @@ export async function buildQueue(
 ): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
   const skillFilter = opts.skill ?? null;
 
-  // Due: a random sample of currently-due, non-suspended items, capped per session.
-  const dueLimit = Math.min(opts.limit, DUE_CAP);
-  const dueRes = await pool.query<Row>(
-    `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
-       FROM items i
-       JOIN review_state rs ON rs.item_id = i.id
-      WHERE ($1::text IS NULL OR i.skill = $1)
-        AND rs.next_review_at <= now()
-        AND rs.suspended = false
-      ORDER BY random()
-      LIMIT $2`,
-    [skillFilter, dueLimit],
-  );
-  const due = dueRes.rows.map(toRecord);
+  // Session size comes from the daily budget, so the number on the dashboard
+  // hero and the session it starts can never disagree.
+  const budget = await getDailyBudget(opts.tz);
+  const sessionCap = Math.min(opts.limit, budget.remaining);
+  if (sessionCap <= 0) return { due: [], new: [] };
 
-  // New: serve up to (DAILY_NEW_CAP - introduced today) brand-new items,
-  // independent of the due backlog. "Introduced today" = first-ever reviews
-  // (box_before = 0) bucketed by calendar day in the caller's timezone, scoped
-  // to the same skill filter the queue is serving.
-  const introRes = await pool.query<{ c: number }>(
-    `SELECT count(*)::int AS c
-       FROM reviews r
-       JOIN items i ON i.id = r.item_id
-      WHERE r.box_before = 0
-        AND ($2::text IS NULL OR i.skill = $2)
-        AND date_trunc('day', r.reviewed_at AT TIME ZONE $1)
-          = date_trunc('day', now() AT TIME ZONE $1)`,
-    [opts.tz, skillFilter],
-  );
-  const introducedToday = introRes.rows[0]?.c ?? 0;
-  const newBudget = Math.max(0, DAILY_NEW_CAP - introducedToday);
+  // New cards get a third of the target per round — at the default 30 that is
+  // the 10/day this app has always used. Fetched first so that when no new
+  // cards are left, due fills the whole cap instead of stopping short.
+  const introducedToday = await countIntroducedToday(opts.tz);
+  const newShare = Math.round(budget.target / 3) * (1 + budget.extra_rounds);
+  const newLimit = Math.max(0, Math.min(sessionCap, newShare - introducedToday));
 
   let neu: ItemRecord[] = [];
-  if (newBudget > 0) {
+  if (newLimit > 0) {
     const newRes = await pool.query<Row>(
       `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
          FROM items i
@@ -72,9 +51,28 @@ export async function buildQueue(
         WHERE ($1::text IS NULL OR i.skill = $1) AND rs.item_id IS NULL
         ORDER BY i.created_at ASC
         LIMIT $2`,
-      [skillFilter, newBudget],
+      [skillFilter, newLimit],
     );
     neu = newRes.rows.map(toRecord);
+  }
+
+  // Due: a random sample of currently-due, non-suspended items, filling
+  // whatever the new cards left of the session cap.
+  const dueLimit = sessionCap - neu.length;
+  let due: ItemRecord[] = [];
+  if (dueLimit > 0) {
+    const dueRes = await pool.query<Row>(
+      `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
+         FROM items i
+         JOIN review_state rs ON rs.item_id = i.id
+        WHERE ($1::text IS NULL OR i.skill = $1)
+          AND rs.next_review_at <= now()
+          AND rs.suspended = false
+        ORDER BY random()
+        LIMIT $2`,
+      [skillFilter, dueLimit],
+    );
+    due = dueRes.rows.map(toRecord);
   }
 
   return { due, new: neu };

@@ -19,14 +19,20 @@ beforeEach(async () => {
   await resetDb();
 });
 
-async function insertItem(opts: { external_id: string; box?: number; nextReviewMinutesAgo?: number }) {
+async function insertItem(opts: {
+  external_id?: string;
+  skill?: string;
+  box?: number;
+  nextReviewMinutesAgo?: number;
+}) {
   const itemRes = await pool.query(
     `INSERT INTO items (skill, prompt, answer, source, external_id)
-     VALUES ('vocab', $1, $2, 'seed', $3) RETURNING id`,
+     VALUES ($1, $2, $3, 'seed', $4) RETURNING id`,
     [
+      opts.skill ?? "vocab",
       JSON.stringify({ sentence_ruby: "x", target: "x", sentence_english: "x" }),
       JSON.stringify({ meaning: "y", reading: "y" }),
-      opts.external_id,
+      opts.external_id ?? null,
     ],
   );
   const id = itemRes.rows[0].id as string;
@@ -130,10 +136,10 @@ describe("GET /api/queue", () => {
     expect(ids).not.toContain(dead);
   });
 
-  it("caps the due queue at 20", async () => {
-    for (let i = 0; i < 25; i++) await insertItem({ external_id: `due-${i}`, box: 1, nextReviewMinutesAgo: i + 1 });
+  it("caps the due queue at the remaining daily budget", async () => {
+    for (let i = 0; i < 35; i++) await insertItem({ external_id: `due-${i}`, box: 1, nextReviewMinutesAgo: i + 1 });
     const res = await request(app).get("/api/queue").set("X-Passcode", PASSCODE);
-    expect(res.body.due).toHaveLength(20);
+    expect(res.body.due).toHaveLength(30); // default daily target, no new cards to compete for the cap
   });
 
   it("counts items introduced today against the cap with a skill filter and non-UTC tz", async () => {
@@ -145,5 +151,81 @@ describe("GET /api/queue", () => {
       .set("X-Passcode", PASSCODE);
     expect(res.status).toBe(200);
     expect(res.body.new).toHaveLength(9);
+  });
+});
+
+describe("queue sizing follows the daily target", () => {
+  it("serves 10 new + 20 due at the default target of 30", async () => {
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "vocab" }); // new
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 }); // due
+
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.new).toHaveLength(10);
+    expect(res.body.due).toHaveLength(20);
+  });
+
+  it("scales with a raised target", async () => {
+    await pool.query(`UPDATE app_settings SET daily_review_target = 60`);
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "vocab" });
+    for (let i = 0; i < 60; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
+
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.new).toHaveLength(20); // round(60/3)
+    expect(res.body.due).toHaveLength(40); // 60 − 20
+  });
+
+  it("lets due fill the whole cap when no new cards exist", async () => {
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.new).toHaveLength(0);
+    expect(res.body.due).toHaveLength(30);
+  });
+
+  it("returns an empty queue once the target is met", async () => {
+    const id = await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < 30; i++) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now(), 'got_it', 1, 2)`, [id],
+      );
+    }
+    for (let i = 0; i < 20; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
+
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.due).toHaveLength(0);
+    expect(res.body.new).toHaveLength(0);
+  });
+
+  it("shrinks the session to what remains", async () => {
+    const id = await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < 25; i++) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now(), 'got_it', 2, 3)`, [id],
+      );
+    }
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
+
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.due.length + res.body.new.length).toBe(5);
+  });
+
+  it("spends the new-card budget globally, not per skill", async () => {
+    for (let i = 0; i < 20; i++) await insertItem({ skill: "vocab" });
+    for (let i = 0; i < 20; i++) await insertItem({ skill: "grammar" });
+
+    // Introduce 10 new vocab cards, exhausting the global new budget.
+    const vocab = await request(app).get("/api/queue?skill=vocab&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(vocab.body.new).toHaveLength(10);
+    for (const item of vocab.body.new) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now(), 'got_it', 0, 1)`, [item.id],
+      );
+    }
+
+    // Grammar must now get zero new cards — the budget is shared, not per skill.
+    const grammar = await request(app).get("/api/queue?skill=grammar&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(grammar.body.new).toHaveLength(0);
   });
 });
