@@ -1,20 +1,10 @@
 import { Router } from "express";
 import { buildQueue } from "../services/queue.js";
+import { resolveTz } from "../services/tz.js";
 
 export const queueRouter = Router();
 
 const SUPPORTED_SKILLS = new Set(["vocab", "grammar", "particle", "conjugation", "reading", "explain", "listening", "kanji"]);
-
-function resolveTz(raw: unknown): string {
-  if (typeof raw !== "string" || raw.length === 0) return "UTC";
-  try {
-    // Throws RangeError on an invalid IANA zone name.
-    new Intl.DateTimeFormat("en-US", { timeZone: raw });
-    return raw;
-  } catch {
-    return "UTC";
-  }
-}
 
 queueRouter.get("/", async (req, res) => {
   const skillParam = req.query.skill;
