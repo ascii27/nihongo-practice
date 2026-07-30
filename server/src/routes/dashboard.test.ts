@@ -26,6 +26,14 @@ async function insertItem(skill: string, opts: { nextReviewMinutesAgo?: number; 
   return id;
 }
 
+async function insertReview(itemId: string, boxBefore = 1) {
+  await pool.query(
+    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+     VALUES ($1, now(), 'got_it', $2::smallint, $2::smallint + 1)`,
+    [itemId, boxBefore],
+  );
+}
+
 beforeEach(() => resetDb());
 
 describe("GET /api/dashboard", () => {
@@ -82,5 +90,69 @@ describe("GET /api/dashboard", () => {
   it("includes a listening bucket", async () => {
     const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
     expect(res.body.by_skill).toHaveProperty("listening");
+  });
+});
+
+describe("GET /api/dashboard — daily budget", () => {
+  it("reports a full allowance when nothing has been reviewed", async () => {
+    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
+    expect(res.body.daily_target).toBe(30);
+    expect(res.body.reviewed_today).toBe(0);
+    expect(res.body.remaining).toBe(30);
+  });
+
+  it("counts today's reviews against the allowance", async () => {
+    const id = await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 30 });
+    await insertReview(id);
+    await insertReview(id);
+    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
+    expect(res.body.reviewed_today).toBe(2);
+    expect(res.body.remaining).toBe(28);
+  });
+
+  it("reports remaining 0 once the target is met, regardless of backlog", async () => {
+    const id = await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < 30; i++) await insertReview(id);
+    // A large untouched backlog must not raise `remaining`.
+    for (let i = 0; i < 40; i++) await insertItem("grammar");
+
+    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
+    expect(res.body.remaining).toBe(0);
+    expect(res.body.reviewed_today).toBe(30);
+    expect(res.body.by_skill.grammar.new).toBe(40);   // rows stay honest
+  });
+
+  it("accepts a tz and falls back to UTC on a bad one", async () => {
+    const ok = await request(app).get("/api/dashboard?tz=Asia/Tokyo").set("X-Passcode", PASSCODE);
+    expect(ok.status).toBe(200);
+    const bad = await request(app).get("/api/dashboard?tz=Not/AZone").set("X-Passcode", PASSCODE);
+    expect(bad.status).toBe(200);
+    expect(bad.body.daily_target).toBe(30);
+  });
+});
+
+describe("POST /api/dashboard/round", () => {
+  it("requires passcode", async () => {
+    const res = await request(app).post("/api/dashboard/round");
+    expect(res.status).toBe(401);
+  });
+
+  it("unlocks another full target and returns the fresh payload", async () => {
+    const id = await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < 30; i++) await insertReview(id);
+    expect((await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE)).body.remaining).toBe(0);
+
+    const res = await request(app).post("/api/dashboard/round").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.remaining).toBe(30);
+    expect(res.body.reviewed_today).toBe(30);
+    expect(res.body.by_skill).toBeDefined();       // full dashboard payload, not a stub
+    expect(res.body.streak_days).toBeDefined();
+  });
+
+  it("is repeatable", async () => {
+    await request(app).post("/api/dashboard/round").set("X-Passcode", PASSCODE);
+    const res = await request(app).post("/api/dashboard/round").set("X-Passcode", PASSCODE);
+    expect(res.body.remaining).toBe(90);
   });
 });
