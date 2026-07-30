@@ -307,7 +307,7 @@ async function insertItem(skill = "vocab"): Promise<string> {
 async function insertReview(itemId: string, opts: { hoursAgo?: number; boxBefore?: number } = {}) {
   await pool.query(
     `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
-     VALUES ($1, now() - make_interval(hours => $2), 'got_it', $3, $3 + 1)`,
+     VALUES ($1, now() - make_interval(hours => $2::int), 'got_it', $3::int, $3::int + 1)`,
     [itemId, opts.hoursAgo ?? 0, opts.boxBefore ?? 1],
   );
 }
@@ -354,19 +354,30 @@ describe("getDailyBudget", () => {
   });
 
   it("buckets by the caller's timezone, not UTC", async () => {
-    // 06:00 UTC is the same calendar day in UTC but the previous day in
-    // Pacific/Honolulu (UTC-10), so the two zones must disagree about a review
-    // logged in that window. Insert one at a fixed 06:00 UTC today.
     const id = await insertItem();
+
+    // Both reviews are anchored to midnight in Pacific/Honolulu (UTC-10, no
+    // DST), so the assertions hold at every hour of the real clock. 30 minutes
+    // after HST midnight is unambiguously "today" in HST.
     await pool.query(
       `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
-       VALUES ($1, date_trunc('day', now() AT TIME ZONE 'UTC') + interval '6 hours', 'got_it', 1, 2)`,
+       VALUES ($1, (date_trunc('day', now() AT TIME ZONE 'Pacific/Honolulu') + interval '30 minutes')
+                     AT TIME ZONE 'Pacific/Honolulu', 'got_it', 1, 2)`,
       [id],
     );
-    const utc = await getDailyBudget("UTC");
-    const hst = await getDailyBudget("Pacific/Honolulu");
-    expect(utc.reviewed).toBe(1);
-    expect(hst.reviewed).toBe(0);
+    expect((await getDailyBudget("Pacific/Honolulu")).reviewed).toBe(1);
+
+    // 30 minutes *before* that same midnight is the previous HST day and must
+    // not be counted. A UTC-bucketing implementation places these two reviews
+    // differently (they straddle no UTC boundary — both land on the same UTC
+    // date, giving 2) and so fails this assertion.
+    await pool.query(
+      `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+       VALUES ($1, (date_trunc('day', now() AT TIME ZONE 'Pacific/Honolulu') - interval '30 minutes')
+                     AT TIME ZONE 'Pacific/Honolulu', 'got_it', 1, 2)`,
+      [id],
+    );
+    expect((await getDailyBudget("Pacific/Honolulu")).reviewed).toBe(1);
   });
 });
 
@@ -414,7 +425,7 @@ describe("countIntroducedToday", () => {
 });
 ```
 
-Timezone note: the Honolulu test relies on Postgres's own clock. If `now()` in UTC happens to be before 06:00, `date_trunc('day', now()) + 6h` is still "today" in UTC and yesterday in HST — the assertion holds at every hour of the day. Do not replace it with a hardcoded timestamp.
+Timezone note: both Honolulu inserts are anchored to HST midnight and cast back with `AT TIME ZONE 'Pacific/Honolulu'`, so they do not depend on Postgres's session `TimeZone` setting or on what hour the suite runs at. Do not "simplify" them to a naive timestamp — inserting a bare `timestamp` into a `timestamptz` column silently reinterprets it in the server's zone.
 
 - [ ] **Step 3: Run the tests to verify they fail**
 
