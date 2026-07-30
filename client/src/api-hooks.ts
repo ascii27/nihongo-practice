@@ -36,8 +36,20 @@ export function fetchStreak(): Promise<StreakResponse> {
   return api<StreakResponse>(`/api/stats/streak?tz=${encodeURIComponent(tz)}`);
 }
 
+function browserTz(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 export function fetchDashboard(): Promise<DashboardResponse> {
-  return api<DashboardResponse>(`/api/dashboard`);
+  return api<DashboardResponse>(`/api/dashboard?tz=${encodeURIComponent(browserTz())}`);
+}
+
+// Unlocks one more full daily target. Returns the refreshed dashboard payload
+// so the caller can swap state without a second fetch.
+export function unlockAnotherRound(): Promise<DashboardResponse> {
+  return api<DashboardResponse>(`/api/dashboard/round?tz=${encodeURIComponent(browserTz())}`, {
+    method: "POST",
+  });
 }
 
 export function fetchStatsBySkill(): Promise<StatsBySkillResponse> {
@@ -96,6 +108,13 @@ export function fetchGenerations(limit = 10): Promise<GenerationsResponse> {
 
 export function fetchSettingsStatus(): Promise<SettingsStatusResponse> {
   return api<SettingsStatusResponse>("/api/settings/status");
+}
+
+export function updateDailyTarget(daily_review_target: number): Promise<{ daily_review_target: number }> {
+  return api<{ daily_review_target: number }>("/api/settings", {
+    method: "PATCH",
+    body: JSON.stringify({ daily_review_target }),
+  });
 }
 
 // Manual vocab entry — two steps so the learner can review the AI's translation

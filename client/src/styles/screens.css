@@ -614,6 +614,32 @@
 .settings__pill--ok  { background: var(--success-muted); color: var(--success); }
 .settings__pill--err { background: var(--error-muted);   color: var(--error); }
 
+/* Daily target stepper — a settings row control, not a form field. */
+.settings__stepper { display: flex; align-items: center; gap: 4px; }
+.settings__stepper-btn {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui); font-size: 18px; line-height: 1;
+  color: var(--fg); cursor: pointer;
+}
+.settings__stepper-btn:not(:disabled):hover { background: var(--bg-raised); }
+.settings__stepper-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.settings__stepper-value {
+  min-width: 44px; text-align: center;
+  font-family: var(--font-display); font-size: 19px; font-weight: 600;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.settings__row-hint {
+  display: block;
+  font-size: 12px; color: var(--fg-tertiary);
+  margin-top: 2px;
+}
+.settings__row--stacked { align-items: flex-start; }
+.settings__row--stacked .settings__row-label { padding-top: 4px; }
+
 .settings__gen { margin: 0 20px 20px; padding: 18px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius-lg); display: flex; flex-direction: column; gap: 12px; }
 .settings__field { display: flex; flex-direction: column; gap: 4px; }
 .settings__field-label { font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-tertiary); }
