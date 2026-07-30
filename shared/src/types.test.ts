@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse, LessonBlock } from "./types.js";
+import { Skill, ListeningPrompt, ListeningAnswer, DashboardResponse, CreateLessonRequest, LessonDetail, TodayLessonResponse, LessonBlock, UpdateSettingsRequest, SettingsStatusResponse } from "./types.js";
 
 describe("listening types", () => {
   it("accepts listening as a Skill", () => {
@@ -84,5 +84,38 @@ describe("LessonBlock", () => {
     const item = { id: "22222222-2222-2222-2222-222222222222", skill: "reading", prompt: {}, answer: {}, source: "ai", tags: [], created_at: "2026-07-11T00:00:00.000Z" };
     const b = LessonBlock.parse({ type: "reading", item });
     expect(b.type).toBe("reading");
+  });
+});
+
+describe("daily review target types", () => {
+  const fullBySkill = {
+    vocab: { due: 0, new: 0 }, grammar: { due: 0, new: 0 }, reading: { due: 0, new: 0 },
+    conjugation: { due: 0, new: 0 }, particle: { due: 0, new: 0 }, explain: { due: 0, new: 0 },
+    listening: { due: 0, new: 0 }, kanji: { due: 0, new: 0 },
+  };
+
+  it("DashboardResponse requires the budget fields", () => {
+    const without = { streak_days: 0, last_practiced_at: null, by_skill: fullBySkill };
+    expect(DashboardResponse.safeParse(without).success).toBe(false);
+
+    const with_ = { ...without, daily_target: 30, reviewed_today: 4, remaining: 26 };
+    expect(DashboardResponse.safeParse(with_).success).toBe(true);
+  });
+
+  it("SettingsStatusResponse carries the daily target", () => {
+    expect(SettingsStatusResponse.safeParse({ ai_key_configured: true }).success).toBe(false);
+    expect(SettingsStatusResponse.safeParse({ ai_key_configured: true, daily_review_target: 30 }).success).toBe(true);
+  });
+
+  it("UpdateSettingsRequest accepts multiples of 10 from 10 to 100", () => {
+    for (const n of [10, 30, 100]) {
+      expect(UpdateSettingsRequest.safeParse({ daily_review_target: n }).success).toBe(true);
+    }
+  });
+
+  it("UpdateSettingsRequest rejects out-of-range and non-multiples", () => {
+    for (const n of [0, 5, 25, 105, 30.5]) {
+      expect(UpdateSettingsRequest.safeParse({ daily_review_target: n }).success).toBe(false);
+    }
   });
 });

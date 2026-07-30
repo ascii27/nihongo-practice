@@ -145,8 +145,17 @@ export type GenerationsResponse = z.infer<typeof GenerationsResponse>;
 
 export const SettingsStatusResponse = z.object({
   ai_key_configured: z.boolean(),
+  daily_review_target: z.number().int(),
 });
 export type SettingsStatusResponse = z.infer<typeof SettingsStatusResponse>;
+
+// The daily review goal. Multiples of 10 only — the Settings stepper moves in
+// tens, and allowing arbitrary values would let a hand-crafted request produce
+// a number the UI can never step back to.
+export const UpdateSettingsRequest = z.object({
+  daily_review_target: z.number().int().min(10).max(100).multipleOf(10),
+});
+export type UpdateSettingsRequest = z.infer<typeof UpdateSettingsRequest>;
 
 // ----- Per-skill prompt/answer shapes (parent spec) -----
 
@@ -331,6 +340,12 @@ export type SkillCounts = z.infer<typeof SkillCounts>;
 export const DashboardResponse = z.object({
   streak_days: z.number().int().nonnegative(),
   last_practiced_at: z.string().nullable(),
+  // Daily budget. `remaining` is what the hero shows (clamped against the
+  // actual card pool client-side); `daily_target` and `reviewed_today` drive
+  // the congratulation copy.
+  daily_target: z.number().int().positive(),
+  reviewed_today: z.number().int().nonnegative(),
+  remaining: z.number().int().nonnegative(),
   by_skill: z.object({
     vocab: SkillCounts,
     grammar: SkillCounts,
