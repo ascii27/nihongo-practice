@@ -1,16 +1,9 @@
 import { Router } from "express";
 import { UpdateSettingsRequest } from "@nihongo/shared";
 import { pool } from "../db/pool.js";
-import { DEFAULT_TARGET } from "../services/daily-budget.js";
+import { readTarget } from "../services/daily-budget.js";
 
 export const settingsRouter = Router();
-
-async function readTarget(): Promise<number> {
-  const r = await pool.query<{ t: number }>(
-    `SELECT daily_review_target AS t FROM app_settings LIMIT 1`,
-  );
-  return r.rows[0]?.t ?? DEFAULT_TARGET;
-}
 
 settingsRouter.get("/status", async (_req, res) => {
   const key = process.env.ANTHROPIC_API_KEY ?? "";

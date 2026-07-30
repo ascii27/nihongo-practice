@@ -10,7 +10,7 @@ export type DailyBudget = {
   remaining: number;     // max(0, allowance − reviewed)
 };
 
-async function readTarget(): Promise<number> {
+export async function readTarget(): Promise<number> {
   const r = await pool.query<{ t: number }>(
     `SELECT daily_review_target AS t FROM app_settings LIMIT 1`,
   );
