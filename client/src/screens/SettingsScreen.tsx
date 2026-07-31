@@ -17,23 +17,27 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
   const [refreshTick, setRefreshTick] = useState(0);
   const [target, setTarget] = useState<number | null>(null);
   const [targetError, setTargetError] = useState<string | null>(null);
-  // Guards `target` against two races: a stale stepTarget PATCH failing after
-  // a later step already succeeded, and the refreshTick refetch (fired by
-  // unrelated saves elsewhere on the page) overwriting an in-flight optimistic
-  // update with the pre-update server value. Every step bumps this; a step's
-  // failure handler and the refetch's success handler both check it's still
-  // the same sequence before touching `target`, so only the most recent
-  // change ever wins.
+  // Two refs guard `target` against races the optimistic stepper is prone to:
+  //  - targetSeq identifies each step. If an older step's PATCH fails after a
+  //    newer step has already superseded it, the old failure must not revert
+  //    past the newer value — its catch handler checks it's still the most
+  //    recent step before reverting.
+  //  - targetPending counts PATCHes currently in flight. The refreshTick
+  //    effect below (retriggered by unrelated saves elsewhere on the page,
+  //    e.g. ManualItemForm/GenerateForm) refetches settings and would
+  //    otherwise stomp an in-progress optimistic update with the pre-update
+  //    server value; it only applies the fetched target when nothing is
+  //    pending, so it never fights a step that hasn't settled yet.
   const targetSeq = useRef(0);
+  const targetPending = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
-    const seqAtStart = targetSeq.current;
     Promise.all([fetchSettingsStatus(), fetchGenerations(10)])
       .then(([status, gens]) => {
         if (cancelled) return;
         setKeyConfigured(status.ai_key_configured);
-        if (targetSeq.current === seqAtStart) setTarget(status.daily_review_target);
+        if (targetPending.current === 0) setTarget(status.daily_review_target);
         setGenerations(gens.generations);
       })
       .catch(() => { if (!cancelled) setKeyConfigured(false); });
@@ -46,20 +50,23 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
   }
 
   // Optimistic: the number moves immediately, and reverts if the PATCH fails —
-  // unless a newer step has since superseded it (see targetSeq above).
+  // unless a newer step has since superseded it (see targetSeq/targetPending above).
   function stepTarget(delta: number) {
     if (target === null) return;
     const next = Math.min(100, Math.max(10, target + delta));
     if (next === target) return;
     const prevTarget = target;
     const seq = ++targetSeq.current;
+    targetPending.current++;
     setTarget(next);
     setTargetError(null);
-    updateDailyTarget(next).catch(() => {
-      if (targetSeq.current !== seq) return;
-      setTarget(prevTarget);
-      setTargetError("Couldn't save — try again.");
-    });
+    updateDailyTarget(next)
+      .catch(() => {
+        if (targetSeq.current !== seq) return;
+        setTarget(prevTarget);
+        setTargetError("Couldn't save — try again.");
+      })
+      .finally(() => { targetPending.current--; });
   }
 
   return (
