@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { auth } from "../auth";
 import { fetchGenerations, fetchSettingsStatus, updateDailyTarget } from "../api-hooks";
 import { GenerateForm } from "../components/GenerateForm";
@@ -17,14 +17,23 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
   const [refreshTick, setRefreshTick] = useState(0);
   const [target, setTarget] = useState<number | null>(null);
   const [targetError, setTargetError] = useState<string | null>(null);
+  // Guards `target` against two races: a stale stepTarget PATCH failing after
+  // a later step already succeeded, and the refreshTick refetch (fired by
+  // unrelated saves elsewhere on the page) overwriting an in-flight optimistic
+  // update with the pre-update server value. Every step bumps this; a step's
+  // failure handler and the refetch's success handler both check it's still
+  // the same sequence before touching `target`, so only the most recent
+  // change ever wins.
+  const targetSeq = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
+    const seqAtStart = targetSeq.current;
     Promise.all([fetchSettingsStatus(), fetchGenerations(10)])
       .then(([status, gens]) => {
         if (cancelled) return;
         setKeyConfigured(status.ai_key_configured);
-        setTarget(status.daily_review_target);
+        if (targetSeq.current === seqAtStart) setTarget(status.daily_review_target);
         setGenerations(gens.generations);
       })
       .catch(() => { if (!cancelled) setKeyConfigured(false); });
@@ -36,15 +45,18 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
     onSignOut();
   }
 
-  // Optimistic: the number moves immediately, and reverts if the PATCH fails.
+  // Optimistic: the number moves immediately, and reverts if the PATCH fails —
+  // unless a newer step has since superseded it (see targetSeq above).
   function stepTarget(delta: number) {
     if (target === null) return;
     const next = Math.min(100, Math.max(10, target + delta));
     if (next === target) return;
     const prevTarget = target;
+    const seq = ++targetSeq.current;
     setTarget(next);
     setTargetError(null);
     updateDailyTarget(next).catch(() => {
+      if (targetSeq.current !== seq) return;
       setTarget(prevTarget);
       setTargetError("Couldn't save — try again.");
     });
