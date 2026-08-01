@@ -90,6 +90,23 @@
   margin: 8px 0 0;
 }
 
+/* Target met. Sits inside .today__hero, so it inherits the raised card and
+   the radial accent wash. */
+.today__hero-done {
+  position: relative;
+  font-family: var(--font-jp);
+  font-size: 30px;
+  line-height: 1.2;
+  color: var(--fg);
+  margin: 0 0 6px;
+}
+.today__hero-done-sub {
+  position: relative;
+  font-size: 14px;
+  color: var(--fg-secondary);
+  margin: 0 0 22px;
+}
+
 .today__section-title {
   font-family: var(--font-ui);
   font-size: 12px;

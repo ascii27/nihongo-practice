@@ -26,3 +26,15 @@ test("mixed practice review advances queue", async ({ page }) => {
   await page.getByRole("button", { name: /got it/i }).click();
   await expect(page.locator(POST_GRADE).first()).toBeVisible();
 });
+
+test("daily review target stepper clamps at its minimum", async ({ page }) => {
+  await login(page);
+
+  // Drive the target down to its 10 minimum so the fixture deck can meet it.
+  await page.goto("/");
+  await page.getByRole("button", { name: /settings/i }).click();
+  for (let i = 0; i < 2; i++) {
+    await page.getByRole("button", { name: /decrease daily review target/i }).click();
+  }
+  await expect(page.locator(".settings__stepper-value")).toHaveText("10");
+});

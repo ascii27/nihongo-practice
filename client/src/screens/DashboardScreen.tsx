@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DashboardResponse, Skill, TodayLessonResponse } from "@nihongo/shared";
-import { fetchDashboard, fetchTodayLesson } from "../api-hooks";
+import { fetchDashboard, fetchTodayLesson, unlockAnotherRound } from "../api-hooks";
 import { SKILL_ORDER, SKILL_META } from "../lib/skills";
 import { IconChevron } from "../components/icons";
 
@@ -15,6 +15,7 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [today, setToday] = useState<TodayLessonResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rounding, setRounding] = useState(false);
 
   const load = useCallback(() => {
     fetchDashboard()
@@ -25,10 +26,26 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
 
   useEffect(() => { load(); }, [load]);
 
+  // Unlocks one more full target. The response is a complete dashboard payload,
+  // so it replaces state directly instead of triggering a refetch.
+  async function anotherRound() {
+    setRounding(true);
+    try {
+      setData(await unlockAnotherRound());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "couldn't start another round");
+    } finally {
+      setRounding(false);
+    }
+  }
+
   if (error) return <main className="screen"><p role="alert">Couldn't load: {error}</p></main>;
   if (!data) return <main className="screen screen--centered">Loading…</main>;
 
-  const totalDue = SKILL_ORDER.reduce((acc, s) => acc + data.by_skill[s].due + data.by_skill[s].new, 0);
+  // The honest inventory across every skill…
+  const pool = SKILL_ORDER.reduce((acc, s) => acc + data.by_skill[s].due + data.by_skill[s].new, 0);
+  // …clamped to what today's budget still allows. This is the motivational number.
+  const heroCount = Math.min(data.remaining, pool);
   const lastLabel = data.last_practiced_at
     ? new Date(data.last_practiced_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "never";
@@ -63,17 +80,35 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
       </div>
 
       <section className="today__hero">
-        <p className="today__hero-label">Ready to review</p>
-        <p className="today__hero-count">{totalDue}</p>
-        {totalDue > 0 ? (
+        {pool === 0 ? (
           <>
+            <p className="today__hero-label">Ready to review</p>
+            <p className="today__hero-count">0</p>
+            <p className="today__hero-empty">全部終わり — all caught up. Generate more in Settings.</p>
+          </>
+        ) : data.remaining === 0 ? (
+          <>
+            <p className="today__hero-label">Today's target</p>
+            <p className="today__hero-done">今日の分、終わり</p>
+            <p className="today__hero-done-sub">
+              {data.reviewed_today} reviewed today — you're done. {pool} still in the deck whenever you want them.
+            </p>
+            <button
+              type="button" className="cta cta--primary cta--lg today__hero-cta"
+              onClick={anotherRound} disabled={rounding}
+            >
+              {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="today__hero-label">Ready to review</p>
+            <p className="today__hero-count">{heroCount}</p>
             <p className="today__hero-sub">cards across all skills &nbsp;·&nbsp; <span className="jp">混合練習</span></p>
             <button type="button" className="cta cta--primary cta--lg today__hero-cta" onClick={() => onPractice(undefined)}>
               Start mixed practice
             </button>
           </>
-        ) : (
-          <p className="today__hero-empty">全部終わり — all caught up. Generate more in Settings.</p>
         )}
       </section>
 
