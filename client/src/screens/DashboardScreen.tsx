@@ -51,8 +51,18 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
   // 30 against a 300-card new deck that yields 10.
   const heroCount = data.session_size;
   // Another round raises the allowance and the new-card share together, but it
-  // cannot conjure cards. Only offer it when the server says it would deal some.
+  // cannot conjure cards. Only offer it when the server says it would deal some
+  // — an unlock that lands on an empty session is the same broken promise in a
+  // slower form. Both hero states that can offer a round share this button.
   const canRound = data.another_round_size > 0;
+  const roundButton = canRound ? (
+    <button
+      type="button" className="cta cta--primary cta--lg today__hero-cta"
+      onClick={anotherRound} disabled={rounding}
+    >
+      {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
+    </button>
+  ) : null;
   const lastLabel = data.last_practiced_at
     ? new Date(data.last_practiced_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "never";
@@ -111,14 +121,7 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
                 ? `${pool} still in the deck whenever you want them.`
                 : `${pool} still in the deck, ready tomorrow.`}
             </p>
-            {canRound && (
-              <button
-                type="button" className="cta cta--primary cta--lg today__hero-cta"
-                onClick={anotherRound} disabled={rounding}
-              >
-                {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
-              </button>
-            )}
+            {roundButton}
           </>
         ) : data.session_size === 0 ? (
           <>
@@ -130,14 +133,7 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
                 ? `${pool} still in the deck — another round pulls more in.`
                 : `${pool} still in the deck, ready tomorrow.`}
             </p>
-            {canRound && (
-              <button
-                type="button" className="cta cta--primary cta--lg today__hero-cta"
-                onClick={anotherRound} disabled={rounding}
-              >
-                {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
-              </button>
-            )}
+            {roundButton}
           </>
         ) : (
           <>
