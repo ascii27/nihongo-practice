@@ -1,4 +1,8 @@
-TRUNCATE TABLE reviews, review_state, items, sessions RESTART IDENTITY CASCADE;
+TRUNCATE TABLE reviews, review_state, items, sessions, daily_rounds RESTART IDENTITY CASCADE;
+
+-- app_settings is a seeded singleton — reset its value rather than truncating,
+-- or the app would run against a table with no settings row. Mirrors resetDb().
+UPDATE app_settings SET daily_review_target = 30, updated_at = now();
 
 INSERT INTO items (skill, prompt, answer, source, external_id) VALUES
 ('vocab',
