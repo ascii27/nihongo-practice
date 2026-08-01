@@ -187,4 +187,45 @@ describe("POST /api/reviews", () => {
     expect(r.rows[0].total_missed).toBe(8);
     expect(r.rows[0].suspended).toBe(true);
   });
+
+  it("records a review as ordinary practice by default", async () => {
+    const itemId = await insertItem();
+    await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString() });
+    const r = await pool.query(`SELECT cram FROM reviews WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].cram).toBe(false);
+  });
+
+  it("marks the row when the client says the review came from cram", async () => {
+    const itemId = await insertItem();
+    const res = await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: true });
+    expect(res.status).toBe(200);
+    const r = await pool.query(`SELECT cram FROM reviews WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].cram).toBe(true);
+  });
+
+  it("still advances the Leitner box for a cram review", async () => {
+    const itemId = await insertItem();
+    await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: true });
+    const r = await pool.query(`SELECT box, total_reviews FROM review_state WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].box).toBe(1);
+    expect(r.rows[0].total_reviews).toBe(1);
+  });
+
+  it("rejects a non-boolean cram flag", async () => {
+    const itemId = await insertItem();
+    const res = await request(app)
+      .post("/api/reviews")
+      .set("X-Passcode", PASSCODE)
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: "yes" });
+    expect(res.status).toBe(400);
+  });
 });

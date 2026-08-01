@@ -80,10 +80,23 @@ unlockRound(tz: string): Promise<DailyBudget>   // upsert daily_rounds +1
 
 `reviewed` counts rows in `reviews` bucketed by `date_trunc('day', reviewed_at
 AT TIME ZONE $tz)`, matching how `services/streak.ts` and `routes/stats.ts`
-already bucket days. Every review counts, whatever produced it — mixed
-practice and lesson blocks both post to `POST /api/reviews`. Cram
-(`study-lists`) does not log reviews, so cramming stays free and never eats the
-allowance.
+already bucket days. Mixed practice and lesson blocks both post to
+`POST /api/reviews` and both count.
+
+Cram (`study-lists`) posts to `POST /api/reviews` too — it grades and
+reschedules exactly like ordinary practice — but it sends `cram: true`, and
+`reviewed` excludes those rows. Cramming a list for class is voluntary extra
+work on top of the day's plan, not a draw against it; counting it would let one
+40-card cram zero out `remaining` and leave every practice entry point empty
+until midnight. The flag is explicit rather than inferred from `session_id IS
+NULL`, which is a property of today's client rather than a contract.
+
+`countIntroducedToday` (the new-card pacing limit, below) deliberately goes the
+other way and **does** count cram rows: a crammed brand-new card gets a
+`review_state` row and leaves the new pool for good, so it has genuinely been
+introduced. The allowance caps how much the day asks of the owner; the
+introduction count caps how many new cards enter the SRS. Cram is extra against
+the first and real against the second.
 
 ### `GET /api/dashboard`
 

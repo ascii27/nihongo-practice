@@ -14,11 +14,14 @@ async function insertItem(skill = "vocab"): Promise<string> {
 }
 
 // `hoursAgo` is relative to now, so tests stay independent of the wall clock.
-async function insertReview(itemId: string, opts: { hoursAgo?: number; boxBefore?: number } = {}) {
+async function insertReview(
+  itemId: string,
+  opts: { hoursAgo?: number; boxBefore?: number; cram?: boolean } = {},
+) {
   await pool.query(
-    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
-     VALUES ($1, now() - make_interval(hours => $2::int), 'got_it', $3::int, $3::int + 1)`,
-    [itemId, opts.hoursAgo ?? 0, opts.boxBefore ?? 1],
+    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, cram)
+     VALUES ($1, now() - make_interval(hours => $2::int), 'got_it', $3::int, $3::int + 1, $4)`,
+    [itemId, opts.hoursAgo ?? 0, opts.boxBefore ?? 1, opts.cram ?? false],
   );
 }
 
@@ -89,6 +92,23 @@ describe("getDailyBudget", () => {
     );
     expect((await getDailyBudget("Pacific/Honolulu")).reviewed).toBe(1);
   });
+
+  it("does not spend the allowance on cram reviews", async () => {
+    const id = await insertItem();
+    for (let i = 0; i < 40; i++) await insertReview(id, { cram: true });
+    const b = await getDailyBudget("UTC");
+    expect(b.reviewed).toBe(0);
+    expect(b.remaining).toBe(30);
+  });
+
+  it("counts ordinary reviews alongside cram reviews", async () => {
+    const id = await insertItem();
+    await insertReview(id, { cram: true });
+    await insertReview(id);
+    const b = await getDailyBudget("UTC");
+    expect(b.reviewed).toBe(1);
+    expect(b.remaining).toBe(29);
+  });
 });
 
 describe("unlockRound", () => {
@@ -131,5 +151,15 @@ describe("countIntroducedToday", () => {
     await insertReview(v, { boxBefore: 0 });
     await insertReview(g, { boxBefore: 0 });
     expect(await countIntroducedToday("UTC")).toBe(2);
+  });
+
+  // Deliberately the opposite of the budget's treatment of cram: cramming a
+  // brand-new card still introduces it to the SRS, so it counts against the
+  // day's new-card pacing even though it costs no allowance.
+  it("counts cram introductions, unlike the allowance", async () => {
+    const id = await insertItem();
+    await insertReview(id, { boxBefore: 0, cram: true });
+    expect(await countIntroducedToday("UTC")).toBe(1);
+    expect((await getDailyBudget("UTC")).reviewed).toBe(0);
   });
 });

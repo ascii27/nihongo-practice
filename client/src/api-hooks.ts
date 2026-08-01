@@ -85,6 +85,7 @@ export function submitReview(input: {
   reviewed_at: string;
   session_id?: string;
   answer_given?: string;
+  cram?: boolean;
 }): Promise<ReviewStateResponse> {
   // Attach the caller's IANA timezone so the server can detect streak
   // milestones ("first review of today"). Harmless if the field is unused.

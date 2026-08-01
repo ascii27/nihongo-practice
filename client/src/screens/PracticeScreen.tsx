@@ -67,6 +67,10 @@ export function PracticeScreen({ onDone, skill, listId }: Props) {
       reviewed_at: new Date().toISOString(),
       session_id: sessionIdRef.current ?? undefined,
       answer_given,
+      // A `listId` means this screen is cramming a study list. Cram still grades
+      // and reschedules normally, but the server keeps it out of the daily
+      // review allowance, so drilling a list for class can't empty the queue.
+      cram: listId !== undefined,
     });
     if (index + 1 >= items.length) {
       void finishSession();
