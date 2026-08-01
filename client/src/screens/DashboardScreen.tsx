@@ -127,7 +127,11 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
           <>
             <p className="today__hero-label">Ready to review</p>
             <p className="today__hero-count">0</p>
-            <p className="today__hero-empty">
+            {/* `today__hero-done-sub`, not `today__hero-empty`: this copy is
+                English sub-copy above a CTA, which is what that class is built
+                for. `hero-empty` sets the Japanese face at 20px with no bottom
+                margin — right for state 1's short phrase, wrong here. */}
+            <p className="today__hero-done-sub">
               Today's new cards are done and nothing else is due.{" "}
               {canRound
                 ? `${pool} still in the deck — another round pulls more in.`

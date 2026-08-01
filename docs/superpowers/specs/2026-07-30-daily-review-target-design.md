@@ -175,12 +175,18 @@ The hero has four states, chosen in this order:
 | `session_size === 0` | count 0 · "Today's new cards are done and nothing else is due" · **Go another round** when `another_round_size > 0` |
 | otherwise | count = `session_size`, "Start mixed practice" |
 
-**Invariant: the number on the hero equals the number of cards the next mixed
-practice session will actually deal, and no state offers practice it cannot
-deliver.** That is why the count is always `session_size` and never a
-client-side derivation, and why both round buttons are gated on
+**Invariant (hero only): the number on the hero equals the number of cards the
+next mixed practice session will actually deal, and no hero state offers
+practice it cannot deliver.** That is why the count is always `session_size` and
+never a client-side derivation, and why both round buttons are gated on
 `another_round_size > 0` — tapping a round that deals nothing is the same
 broken promise in a slower form.
+
+The invariant is deliberately scoped to the hero and does **not** yet hold for
+the screen as a whole. The skill rows below it stay tappable once
+`remaining === 0`, and tapping one dead-ends on "Nothing due here." — a known
+exception, not an oversight. It is finding **I2 from the final whole-branch
+review, which the owner deferred**; it remains open.
 
 `pool` is the `by_skill` sum, used only for the "still in the deck" copy and to
 tell an empty deck from a spent budget. Ordering matters. An empty deck reads as
@@ -193,7 +199,8 @@ borrowing 今日の分、終わり, which belongs to a met target.
 
 "Go another round" posts to `/api/dashboard/round` and replaces state from the
 response. Skill rows keep their raw `due · new` counts in every state: the hero
-is the motivational number, the rows are the honest inventory.
+is the motivational number, the rows are the honest inventory. They are also the
+one place the hero's invariant stops — see I2 above.
 
 The dashboard fetch passes `tz` from `Intl.DateTimeFormat().resolvedOptions().timeZone`.
 
