@@ -14,7 +14,7 @@
 
 - Default daily review target is **30**. The stepper moves in **increments of 10**, clamped to **10–100** inclusive.
 - Default 30 must reproduce today's exact queue behavior (10 new + 20 due) so nothing changes until the owner moves the dial.
-- Mixed practice and lesson blocks both `POST /api/reviews` and both count toward the target. Cram logs reviews through the same endpoint but flags them `cram: true`; those rows stay outside the budget (they still count toward the new-card introduction limit — see the spec).
+- Mixed practice and lesson blocks both `POST /api/reviews` and both count toward the target. Cram and free practice (tapping a skill row) log reviews through the same endpoint but flag them `free_practice: true`; those rows stay outside the budget (they still count toward the new-card introduction limit — see the spec).
 - Day bucketing always uses `date_trunc('day', <ts> AT TIME ZONE $tz)`, matching `services/streak.ts` and `routes/stats.ts`. Never bucket in UTC when a `tz` is available.
 - Per-skill rows on the dashboard keep showing raw pool counts. Only the hero is capped.
 - The `@nihongo/shared` workspace exports TypeScript source directly (`"main": "./src/types.ts"`), so no build step is needed between editing shared types and running server tests.

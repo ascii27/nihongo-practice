@@ -229,3 +229,85 @@ describe("queue sizing follows the daily target", () => {
     expect(grammar.body.new).toHaveLength(0);
   });
 });
+
+// Free practice — what a skill row on Today deals. Deliberately outside the
+// daily budget: the target governs the day's plan, not whether the owner is
+// allowed to drill a skill.
+describe("free practice (?free=1)", () => {
+  async function spendTheBudget(count = 30) {
+    const id = await insertItem({ box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < count; i++) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now(), 'got_it', 1::smallint, 2::smallint)`,
+        [id],
+      );
+    }
+  }
+
+  it("serves cards when the budgeted queue is exhausted", async () => {
+    await spendTheBudget();
+    for (let i = 0; i < 25; i++) await insertItem({ skill: "kanji", box: 1, nextReviewMinutesAgo: 30 });
+
+    const budgeted = await request(app).get("/api/queue?skill=kanji&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(budgeted.body.due.length + budgeted.body.new.length).toBe(0);
+
+    const free = await request(app).get("/api/queue?skill=kanji&free=1&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(free.body.due.length + free.body.new.length).toBe(20);
+  });
+
+  it("caps the session at 20 regardless of the daily target", async () => {
+    await pool.query(`UPDATE app_settings SET daily_review_target = 100`);
+    for (let i = 0; i < 60; i++) await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
+
+    const res = await request(app).get("/api/queue?skill=vocab&free=1&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.due.length + res.body.new.length).toBe(20);
+  });
+
+  it("leads with due cards and tops up with new", async () => {
+    for (let i = 0; i < 6; i++) await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
+    for (let i = 0; i < 50; i++) await insertItem({ skill: "vocab" });
+
+    const res = await request(app).get("/api/queue?skill=vocab&free=1&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.due).toHaveLength(6);
+    expect(res.body.new).toHaveLength(14);
+  });
+
+  it("ignores the new-card pacing limit", async () => {
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "explain" });
+
+    // Spend the day's new-card share through ordinary practice first.
+    const introduced = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(introduced.body.new).toHaveLength(10);
+    for (const item of introduced.body.new) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now(), 'got_it', 0::smallint, 1::smallint)`,
+        [item.id],
+      );
+    }
+
+    // The budgeted queue now refuses new cards; free practice still deals them.
+    const budgeted = await request(app).get("/api/queue?skill=explain&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(budgeted.body.new).toHaveLength(0);
+
+    const free = await request(app).get("/api/queue?skill=explain&free=1&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(free.body.new).toHaveLength(20);
+  });
+
+  it("still returns nothing for a skill with no cards at all", async () => {
+    for (let i = 0; i < 10; i++) await insertItem({ skill: "vocab" });
+    const res = await request(app).get("/api/queue?skill=listening&free=1&tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.due).toHaveLength(0);
+    expect(res.body.new).toHaveLength(0);
+  });
+
+  it("does not affect the budgeted queue's own sizing", async () => {
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "vocab" });
+    for (let i = 0; i < 40; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
+
+    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.new).toHaveLength(10);
+    expect(res.body.due).toHaveLength(20);
+  });
+});

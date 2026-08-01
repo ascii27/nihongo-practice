@@ -52,7 +52,16 @@ export default function App() {
       ? <LessonWalkthroughScreen lessonId={lessonId} onExit={() => setRoute("today")} />
       : <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "practice") {
-    active = <PracticeScreen skill={practiceSkill} onDone={() => setRoute("today")} />;
+    // A skill means the owner tapped a skill row, which is free practice: a
+    // fixed-size drill that ignores the daily target and doesn't count against
+    // it. The hero's mixed practice passes no skill and stays budgeted.
+    active = (
+      <PracticeScreen
+        skill={practiceSkill}
+        free={practiceSkill !== undefined}
+        onDone={() => setRoute("today")}
+      />
+    );
   } else if (route === "study") {
     active = <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
   } else if (route === "study-detail") {

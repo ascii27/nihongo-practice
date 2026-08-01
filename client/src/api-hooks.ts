@@ -24,10 +24,13 @@ import type {
   Skill,
 } from "@nihongo/shared";
 
-export function fetchQueue(skill?: Skill): Promise<QueueResponse> {
+// `free` asks for a free-practice session: a fixed-size drill of one skill that
+// ignores the daily budget, and whose reviews don't count against the target.
+export function fetchQueue(skill?: Skill, opts: { free?: boolean } = {}): Promise<QueueResponse> {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const params = new URLSearchParams({ tz });
   if (skill) params.set("skill", skill);
+  if (opts.free) params.set("free", "1");
   return api<QueueResponse>(`/api/queue?${params.toString()}`);
 }
 
@@ -85,7 +88,7 @@ export function submitReview(input: {
   reviewed_at: string;
   session_id?: string;
   answer_given?: string;
-  cram?: boolean;
+  free_practice?: boolean;
 }): Promise<ReviewStateResponse> {
   // Attach the caller's IANA timezone so the server can detect streak
   // milestones ("first review of today"). Harmless if the field is unused.

@@ -15,9 +15,10 @@ type Props = {
   onDone: () => void;
   skill?: Skill;        // optional filter; undefined = mixed
   listId?: string;      // cram mode: drill every card in a study list, schedule ignored
+  free?: boolean;       // free practice: fixed-size drill, outside the daily target
 };
 
-export function PracticeScreen({ onDone, skill, listId }: Props) {
+export function PracticeScreen({ onDone, skill, listId, free }: Props) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
@@ -38,7 +39,7 @@ export function PracticeScreen({ onDone, skill, listId }: Props) {
           setPhase(cram.length === 0 ? "empty" : "reviewing");
           return;
         }
-        const [{ id }, queue] = await Promise.all([startSession(skill), fetchQueue(skill)]);
+        const [{ id }, queue] = await Promise.all([startSession(skill), fetchQueue(skill, { free })]);
         if (cancelled) return;
         sessionIdRef.current = id;
         const all = [...queue.due, ...queue.new];
@@ -51,7 +52,7 @@ export function PracticeScreen({ onDone, skill, listId }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [skill, listId]);
+  }, [skill, listId, free]);
 
   function handleAnswer(result: ReviewResult) {
     handleAnswerWithText(result);
@@ -67,10 +68,11 @@ export function PracticeScreen({ onDone, skill, listId }: Props) {
       reviewed_at: new Date().toISOString(),
       session_id: sessionIdRef.current ?? undefined,
       answer_given,
-      // A `listId` means this screen is cramming a study list. Cram still grades
-      // and reschedules normally, but the server keeps it out of the daily
-      // review allowance, so drilling a list for class can't empty the queue.
-      cram: listId !== undefined,
+      // Cramming a list (`listId`) and drilling one skill (`free`) are both
+      // practice chosen on top of the day's plan. Each still grades and
+      // reschedules normally, but the server keeps them out of the daily
+      // allowance, so neither can empty the queue for the rest of the day.
+      free_practice: listId !== undefined || free === true,
     });
     if (index + 1 >= items.length) {
       void finishSession();
@@ -99,7 +101,7 @@ export function PracticeScreen({ onDone, skill, listId }: Props) {
     return (
       <main className="screen screen--centered">
         <p style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500 }}>
-          {listId ? "This list is empty." : "Nothing due here."}
+          {listId ? "This list is empty." : free ? "No cards in this skill yet." : "Nothing due here."}
         </p>
         <p className="muted">{listId ? "Add some cards first." : "Generate more from Settings."}</p>
         <button type="button" className="cta cta--primary" onClick={onDone}>

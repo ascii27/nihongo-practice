@@ -194,38 +194,38 @@ describe("POST /api/reviews", () => {
       .post("/api/reviews")
       .set("X-Passcode", PASSCODE)
       .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString() });
-    const r = await pool.query(`SELECT cram FROM reviews WHERE item_id = $1`, [itemId]);
-    expect(r.rows[0].cram).toBe(false);
+    const r = await pool.query(`SELECT free_practice FROM reviews WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].free_practice).toBe(false);
   });
 
-  it("marks the row when the client says the review came from cram", async () => {
+  it("marks the row when the client says the review was free practice", async () => {
     const itemId = await insertItem();
     const res = await request(app)
       .post("/api/reviews")
       .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: true });
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: true });
     expect(res.status).toBe(200);
-    const r = await pool.query(`SELECT cram FROM reviews WHERE item_id = $1`, [itemId]);
-    expect(r.rows[0].cram).toBe(true);
+    const r = await pool.query(`SELECT free_practice FROM reviews WHERE item_id = $1`, [itemId]);
+    expect(r.rows[0].free_practice).toBe(true);
   });
 
-  it("still advances the Leitner box for a cram review", async () => {
+  it("still advances the Leitner box for a free-practice review", async () => {
     const itemId = await insertItem();
     await request(app)
       .post("/api/reviews")
       .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: true });
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: true });
     const r = await pool.query(`SELECT box, total_reviews FROM review_state WHERE item_id = $1`, [itemId]);
     expect(r.rows[0].box).toBe(1);
     expect(r.rows[0].total_reviews).toBe(1);
   });
 
-  it("rejects a non-boolean cram flag", async () => {
+  it("rejects a non-boolean free_practice flag", async () => {
     const itemId = await insertItem();
     const res = await request(app)
       .post("/api/reviews")
       .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), cram: "yes" });
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: "yes" });
     expect(res.status).toBe(400);
   });
 });

@@ -13,6 +13,11 @@
 // will actually ask for, so both read it from here.
 export const DEFAULT_QUEUE_LIMIT = 100;
 
+// Free practice — tapping a skill row on Today — is a fixed, modest session
+// rather than a budget-derived one. It answers "let me drill this for a bit",
+// so it wants a predictable length, not one that shrinks as the day fills up.
+export const FREE_PRACTICE_SIZE = 20;
+
 export type SessionPlan = {
   sessionCap: number;  // total cards this session may serve
   newLimit: number;    // of those, how many may be brand-new

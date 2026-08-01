@@ -16,12 +16,12 @@ async function insertItem(skill = "vocab"): Promise<string> {
 // `hoursAgo` is relative to now, so tests stay independent of the wall clock.
 async function insertReview(
   itemId: string,
-  opts: { hoursAgo?: number; boxBefore?: number; cram?: boolean } = {},
+  opts: { hoursAgo?: number; boxBefore?: number; free_practice?: boolean } = {},
 ) {
   await pool.query(
-    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, cram)
+    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, free_practice)
      VALUES ($1, now() - make_interval(hours => $2::int), 'got_it', $3::int, $3::int + 1, $4)`,
-    [itemId, opts.hoursAgo ?? 0, opts.boxBefore ?? 1, opts.cram ?? false],
+    [itemId, opts.hoursAgo ?? 0, opts.boxBefore ?? 1, opts.free_practice ?? false],
   );
 }
 
@@ -93,17 +93,17 @@ describe("getDailyBudget", () => {
     expect((await getDailyBudget("Pacific/Honolulu")).reviewed).toBe(1);
   });
 
-  it("does not spend the allowance on cram reviews", async () => {
+  it("does not spend the allowance on free-practice reviews", async () => {
     const id = await insertItem();
-    for (let i = 0; i < 40; i++) await insertReview(id, { cram: true });
+    for (let i = 0; i < 40; i++) await insertReview(id, { free_practice: true });
     const b = await getDailyBudget("UTC");
     expect(b.reviewed).toBe(0);
     expect(b.remaining).toBe(30);
   });
 
-  it("counts ordinary reviews alongside cram reviews", async () => {
+  it("counts ordinary reviews alongside free-practice reviews", async () => {
     const id = await insertItem();
-    await insertReview(id, { cram: true });
+    await insertReview(id, { free_practice: true });
     await insertReview(id);
     const b = await getDailyBudget("UTC");
     expect(b.reviewed).toBe(1);
@@ -173,12 +173,12 @@ describe("countIntroducedToday", () => {
     expect(await countIntroducedToday("UTC")).toBe(2);
   });
 
-  // Deliberately the opposite of the budget's treatment of cram: cramming a
-  // brand-new card still introduces it to the SRS, so it counts against the
-  // day's new-card pacing even though it costs no allowance.
-  it("counts cram introductions, unlike the allowance", async () => {
+  // Deliberately the opposite of the budget's treatment of free practice:
+  // cramming or drilling a brand-new card still introduces it to the SRS, so it
+  // counts against the day's new-card pacing even though it costs no allowance.
+  it("counts free-practice introductions, unlike the allowance", async () => {
     const id = await insertItem();
-    await insertReview(id, { boxBefore: 0, cram: true });
+    await insertReview(id, { boxBefore: 0, free_practice: true });
     expect(await countIntroducedToday("UTC")).toBe(1);
     expect((await getDailyBudget("UTC")).reviewed).toBe(0);
   });

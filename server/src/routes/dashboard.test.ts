@@ -26,11 +26,11 @@ async function insertItem(skill: string, opts: { nextReviewMinutesAgo?: number; 
   return id;
 }
 
-async function insertReview(itemId: string, boxBefore = 1, cram = false) {
+async function insertReview(itemId: string, boxBefore = 1, free_practice = false) {
   await pool.query(
-    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, cram)
+    `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, free_practice)
      VALUES ($1, now(), 'got_it', $2::smallint, $2::smallint + 1, $3)`,
-    [itemId, boxBefore, cram],
+    [itemId, boxBefore, free_practice],
   );
 }
 
@@ -202,9 +202,9 @@ describe("GET /api/dashboard — session_size", () => {
     expect(res.body.session_size).toBe(1);
   });
 
-  it("is not reduced by a cram, which costs no allowance", async () => {
+  it("is not reduced by a free_practice, which costs no allowance", async () => {
     const settled = await insertSettledItem();
-    for (let i = 0; i < 40; i++) await insertReview(settled, 1, true);   // crammed a 40-card list
+    for (let i = 0; i < 40; i++) await insertReview(settled, 1, true);   // crammed a 40-card list (free practice)
     for (let i = 0; i < 300; i++) await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 30 });
 
     const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
@@ -225,7 +225,7 @@ describe("GET /api/dashboard — another_round_size", () => {
   });
 
   it("is zero when a round would deal nothing", async () => {
-    // A big cram already introduced far more new cards than another round's
+    // A big free_practice already introduced far more new cards than another round's
     // share would allow, and nothing is due — so unlocking would be a dead end.
     const settled = await insertSettledItem();
     for (let i = 0; i < 40; i++) await insertReview(settled, 0, true);

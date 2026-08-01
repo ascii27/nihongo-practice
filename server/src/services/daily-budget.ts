@@ -25,15 +25,16 @@ async function readExtraRounds(tz: string): Promise<number> {
   return r.rows[0]?.n ?? 0;
 }
 
-// Cram rows are excluded: drilling a study list before class is extra work the
-// owner chose on top of the day's plan, not a draw against it. Counting it
-// would let one 40-card cram zero out `remaining` and leave every practice
-// entry point empty until midnight.
+// Free-practice rows are excluded: cramming a study list before class, or
+// tapping a skill row to drill it on purpose, is work the owner chose on top of
+// the day's plan rather than a draw against it. Counting it would let one
+// 40-card cram zero out `remaining` and leave every practice entry point empty
+// until midnight.
 async function readReviewedToday(tz: string): Promise<number> {
   const r = await pool.query<{ c: number }>(
     `SELECT count(*)::int AS c
        FROM reviews
-      WHERE cram = false
+      WHERE free_practice = false
         AND date_trunc('day', reviewed_at AT TIME ZONE $1)
           = date_trunc('day', now() AT TIME ZONE $1)`,
     [tz],
@@ -45,14 +46,20 @@ async function readReviewedToday(tz: string): Promise<number> {
 // new-card budget is deliberately global: one daily target means one budget,
 // and scoping it per skill would let eight skills each introduce a full share.
 //
-// Cram rows DO count here, unlike in `readReviewedToday` above, because the two
-// counters govern different things. The allowance limits how much reviewing the
-// day asks of the owner, and cram is voluntary extra. This limits how many
-// brand-new cards enter the SRS in a day, which is a learning-load cap — and a
-// crammed new card is introduced just as thoroughly as a queued one: it gets a
-// `review_state` row and leaves the new pool for good. Ignoring cram here would
-// let the queue stack a full new-card share on top of a cram that already
-// introduced dozens, which is exactly what the pacing limit exists to prevent.
+// Free-practice rows DO count here, unlike in `readReviewedToday` above,
+// because the two counters govern different things. The allowance limits how
+// much reviewing the day asks of the owner, and free practice is voluntary
+// extra. This limits how many brand-new cards enter the SRS in a day, which is
+// a learning-load cap — and a card introduced by cram or by drilling a skill is
+// introduced just as thoroughly as a queued one: it gets a `review_state` row
+// and leaves the new pool for good. Ignoring those rows here would let the
+// queue stack a full new-card share on top of a session that already introduced
+// dozens, which is exactly what the pacing limit exists to prevent.
+//
+// Note the asymmetry this creates deliberately: free practice is not *capped*
+// by this limit — `buildFreeQueue` never consults it — but what it introduces
+// still *counts*, so heavy free practice shrinks the budgeted queue's new-card
+// share for the rest of the day. That is the pacing limit working, not leaking.
 export async function countIntroducedToday(tz: string): Promise<number> {
   const r = await pool.query<{ c: number }>(
     `SELECT count(*)::int AS c

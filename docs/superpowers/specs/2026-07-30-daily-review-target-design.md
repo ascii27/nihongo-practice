@@ -83,20 +83,21 @@ AT TIME ZONE $tz)`, matching how `services/streak.ts` and `routes/stats.ts`
 already bucket days. Mixed practice and lesson blocks both post to
 `POST /api/reviews` and both count.
 
-Cram (`study-lists`) posts to `POST /api/reviews` too — it grades and
-reschedules exactly like ordinary practice — but it sends `cram: true`, and
-`reviewed` excludes those rows. Cramming a list for class is voluntary extra
-work on top of the day's plan, not a draw against it; counting it would let one
-40-card cram zero out `remaining` and leave every practice entry point empty
-until midnight. The flag is explicit rather than inferred from `session_id IS
-NULL`, which is a property of today's client rather than a contract.
+Two kinds of practice post to `POST /api/reviews` too — cram (`study-lists`) and
+free practice (tapping a skill row) — and both grade and reschedule exactly like
+ordinary practice. But they send `free_practice: true`, and `reviewed` excludes
+those rows. Both are work the owner chose on top of the day's plan, not a draw
+against it; counting them would let one 40-card cram zero out `remaining` and
+leave every practice entry point empty until midnight. The flag is explicit
+rather than inferred from `session_id IS NULL`, which is a property of today's
+client rather than a contract.
 
 `countIntroducedToday` (the new-card pacing limit, below) deliberately goes the
-other way and **does** count cram rows: a crammed brand-new card gets a
-`review_state` row and leaves the new pool for good, so it has genuinely been
-introduced. The allowance caps how much the day asks of the owner; the
-introduction count caps how many new cards enter the SRS. Cram is extra against
-the first and real against the second.
+other way and **does** count those rows: a brand-new card drilled or crammed
+gets a `review_state` row and leaves the new pool for good, so it has genuinely
+been introduced. The allowance caps how much the day asks of the owner; the
+introduction count caps how many new cards enter the SRS. Free practice is extra
+against the first and real against the second.
 
 ### `GET /api/dashboard`
 
@@ -182,11 +183,12 @@ never a client-side derivation, and why both round buttons are gated on
 `another_round_size > 0` — tapping a round that deals nothing is the same
 broken promise in a slower form.
 
-The invariant is deliberately scoped to the hero and does **not** yet hold for
-the screen as a whole. The skill rows below it stay tappable once
-`remaining === 0`, and tapping one dead-ends on "Nothing due here." — a known
-exception, not an oversight. It is finding **I2 from the final whole-branch
-review, which the owner deferred**; it remains open.
+The invariant is scoped to the hero because the skill rows below it no longer
+answer to the budget at all: a row deals **free practice** (below), so it always
+has cards to give whenever the skill has any. This was finding **I2 from the
+final whole-branch review** — tapping a row once the target was met dead-ended
+on "Nothing due here." — and it is now closed, by making skill practice free
+rather than by disabling the rows.
 
 `pool` is the `by_skill` sum, used only for the "still in the deck" copy and to
 tell an empty deck from a spent budget. Ordering matters. An empty deck reads as
@@ -199,8 +201,34 @@ borrowing 今日の分、終わり, which belongs to a met target.
 
 "Go another round" posts to `/api/dashboard/round` and replaces state from the
 response. Skill rows keep their raw `due · new` counts in every state: the hero
-is the motivational number, the rows are the honest inventory. They are also the
-one place the hero's invariant stops — see I2 above.
+is the motivational number, the rows are the honest inventory of what free
+practice can draw on.
+
+### Free practice
+
+Tapping a skill row is free practice, always — not only once the target is met.
+The daily target governs the day's plan; it was never meant to govern whether
+deliberate practice is allowed. So a row deals a fixed **20-card** session
+(`FREE_PRACTICE_SIZE`) that ignores the allowance and the new-card pacing limit
+alike, and the reviews it produces are flagged `free_practice` and kept out of
+`reviewed_today`. Drill a skill as many times as you like; the day's number does
+not move.
+
+Free practice leads with **due** cards and tops up with new, the opposite of the
+budgeted queue. Someone who asked for a skill wants the cards they owe on it.
+The budgeted queue leads with new because its new-card share is metered and
+would otherwise go unspent behind a deep due backlog; free practice has no share
+to protect.
+
+Two consequences worth stating rather than discovering. Free practice *can*
+introduce new cards past the day's pacing limit — that is the point of "free" —
+but what it introduces still counts toward `countIntroducedToday`, so heavy
+drilling shrinks the budgeted queue's new-card share for the rest of the day.
+And introducing cards schedules them, so free practice grows tomorrow's due
+backlog exactly as ordinary practice does.
+
+The client routes it by presence of a skill: `onPractice(undefined)` from the
+hero is budgeted mixed practice, `onPractice(skill)` from a row is free.
 
 The dashboard fetch passes `tz` from `Intl.DateTimeFormat().resolvedOptions().timeZone`.
 
