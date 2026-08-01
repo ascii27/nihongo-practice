@@ -102,17 +102,38 @@ the first and real against the second.
 
 - Accepts `?tz=` (validated with the same `resolveTz` guard `routes/queue.ts:8`
   uses). Defaults to `UTC`, which is today's hardcoded behavior.
-- Response gains `daily_target`, `reviewed_today`, `remaining`. `by_skill` and
-  `streak_days` are unchanged.
+- Response gains `daily_target`, `reviewed_today`, `remaining`, `session_size`
+  and `another_round_size`. `streak_days` is unchanged; `by_skill` now excludes
+  suspended items from its due counts, matching `services/queue.ts`.
+
+`session_size` is the number the hero shows: exactly what the next mixed
+practice session will deal. `remaining` is **not** that number, and neither is
+`min(remaining, pool)` — the new-card share caps how much of a new-only deck a
+session can touch, so a 300-new deck at a target of 30 yields 10 cards, not 30.
+The server resolves the plan against the real pools (via `sessionSize`, using
+the queue route's default limit, since mixed practice sends neither `skill` nor
+`limit`) so the client never re-derives a number of its own.
+
+`another_round_size` is the same figure computed against `previewRound(budget)`
+— the budget as it would stand after unlocking one more round, without writing
+anything. A round raises the allowance and the new-card share together, so it
+can rescue a session that is empty for either reason, but it cannot conjure
+cards: 0 means offering a round would be a dead end.
 
 ### `POST /api/dashboard/round`
 
 Increments `extra_rounds` for today and returns the same payload shape as
 `GET /api/dashboard`, so the client can swap state without a second fetch.
 
-### `services/queue.ts`
+### `services/session-plan.ts` (new) and `services/queue.ts`
 
-`DAILY_NEW_CAP` and `DUE_CAP` are deleted. Sizing derives from the budget:
+`DAILY_NEW_CAP` and `DUE_CAP` are deleted. Sizing derives from the budget, and
+lives in `services/session-plan.ts` as two pure functions — `planSession` and
+`sessionSize` — because both the queue and the dashboard need it and they must
+not drift. `sessionSize` models `buildQueue`'s ordering rather than an
+idealized version: new cards are taken first and due gets only what is left of
+the cap after the new rows that really existed, which is what makes the thin-pool
+cases come out right.
 
 ```
 sessionCap = min(req.limit, budget.remaining)
@@ -145,17 +166,30 @@ the existing error shape.
 
 ### `DashboardScreen.tsx`
 
-The hero has three states, chosen in this order:
+The hero has four states, chosen in this order:
 
 | Condition | Hero |
 |---|---|
-| `remaining > 0 && pool > 0` | count = `min(remaining, pool)`, "Start mixed practice" — current layout, smaller number |
-| `remaining === 0` | 今日の分、終わり — done for today · "{reviewed_today} reviewed" · **Go another round** |
-| `pool === 0` | existing 全部終わり — all caught up. No round button: there is nothing left to serve |
+| `pool === 0` | 全部終わり — all caught up. Count 0, no buttons: there is nothing left to serve |
+| `remaining === 0` | 今日の分、終わり — done for today · "{reviewed_today} reviewed" · **Go another round** when `another_round_size > 0` |
+| `session_size === 0` | count 0 · "Today's new cards are done and nothing else is due" · **Go another round** when `another_round_size > 0` |
+| otherwise | count = `session_size`, "Start mixed practice" |
 
-`pool` is the existing `totalDue` sum. Ordering matters — a met target shows
-the congratulation even when a backlog exists, which is the whole point, but an
-empty pool must not offer a round that would come back empty.
+**Invariant: the number on the hero equals the number of cards the next mixed
+practice session will actually deal, and no state offers practice it cannot
+deliver.** That is why the count is always `session_size` and never a
+client-side derivation, and why both round buttons are gated on
+`another_round_size > 0` — tapping a round that deals nothing is the same
+broken promise in a slower form.
+
+`pool` is the `by_skill` sum, used only for the "still in the deck" copy and to
+tell an empty deck from a spent budget. Ordering matters. An empty deck reads as
+全部終わり before anything else. A met target then takes precedence over a
+backlog, which is the whole point of the target. Only after both comes the third
+state, which is reachable in exactly one shape: budget left and cards left, but
+the day's new-card share spent and nothing due — so the deck is all new cards
+the pacing limit will not release yet. It gets its own copy rather than
+borrowing 今日の分、終わり, which belongs to a met target.
 
 "Go another round" posts to `/api/dashboard/round` and replaces state from the
 response. Skill rows keep their raw `due · new` counts in every state: the hero

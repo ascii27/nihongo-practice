@@ -340,12 +340,19 @@ export type SkillCounts = z.infer<typeof SkillCounts>;
 export const DashboardResponse = z.object({
   streak_days: z.number().int().nonnegative(),
   last_practiced_at: z.string().nullable(),
-  // Daily budget. `remaining` is what the hero shows (clamped against the
-  // actual card pool client-side); `daily_target` and `reviewed_today` drive
-  // the congratulation copy.
+  // Daily budget. `daily_target` and `reviewed_today` drive the congratulation
+  // copy; `remaining` is how much allowance is left, which is not the same as
+  // how much practice is available.
   daily_target: z.number().int().positive(),
   reviewed_today: z.number().int().nonnegative(),
   remaining: z.number().int().nonnegative(),
+  // Exactly how many cards the next mixed-practice session will deal — the
+  // budget and the new-card share and the real pools, all resolved server-side.
+  // This is the hero's number; the client must render it, not re-derive one.
+  session_size: z.number().int().nonnegative(),
+  // What that session would deal after unlocking one more round. 0 means
+  // offering another round would be a dead end, so the button stays hidden.
+  another_round_size: z.number().int().nonnegative(),
   by_skill: z.object({
     vocab: SkillCounts,
     grammar: SkillCounts,

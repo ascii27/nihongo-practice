@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { pool } from "../db/pool.js";
 import { resetDb } from "../db/reset.js";
-import { getDailyBudget, unlockRound, countIntroducedToday } from "./daily-budget.js";
+import { getDailyBudget, unlockRound, countIntroducedToday, previewRound } from "./daily-budget.js";
 
 // Reviews need a real item to point at.
 async function insertItem(skill = "vocab"): Promise<string> {
@@ -133,6 +133,26 @@ describe("unlockRound", () => {
     expect((await getDailyBudget("UTC")).remaining).toBe(0);
     const b = await unlockRound("UTC");
     expect(b.remaining).toBe(30);
+  });
+});
+
+describe("previewRound", () => {
+  it("matches what unlockRound would persist, without persisting it", async () => {
+    const id = await insertItem();
+    for (let i = 0; i < 10; i++) await insertReview(id);
+    const before = await getDailyBudget("UTC");
+
+    const predicted = previewRound(before);
+    expect(await getDailyBudget("UTC")).toEqual(before); // nothing written
+
+    expect(await unlockRound("UTC")).toEqual(predicted);
+  });
+
+  it("stacks on rounds already unlocked", async () => {
+    await unlockRound("UTC");
+    const p = previewRound(await getDailyBudget("UTC"));
+    expect(p.extra_rounds).toBe(2);
+    expect(p.allowance).toBe(90);
   });
 });
 

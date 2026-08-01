@@ -75,6 +75,16 @@ export async function getDailyBudget(tz: string): Promise<DailyBudget> {
   return { target, extra_rounds, allowance, reviewed, remaining: Math.max(0, allowance - reviewed) };
 }
 
+// The budget as it would stand after one more round, without writing anything.
+// The dashboard needs this to decide whether offering "Go another round" would
+// actually deal any cards: a round raises both the allowance and the new-card
+// share, but neither helps if the deck has nothing left to give.
+export function previewRound(b: DailyBudget): DailyBudget {
+  const extra_rounds = b.extra_rounds + 1;
+  const allowance = b.target * (1 + extra_rounds);
+  return { ...b, extra_rounds, allowance, remaining: Math.max(0, allowance - b.reviewed) };
+}
+
 // Unlocks one more full target for today. Repeatable — each call adds a round.
 export async function unlockRound(tz: string): Promise<DailyBudget> {
   await pool.query(

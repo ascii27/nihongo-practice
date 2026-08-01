@@ -42,10 +42,17 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
   if (error) return <main className="screen"><p role="alert">Couldn't load: {error}</p></main>;
   if (!data) return <main className="screen screen--centered">Loading…</main>;
 
-  // The honest inventory across every skill…
+  // The honest inventory across every skill, used for the "still in the deck"
+  // copy and to tell an empty deck apart from a spent budget.
   const pool = SKILL_ORDER.reduce((acc, s) => acc + data.by_skill[s].due + data.by_skill[s].new, 0);
-  // …clamped to what today's budget still allows. This is the motivational number.
-  const heroCount = Math.min(data.remaining, pool);
+  // The hero's number is the server's session size verbatim. Deriving one here
+  // is what made the hero promise cards the session then refused to deal: the
+  // new-card share is invisible from out here, so `min(remaining, pool)` reads
+  // 30 against a 300-card new deck that yields 10.
+  const heroCount = data.session_size;
+  // Another round raises the allowance and the new-card share together, but it
+  // cannot conjure cards. Only offer it when the server says it would deal some.
+  const canRound = data.another_round_size > 0;
   const lastLabel = data.last_practiced_at
     ? new Date(data.last_practiced_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "never";
@@ -79,6 +86,14 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
         <span>last practice {lastLabel}</span>
       </div>
 
+      {/* Four states, in this order. An empty deck reads as 全部終わり before
+          anything else, so it can never offer work that does not exist. A met
+          target then takes precedence over a backlog — that is the whole point
+          of the target. Only after both does the awkward case appear: budget
+          left, cards left, but the day's new-card share spent and nothing due,
+          which is the one shape where a session would come back empty. The
+          number shown is `session_size` in every state, so it always equals
+          what "Start mixed practice" will deal. */}
       <section className="today__hero">
         {pool === 0 ? (
           <>
@@ -91,14 +106,38 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
             <p className="today__hero-label">Today's target</p>
             <p className="today__hero-done">今日の分、終わり</p>
             <p className="today__hero-done-sub">
-              {data.reviewed_today} reviewed today — you're done. {pool} still in the deck whenever you want them.
+              {data.reviewed_today} reviewed today — you're done.{" "}
+              {canRound
+                ? `${pool} still in the deck whenever you want them.`
+                : `${pool} still in the deck, ready tomorrow.`}
             </p>
-            <button
-              type="button" className="cta cta--primary cta--lg today__hero-cta"
-              onClick={anotherRound} disabled={rounding}
-            >
-              {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
-            </button>
+            {canRound && (
+              <button
+                type="button" className="cta cta--primary cta--lg today__hero-cta"
+                onClick={anotherRound} disabled={rounding}
+              >
+                {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
+              </button>
+            )}
+          </>
+        ) : data.session_size === 0 ? (
+          <>
+            <p className="today__hero-label">Ready to review</p>
+            <p className="today__hero-count">0</p>
+            <p className="today__hero-empty">
+              Today's new cards are done and nothing else is due.{" "}
+              {canRound
+                ? `${pool} still in the deck — another round pulls more in.`
+                : `${pool} still in the deck, ready tomorrow.`}
+            </p>
+            {canRound && (
+              <button
+                type="button" className="cta cta--primary cta--lg today__hero-cta"
+                onClick={anotherRound} disabled={rounding}
+              >
+                {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
+              </button>
+            )}
           </>
         ) : (
           <>

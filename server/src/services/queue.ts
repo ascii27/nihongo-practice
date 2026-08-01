@@ -1,6 +1,7 @@
 import { pool } from "../db/pool.js";
 import type { ItemRecord } from "@nihongo/shared";
 import { getDailyBudget, countIntroducedToday } from "./daily-budget.js";
+import { planSession } from "./session-plan.js";
 
 type Row = {
   id: string;
@@ -29,19 +30,15 @@ export async function buildQueue(
 ): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
   const skillFilter = opts.skill ?? null;
 
-  // Session size comes from the daily budget, so the number on the dashboard
-  // hero and the session it starts can never disagree.
+  // Session size comes from the daily budget via the shared planner, so the
+  // number on the dashboard hero and the session it starts can never disagree.
   const budget = await getDailyBudget(opts.tz);
-  const sessionCap = Math.min(opts.limit, budget.remaining);
+  const introducedToday = await countIntroducedToday(opts.tz);
+  const { sessionCap, newLimit } = planSession(budget, introducedToday, opts.limit);
   if (sessionCap <= 0) return { due: [], new: [] };
 
-  // New cards get a third of the target per round — at the default 30 that is
-  // the 10/day this app has always used. Fetched first so that when no new
-  // cards are left, due fills the whole cap instead of stopping short.
-  const introducedToday = await countIntroducedToday(opts.tz);
-  const newShare = Math.round(budget.target / 3) * (1 + budget.extra_rounds);
-  const newLimit = Math.max(0, Math.min(sessionCap, newShare - introducedToday));
-
+  // New first, so that when new cards run short due fills the whole cap instead
+  // of the session stopping there. `sessionSize` models this same ordering.
   let neu: ItemRecord[] = [];
   if (newLimit > 0) {
     const newRes = await pool.query<Row>(
