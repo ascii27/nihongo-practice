@@ -54,13 +54,18 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
   // cannot conjure cards. Only offer it when the server says it would deal some
   // — an unlock that lands on an empty session is the same broken promise in a
   // slower form. Both hero states that can offer a round share this button.
+  //
+  // The label counts cards, not allowance. `daily_target` is what a round adds
+  // to the budget, which is not what the round hands you: on an all-new deck
+  // with the day's share spent, +30 of allowance yields a 10-card session. The
+  // button has to state the session, for the same reason the hero does.
   const canRound = data.another_round_size > 0;
   const roundButton = canRound ? (
     <button
       type="button" className="cta cta--primary cta--lg today__hero-cta"
       onClick={anotherRound} disabled={rounding}
     >
-      {rounding ? "Dealing another round…" : `Go another round (+${data.daily_target})`}
+      {rounding ? "Dealing another round…" : `Go another round (+${data.another_round_size})`}
     </button>
   ) : null;
   const lastLabel = data.last_practiced_at
