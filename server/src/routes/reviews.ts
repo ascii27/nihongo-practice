@@ -19,6 +19,12 @@ const Body = z.object({
   session_id: z.string().uuid().optional(),
   answer_given: z.string().max(200).optional(),
   tz: z.string().optional(), // IANA timezone, for streak-milestone events
+  // True when the grading came from practice the owner asked for outside the
+  // day's plan: cramming a study list, or drilling a single skill from Today.
+  // Kept out of the daily review allowance (see services/daily-budget.ts);
+  // everything else about the review — Leitner scheduling, new-card
+  // introduction counting, streaks, Hermes — is unchanged.
+  free_practice: z.boolean().optional(),
 });
 
 reviewsRouter.post("/", async (req, res) => {
@@ -27,7 +33,7 @@ reviewsRouter.post("/", async (req, res) => {
     res.status(400).json({ error: "invalid body", code: "BAD_BODY" });
     return;
   }
-  const { item_id, result, reviewed_at, session_id, answer_given, tz } = parsed.data;
+  const { item_id, result, reviewed_at, session_id, answer_given, tz, free_practice } = parsed.data;
 
   const client = await pool.connect();
   try {
@@ -99,9 +105,9 @@ reviewsRouter.post("/", async (req, res) => {
 
     // Append-only review row
     await client.query(
-      `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null, answer_given ?? null],
+      `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given, free_practice)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null, answer_given ?? null, free_practice ?? false],
     );
 
     await client.query("COMMIT");

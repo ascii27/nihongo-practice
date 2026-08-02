@@ -24,10 +24,13 @@ import type {
   Skill,
 } from "@nihongo/shared";
 
-export function fetchQueue(skill?: Skill): Promise<QueueResponse> {
+// `free` asks for a free-practice session: a fixed-size drill of one skill that
+// ignores the daily budget, and whose reviews don't count against the target.
+export function fetchQueue(skill?: Skill, opts: { free?: boolean } = {}): Promise<QueueResponse> {
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const params = new URLSearchParams({ tz });
   if (skill) params.set("skill", skill);
+  if (opts.free) params.set("free", "1");
   return api<QueueResponse>(`/api/queue?${params.toString()}`);
 }
 
@@ -36,8 +39,20 @@ export function fetchStreak(): Promise<StreakResponse> {
   return api<StreakResponse>(`/api/stats/streak?tz=${encodeURIComponent(tz)}`);
 }
 
+function browserTz(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
 export function fetchDashboard(): Promise<DashboardResponse> {
-  return api<DashboardResponse>(`/api/dashboard`);
+  return api<DashboardResponse>(`/api/dashboard?tz=${encodeURIComponent(browserTz())}`);
+}
+
+// Unlocks one more full daily target. Returns the refreshed dashboard payload
+// so the caller can swap state without a second fetch.
+export function unlockAnotherRound(): Promise<DashboardResponse> {
+  return api<DashboardResponse>(`/api/dashboard/round?tz=${encodeURIComponent(browserTz())}`, {
+    method: "POST",
+  });
 }
 
 export function fetchStatsBySkill(): Promise<StatsBySkillResponse> {
@@ -73,6 +88,7 @@ export function submitReview(input: {
   reviewed_at: string;
   session_id?: string;
   answer_given?: string;
+  free_practice?: boolean;
 }): Promise<ReviewStateResponse> {
   // Attach the caller's IANA timezone so the server can detect streak
   // milestones ("first review of today"). Harmless if the field is unused.
@@ -96,6 +112,13 @@ export function fetchGenerations(limit = 10): Promise<GenerationsResponse> {
 
 export function fetchSettingsStatus(): Promise<SettingsStatusResponse> {
   return api<SettingsStatusResponse>("/api/settings/status");
+}
+
+export function updateDailyTarget(daily_review_target: number): Promise<{ daily_review_target: number }> {
+  return api<{ daily_review_target: number }>("/api/settings", {
+    method: "PATCH",
+    body: JSON.stringify({ daily_review_target }),
+  });
 }
 
 // Manual vocab entry — two steps so the learner can review the AI's translation

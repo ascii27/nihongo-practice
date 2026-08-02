@@ -1,8 +1,7 @@
 import { pool } from "../db/pool.js";
 import type { ItemRecord } from "@nihongo/shared";
-
-const DAILY_NEW_CAP = 10;
-const DUE_CAP = 20;
+import { getDailyBudget, countIntroducedToday } from "./daily-budget.js";
+import { planSession } from "./session-plan.js";
 
 type Row = {
   id: string;
@@ -26,14 +25,25 @@ function toRecord(r: Row): ItemRecord {
   };
 }
 
-export async function buildQueue(
-  opts: { limit: number; skill?: string; tz: string },
-): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
-  const skillFilter = opts.skill ?? null;
+// Brand-new items: never reviewed, oldest first so a deck is worked in order.
+async function fetchNew(skillFilter: string | null, limit: number): Promise<ItemRecord[]> {
+  if (limit <= 0) return [];
+  const res = await pool.query<Row>(
+    `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
+       FROM items i
+       LEFT JOIN review_state rs ON rs.item_id = i.id
+      WHERE ($1::text IS NULL OR i.skill = $1) AND rs.item_id IS NULL
+      ORDER BY i.created_at ASC
+      LIMIT $2`,
+    [skillFilter, limit],
+  );
+  return res.rows.map(toRecord);
+}
 
-  // Due: a random sample of currently-due, non-suspended items, capped per session.
-  const dueLimit = Math.min(opts.limit, DUE_CAP);
-  const dueRes = await pool.query<Row>(
+// A random sample of currently-due, non-suspended items.
+async function fetchDue(skillFilter: string | null, limit: number): Promise<ItemRecord[]> {
+  if (limit <= 0) return [];
+  const res = await pool.query<Row>(
     `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
        FROM items i
        JOIN review_state rs ON rs.item_id = i.id
@@ -42,40 +52,53 @@ export async function buildQueue(
         AND rs.suspended = false
       ORDER BY random()
       LIMIT $2`,
-    [skillFilter, dueLimit],
+    [skillFilter, limit],
   );
-  const due = dueRes.rows.map(toRecord);
+  return res.rows.map(toRecord);
+}
 
-  // New: serve up to (DAILY_NEW_CAP - introduced today) brand-new items,
-  // independent of the due backlog. "Introduced today" = first-ever reviews
-  // (box_before = 0) bucketed by calendar day in the caller's timezone, scoped
-  // to the same skill filter the queue is serving.
-  const introRes = await pool.query<{ c: number }>(
-    `SELECT count(*)::int AS c
-       FROM reviews r
-       JOIN items i ON i.id = r.item_id
-      WHERE r.box_before = 0
-        AND ($2::text IS NULL OR i.skill = $2)
-        AND date_trunc('day', r.reviewed_at AT TIME ZONE $1)
-          = date_trunc('day', now() AT TIME ZONE $1)`,
-    [opts.tz, skillFilter],
-  );
-  const introducedToday = introRes.rows[0]?.c ?? 0;
-  const newBudget = Math.max(0, DAILY_NEW_CAP - introducedToday);
+export async function buildQueue(
+  opts: { limit: number; skill?: string; tz: string },
+): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
+  const skillFilter = opts.skill ?? null;
 
-  let neu: ItemRecord[] = [];
-  if (newBudget > 0) {
-    const newRes = await pool.query<Row>(
-      `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
-         FROM items i
-         LEFT JOIN review_state rs ON rs.item_id = i.id
-        WHERE ($1::text IS NULL OR i.skill = $1) AND rs.item_id IS NULL
-        ORDER BY i.created_at ASC
-        LIMIT $2`,
-      [skillFilter, newBudget],
-    );
-    neu = newRes.rows.map(toRecord);
-  }
+  // Session size comes from the daily budget via the shared planner, so the
+  // number on the dashboard hero and the session it starts can never disagree.
+  const budget = await getDailyBudget(opts.tz);
+  const introducedToday = await countIntroducedToday(opts.tz);
+  const { sessionCap, newLimit } = planSession(budget, introducedToday, opts.limit);
+  if (sessionCap <= 0) return { due: [], new: [] };
+
+  // New first, so that when new cards run short due fills the whole cap instead
+  // of the session stopping there. `sessionSize` models this same ordering.
+  const neu = await fetchNew(skillFilter, newLimit);
+  const due = await fetchDue(skillFilter, sessionCap - neu.length);
+
+  return { due, new: neu };
+}
+
+// Free practice: a fixed-size session that ignores the daily budget entirely.
+//
+// This is what a skill row on Today deals. It exists so the owner can always
+// drill a skill on purpose — the daily target governs the day's plan, not
+// whether practice is allowed at all. Neither the allowance nor the new-card
+// pacing limit gates it, and the reviews it produces are flagged
+// `free_practice` so they don't count against the target either.
+//
+// Due first, unlike `buildQueue`: someone who asked for this skill wants the
+// cards they actually owe on it, with new cards topping up only what's left.
+// The budgeted queue leads with new because its new-card share is metered and
+// would otherwise go unspent on a deep due backlog; free practice has no share
+// to protect.
+export async function buildFreeQueue(
+  opts: { limit: number; skill?: string },
+): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
+  const skillFilter = opts.skill ?? null;
+  const cap = Math.max(0, opts.limit);
+  if (cap === 0) return { due: [], new: [] };
+
+  const due = await fetchDue(skillFilter, cap);
+  const neu = await fetchNew(skillFilter, cap - due.length);
 
   return { due, new: neu };
 }
