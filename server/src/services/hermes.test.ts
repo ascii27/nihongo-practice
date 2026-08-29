@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { Skill } from "@nihongo/shared";
 import { postEvent, emitReviewLogged, hermesConfigured } from "./hermes.js";
 
 const OK = { ok: true, status: 201, text: async () => "" } as Response;
@@ -70,5 +72,23 @@ describe("hermes poster", () => {
     const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     await expect(postEvent("review_logged", "2026-07-12T00:00:00Z", {})).resolves.toBeUndefined();
     expect(errSpy).toHaveBeenCalled();
+  });
+});
+
+// The Hermes type's `skill` enum lives in scripts/hermes-type.mjs and is
+// validated server-side by hermes-jester. When a new skill was added to the app
+// without updating that enum, every review of the new skill was silently
+// rejected with a 422 for weeks — postEvent swallows failures by design, so
+// nothing surfaced. This guards the two lists against drifting again.
+describe("hermes-type.mjs skill enum", () => {
+  it("covers every skill the app can send", () => {
+    const script = readFileSync(
+      new URL("../../../scripts/hermes-type.mjs", import.meta.url),
+      "utf8",
+    );
+    const match = script.match(/skill:\s*\{[^}]*?enum:\s*(\[[^\]]*\])/);
+    expect(match, "could not find the skill enum in scripts/hermes-type.mjs").not.toBeNull();
+    const declared: string[] = JSON.parse(match![1]!);
+    expect([...declared].sort()).toEqual([...Skill.options].sort());
   });
 });
