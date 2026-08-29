@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt } from "./prompt.js";
+import { buildVocabPrompt, buildSentencesForCardsPrompt, buildGrammarPrompt, buildParticlePrompt, buildConjugationPrompt, buildReadingPrompt, buildKanjiMnemonicPrompt } from "./prompt.js";
 
 describe("buildVocabPrompt", () => {
   it("asks for the requested count and returns strict JSON instructions", () => {
@@ -93,5 +93,47 @@ describe("buildReadingPrompt", () => {
   it("includes weakness hint", () => {
     const { user } = buildReadingPrompt({ count: 1, weakness_hint: "daily life topics" });
     expect(user).toContain("daily life topics");
+  });
+});
+
+describe("buildKanjiMnemonicPrompt", () => {
+  const args = {
+    character: "整",
+    meanings: ["organize", "arrange"],
+    on: ["セイ"],
+    kun: ["ととの.える", "ととの.う"],
+  };
+
+  it("asks for strict JSON with the mnemonic shape", () => {
+    const { system } = buildKanjiMnemonicPrompt(args);
+    expect(system).toMatch(/JSON/i);
+    expect(system).toContain('"meaning"');
+    expect(system).toContain('"readings"');
+    expect(system).toContain('"sound_hook"');
+    expect(system).toContain('"sentence_japanese"');
+  });
+
+  it("forbids presenting the component breakdown as etymology", () => {
+    const { system } = buildKanjiMnemonicPrompt(args);
+    expect(system.toLowerCase()).toContain("etymolog");
+  });
+
+  it("caps the reading count at four", () => {
+    const { system } = buildKanjiMnemonicPrompt(args);
+    expect(system).toContain("4");
+  });
+
+  it("puts the character and its meanings and readings in the user message", () => {
+    const { user } = buildKanjiMnemonicPrompt(args);
+    expect(user).toContain("整");
+    expect(user).toContain("organize, arrange");
+    expect(user).toContain("セイ");
+    expect(user).toContain("ととの.える");
+    expect(user).toContain("ととの.う");
+  });
+
+  it("says none when a reading list is empty", () => {
+    const { user } = buildKanjiMnemonicPrompt({ ...args, kun: [] });
+    expect(user).toMatch(/kun'yomi[^\n]*none/i);
   });
 });

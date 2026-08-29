@@ -230,6 +230,47 @@ export function buildLessonQuizPrompt(args: {
   return { system: LESSON_QUIZ_SYSTEM, user: lines.join("\n") };
 }
 
+const KANJI_MNEMONIC_SYSTEM = `You write vivid memory aids for a Japanese learner studying kanji, in the spirit of WaniKani: funny, visual, slightly absurd, and easy to replay in the head.
+
+For the MEANING:
+- Lead with the kanji's most useful everyday meaning.
+- Break the kanji into recognizable visual components and stage one short concrete scene that connects those shapes to the meaning. Prefer concrete images and actions over abstract explanation.
+- The component breakdown is a memory aid ONLY. Never present it as the historical etymology of the kanji.
+- Give a compressed "hook" line the learner can replay, e.g. "messy bundle -> make it correct -> ORGANIZE".
+
+For each READING:
+- Pick the main on'yomi plus the 1 to 3 kun'yomi a learner is actually likely to meet. NEVER list rare readings. At most 4 readings in total.
+- Give an English sound hook that resembles the Japanese sound (ユウ -> YOU, セイ -> SAY, ととのえる -> TOTAL NO, おりる -> OH, REAR). It does not need to be phonetically perfect; memorable beats accurate.
+- Write a short scene, with emotion and a strong action, connecting that sound hook to the meaning.
+- Write ONE natural everyday Japanese sentence (under 20 syllables) that contains the kanji AND uses that specific reading, plus its English translation.
+- When a kanji has several related kun'yomi, add a "note" making the difference easy to remember in plain English before grammar terminology, e.g. "整える = you arrange something / 整う = something becomes arranged". Omit "note" otherwise.
+
+Finish with a very short recap: one line per reading, like "セイ -> SAY it looks good".
+
+Favor absurd imagery, strong actions, emotion, familiar English words, and one clear mental image. Avoid long explanations, obscure vocabulary, academic radical analysis, and weak sound associations where a fun approximation is possible.
+
+Reply ONLY with valid JSON in this exact shape, no prose, no fences:
+{ "meaning": { "gloss": "<short English gloss>", "scene": "<the visual scene>", "hook": "<compressed replay line>" },
+  "readings": [ { "type": "on" | "kun", "reading": "<JA reading>", "sound_hook": "<ENGLISH SOUND>", "scene": "<mini story>", "sentence_japanese": "<JA>", "sentence_english": "<EN>", "note": "<optional>" } ],
+  "recap": [ "<one line per reading>" ] }`;
+
+export function buildKanjiMnemonicPrompt(args: {
+  character: string;
+  meanings: string[];
+  on: string[];
+  kun: string[];
+}): PromptPair {
+  const list = (xs: string[]) => (xs.length ? xs.join("、") : "none");
+  const user = [
+    `Write a mnemonic for the kanji ${args.character}.`,
+    `Dictionary meanings: ${args.meanings.length ? args.meanings.join(", ") : "unknown"}`,
+    `Known on'yomi: ${list(args.on)}`,
+    `Known kun'yomi: ${list(args.kun)}`,
+    `Choose the main on'yomi and only the kun'yomi a learner will actually encounter. At most 4 readings total.`,
+  ].join("\n");
+  return { system: KANJI_MNEMONIC_SYSTEM, user };
+}
+
 export function buildExplainGradePrompt(args: {
   task_english: string;
   required_connectives: string[];
