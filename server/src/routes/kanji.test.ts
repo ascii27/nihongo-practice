@@ -142,6 +142,28 @@ describe("kanji mnemonics", () => {
     expect(res.body.meaning.gloss).not.toBe("STALE");
   });
 
+  it("502s when generation throws, and caches nothing", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    const prevFake = process.env.NIHONGO_FAKE_AI;
+    const prevKey = process.env.ANTHROPIC_API_KEY;
+    delete process.env.NIHONGO_FAKE_AI;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const res = await request(app)
+        .get(`/api/kanji/${encodeURIComponent("食")}/mnemonic`)
+        .set("X-Passcode", PASSCODE);
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe("MNEMONIC_FAILED");
+      const cached = await pool.query(`SELECT 1 FROM kanji_mnemonics WHERE character = $1`, ["食"]);
+      expect(cached.rowCount).toBe(0);
+    } finally {
+      if (prevFake === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prevFake;
+      if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = prevKey;
+    }
+  });
+
   it("still serves the plain detail route", async () => {
     await insertKanji({ character: "食", strokes: ["a", "b"], meanings: ["eat"] });
     const res = await request(app)
