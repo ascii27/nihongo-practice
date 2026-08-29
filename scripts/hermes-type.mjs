@@ -35,7 +35,7 @@ const SCHEMA = {
       type: "object",
       properties: {
         item_id: { type: "string", description: "UUID of the card." },
-        skill: { type: "string", enum: ["vocab", "grammar", "particle", "conjugation", "reading", "listening", "explain"], description: "Card skill/category." },
+        skill: { type: "string", enum: ["vocab", "grammar", "particle", "conjugation", "reading", "listening", "explain", "kanji"], description: "Card skill/category." },
         result: { type: "string", enum: ["got_it", "missed"], description: "review_logged: the grade." },
         reviewed_at: { type: "string", format: "date-time", description: "review_logged: when graded (idempotency key with item_id)." },
         box_before: { type: ["integer", "null"], description: "Leitner box before the grade (0 = brand-new card)." },
@@ -68,7 +68,7 @@ Emitted once per **fresh** card grade (idempotent re-grades emit nothing).
 Natural key: \`item_id\` + \`reviewed_at\`.
 
 - \`item_id\` — the card (UUID).
-- \`skill\` — vocab | grammar | particle | conjugation | reading | listening | explain.
+- \`skill\` — vocab | grammar | particle | conjugation | reading | listening | explain | kanji.
 - \`result\` — "got_it" or "missed".
 - \`reviewed_at\` — ISO timestamp of the grade.
 - \`front\` / \`meaning\` — the card's label + English gloss, so you can name it.
