@@ -304,6 +304,44 @@ export const KanjiDetail = z.object({
 });
 export type KanjiDetail = z.infer<typeof KanjiDetail>;
 
+// ----- Kanji mnemonics -----
+//
+// A WaniKani-flavoured memory aid per kanji, generated on demand and cached in
+// `kanji_mnemonics`. The meaning gets one absurd scene; each important reading
+// gets an English sound hook (セイ → SAY), a mini-story tying that sound to the
+// meaning, and a real example sentence that uses the kanji with that reading.
+
+export const KanjiMnemonicSentence = z.object({
+  jp: z.string(),
+  jp_ruby: z.string(),   // furigana HTML, produced server-side by toRubyHtml
+  en: z.string(),
+});
+export type KanjiMnemonicSentence = z.infer<typeof KanjiMnemonicSentence>;
+
+export const KanjiMnemonicReading = z.object({
+  type: z.enum(["on", "kun"]),
+  reading: z.string(),         // セイ / ととのえる
+  sound_hook: z.string(),      // SAY / TOTAL NO
+  scene: z.string(),           // the mini-story tying the hook to the meaning
+  sentence: KanjiMnemonicSentence,
+  // Only when a kanji has several related kunyomi worth telling apart, e.g.
+  // "整える = you arrange something / 整う = something becomes arranged".
+  note: z.string().optional(),
+});
+export type KanjiMnemonicReading = z.infer<typeof KanjiMnemonicReading>;
+
+export const KanjiMnemonic = z.object({
+  character: z.string(),
+  meaning: z.object({
+    gloss: z.string(),   // "organize / arrange"
+    scene: z.string(),   // the visual breakdown scene
+    hook: z.string(),    // "messy bundle → make it correct → ORGANIZE"
+  }),
+  readings: z.array(KanjiMnemonicReading).min(1).max(4),
+  recap: z.array(z.string()).max(5),   // "セイ → SAY it looks good"
+});
+export type KanjiMnemonic = z.infer<typeof KanjiMnemonic>;
+
 // ----- Listening item -----
 
 export const ListeningQuestion = z.object({
