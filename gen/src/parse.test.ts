@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseManualGrammar, parseExplainBatch, parseExplainGrade } from "./parse.js";
+import { parseVocabBatch, parseSentencesForCards, stripFences, parseGrammarBatch, parseParticleBatch, parseConjugationBatch, parseReadingBatch, parseManualVocab, parseManualGrammar, parseExplainBatch, parseExplainGrade, parseKanjiMnemonic } from "./parse.js";
 import { parseGrammarLesson, parseGrammarSelection, parseLessonQuiz } from "./parse.js";
 
 describe("stripFences", () => {
@@ -455,5 +455,73 @@ describe("parseGrammarSelection", () => {
 
   it("rejects ids containing non-strings", () => {
     expect(() => parseGrammarSelection(JSON.stringify({ ids: ["a", 1] }))).toThrow();
+  });
+});
+
+describe("parseKanjiMnemonic", () => {
+  const reading = {
+    type: "on",
+    reading: "セイ",
+    sound_hook: "SAY",
+    scene: "You finish tidying and shout: SAY it looks good!",
+    sentence_japanese: "部屋を整理しました。",
+    sentence_english: "I organized the room.",
+  };
+  const valid = {
+    meaning: { gloss: "organize", scene: "A messy bundle beaten into shape.", hook: "messy bundle -> ORGANIZE" },
+    readings: [reading],
+    recap: ["セイ -> SAY it looks good"],
+  };
+
+  it("returns the meaning, readings and recap", () => {
+    const out = parseKanjiMnemonic(JSON.stringify(valid));
+    expect(out.meaning.gloss).toBe("organize");
+    expect(out.readings).toHaveLength(1);
+    expect(out.readings[0].sound_hook).toBe("SAY");
+    expect(out.readings[0].sentence_japanese).toBe("部屋を整理しました。");
+    expect(out.recap).toEqual(["セイ -> SAY it looks good"]);
+  });
+
+  it("strips code fences", () => {
+    const out = parseKanjiMnemonic("```json\n" + JSON.stringify(valid) + "\n```");
+    expect(out.meaning.gloss).toBe("organize");
+  });
+
+  it("keeps an optional note when present", () => {
+    const withNote = { ...valid, readings: [{ ...reading, note: "整える = you arrange something" }] };
+    expect(parseKanjiMnemonic(JSON.stringify(withNote)).readings[0].note)
+      .toBe("整える = you arrange something");
+  });
+
+  it("defaults a missing recap to an empty list", () => {
+    const { recap, ...noRecap } = valid;
+    expect(parseKanjiMnemonic(JSON.stringify(noRecap)).recap).toEqual([]);
+  });
+
+  it("truncates to four readings", () => {
+    const five = { ...valid, readings: [1, 2, 3, 4, 5].map((n) => ({ ...reading, reading: `セイ${n}` })) };
+    const out = parseKanjiMnemonic(JSON.stringify(five));
+    expect(out.readings).toHaveLength(4);
+    expect(out.readings[3].reading).toBe("セイ4");
+  });
+
+  it("throws when meaning fields are missing", () => {
+    const bad = { ...valid, meaning: { gloss: "organize" } };
+    expect(() => parseKanjiMnemonic(JSON.stringify(bad))).toThrow(/meaning/i);
+  });
+
+  it("throws when readings is empty", () => {
+    expect(() => parseKanjiMnemonic(JSON.stringify({ ...valid, readings: [] }))).toThrow(/reading/i);
+  });
+
+  it("throws when a reading has no sentence", () => {
+    const { sentence_japanese, ...noSentence } = reading;
+    const bad = { ...valid, readings: [noSentence] };
+    expect(() => parseKanjiMnemonic(JSON.stringify(bad))).toThrow(/reading/i);
+  });
+
+  it("throws when a reading type is not on or kun", () => {
+    const bad = { ...valid, readings: [{ ...reading, type: "nanori" }] };
+    expect(() => parseKanjiMnemonic(JSON.stringify(bad))).toThrow(/reading/i);
   });
 });

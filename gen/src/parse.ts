@@ -66,6 +66,69 @@ export function parseManualGrammar(raw: string): ManualGrammarItem {
   };
 }
 
+// The model's wire shape for a kanji mnemonic. Sentences are flat here; the
+// server nests them and adds furigana before storing.
+export type KanjiMnemonicReadingRaw = {
+  type: "on" | "kun";
+  reading: string;
+  sound_hook: string;
+  scene: string;
+  sentence_japanese: string;
+  sentence_english: string;
+  note?: string;
+};
+
+export type KanjiMnemonicRaw = {
+  meaning: { gloss: string; scene: string; hook: string };
+  readings: KanjiMnemonicReadingRaw[];
+  recap: string[];
+};
+
+const MAX_READINGS = 4;
+
+function nonEmpty(v: unknown): v is string {
+  return typeof v === "string" && v.trim().length > 0;
+}
+
+export function parseKanjiMnemonic(raw: string): KanjiMnemonicRaw {
+  const parsed = JSON.parse(stripFences(raw));
+  const m = parsed?.meaning;
+  if (!nonEmpty(m?.gloss) || !nonEmpty(m?.scene) || !nonEmpty(m?.hook)) {
+    throw new Error("kanji mnemonic response missing meaning fields");
+  }
+  if (!Array.isArray(parsed?.readings) || parsed.readings.length === 0) {
+    throw new Error("kanji mnemonic response has no readings");
+  }
+  // Over-long lists are trimmed rather than rejected: five good readings is a
+  // usable answer, just more than a card should show.
+  const readings: KanjiMnemonicReadingRaw[] = parsed.readings
+    .slice(0, MAX_READINGS)
+    .map((r: Record<string, unknown>) => {
+      if (
+        (r?.type !== "on" && r?.type !== "kun") ||
+        !nonEmpty(r?.reading) || !nonEmpty(r?.sound_hook) || !nonEmpty(r?.scene) ||
+        !nonEmpty(r?.sentence_japanese) || !nonEmpty(r?.sentence_english)
+      ) {
+        throw new Error("kanji mnemonic reading missing required fields");
+      }
+      return {
+        type: r.type,
+        reading: r.reading as string,
+        sound_hook: r.sound_hook as string,
+        scene: r.scene as string,
+        sentence_japanese: r.sentence_japanese as string,
+        sentence_english: r.sentence_english as string,
+        ...(nonEmpty(r?.note) ? { note: r.note as string } : {}),
+      };
+    });
+  // recap restates what the readings already carry, so a model that skips it
+  // has not failed.
+  const recap = Array.isArray(parsed?.recap)
+    ? parsed.recap.filter(nonEmpty).slice(0, 5)
+    : [];
+  return { meaning: { gloss: m.gloss, scene: m.scene, hook: m.hook }, readings, recap };
+}
+
 export function stripFences(raw: string): string {
   const trimmed = raw.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);

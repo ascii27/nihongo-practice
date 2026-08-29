@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import request from "supertest";
 import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
@@ -98,5 +98,78 @@ describe("GET /api/kanji/:character", () => {
     const res = await request(app).get("/api/kanji/龘").set("X-Passcode", PASSCODE);
     expect(res.status).toBe(404);
     expect(res.body.code).toBe("KANJI_NOT_FOUND");
+  });
+});
+
+describe("kanji mnemonics", () => {
+  beforeEach(() => { process.env.NIHONGO_FAKE_AI = "1"; });
+  afterEach(() => { delete process.env.NIHONGO_FAKE_AI; });
+
+  it("requires passcode", async () => {
+    const res = await request(app).get("/api/kanji/%E9%A3%9F/mnemonic");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns a mnemonic with ruby-annotated sentences", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("食")}/mnemonic`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.character).toBe("食");
+    expect(res.body.meaning.hook.length).toBeGreaterThan(0);
+    expect(res.body.readings[0].sentence.jp_ruby).toContain("<ruby>");
+  });
+
+  it("404s for a character with no reference row", async () => {
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("猫")}/mnemonic`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("KANJI_NOT_FOUND");
+  });
+
+  it("regenerate replaces the stored mnemonic", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    await request(app).get(`/api/kanji/${encodeURIComponent("食")}/mnemonic`).set("X-Passcode", PASSCODE);
+    await pool.query(
+      `UPDATE kanji_mnemonics SET content = jsonb_set(content, '{meaning,gloss}', '"STALE"') WHERE character = '食'`,
+    );
+    const res = await request(app)
+      .post(`/api/kanji/${encodeURIComponent("食")}/mnemonic/regenerate`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.meaning.gloss).not.toBe("STALE");
+  });
+
+  it("502s when generation throws, and caches nothing", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    const prevFake = process.env.NIHONGO_FAKE_AI;
+    const prevKey = process.env.ANTHROPIC_API_KEY;
+    delete process.env.NIHONGO_FAKE_AI;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const res = await request(app)
+        .get(`/api/kanji/${encodeURIComponent("食")}/mnemonic`)
+        .set("X-Passcode", PASSCODE);
+      expect(res.status).toBe(502);
+      expect(res.body.code).toBe("MNEMONIC_FAILED");
+      const cached = await pool.query(`SELECT 1 FROM kanji_mnemonics WHERE character = $1`, ["食"]);
+      expect(cached.rowCount).toBe(0);
+    } finally {
+      if (prevFake === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prevFake;
+      if (prevKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+      else process.env.ANTHROPIC_API_KEY = prevKey;
+    }
+  });
+
+  it("still serves the plain detail route", async () => {
+    await insertKanji({ character: "食", strokes: ["a", "b"], meanings: ["eat"] });
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("食")}`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.strokes).toEqual(["a", "b"]);
   });
 });

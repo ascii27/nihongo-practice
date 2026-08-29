@@ -835,6 +835,24 @@
 .kanji-draw__error { position: absolute; inset: auto 8px 8px; font-size: 12px; color: var(--error); text-align: center; }
 .kanji-draw__tools { display: flex; gap: 20px; }
 
+.kanji-mnemonic { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 340px; align-self: center; text-align: left; overflow-y: auto; }
+.kanji-mnemonic__loading, .kanji-mnemonic__error { font-family: var(--font-ui); font-size: 13px; color: var(--fg-tertiary); text-align: center; }
+.kanji-mnemonic__gloss { font-family: var(--font-ui); font-size: 16px; font-weight: 600; }
+.kanji-mnemonic__scene { font-size: 15px; line-height: 1.5; }
+.kanji-mnemonic__hook { font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: 0.02em; padding: 8px 10px; border-radius: var(--radius-lg); background: var(--bg-sunken); }
+.kanji-mnemonic__reading { display: flex; flex-direction: column; gap: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.kanji-mnemonic__hookline { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.kanji-mnemonic__reading-jp { font-size: 18px; }
+.kanji-mnemonic__arrow, .kanji-mnemonic__type { color: var(--fg-tertiary); font-family: var(--font-ui); font-size: 12px; }
+.kanji-mnemonic__sound { font-family: var(--font-ui); font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
+.kanji-mnemonic__sentence { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: var(--radius-lg); background: var(--bg-sunken); }
+.kanji-mnemonic__jp { font-size: 17px; }
+.kanji-mnemonic__en { font-family: var(--font-ui); font-size: 13px; color: var(--fg-tertiary); }
+.kanji-mnemonic__note { font-family: var(--font-ui); font-size: 12px; color: var(--fg-tertiary); }
+.kanji-mnemonic__recap { display: flex; flex-direction: column; gap: 3px; font-family: var(--font-ui); font-size: 12px; color: var(--fg-tertiary); list-style: none; padding: 0; }
+.kanji-mnemonic__retry { align-self: center; font-family: var(--font-ui); font-size: 12px; color: var(--fg-tertiary); padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: none; }
+.kanji-mnemonic__retry:disabled { opacity: 0.5; }
+
 /* In-app dataset credit. */
 .kanji-credit { font-family: var(--font-ui); font-size: 11px; color: var(--fg-tertiary); text-align: center; margin-top: 8px; }
 

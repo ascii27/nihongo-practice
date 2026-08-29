@@ -15,6 +15,7 @@ import {
   buildGrammarLessonPrompt,
   buildGrammarSelectionPrompt,
   buildLessonQuizPrompt,
+  buildKanjiMnemonicPrompt,
   type CardInput,
 } from "./prompt.js";
 import {
@@ -32,6 +33,7 @@ import {
   parseGrammarLesson,
   parseGrammarSelection,
   parseLessonQuiz,
+  parseKanjiMnemonic,
   type VocabItem,
   type SentenceForCard,
   type GrammarItem,
@@ -46,9 +48,10 @@ import {
   type ListeningGenItem,
   type GrammarLesson,
   type GrammarSelection,
+  type KanjiMnemonicRaw,
 } from "./parse.js";
 
-export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ManualGrammarItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection };
+export type { VocabItem, SentenceForCard, GrammarItem, ParticleItem, ConjugationItem, ReadingItem, ManualVocabItem, ManualGrammarItem, ExplainItem, ExplainGradeRaw, ListeningGenItem, CardInput, Usage, GrammarLesson, GrammarSelection, KanjiMnemonicRaw };
 
 const MAX_RETRIES = 2; // total attempts = 1 + MAX_RETRIES = 3
 // Raised from 2000: explain items are token-heavy (~450 tok each), so even a
@@ -515,4 +518,56 @@ export async function generateLessonQuiz(args: {
     system, user, parse: parseLessonQuiz, client, signal: args.signal,
   });
   return { questions: value, usage, raw };
+}
+
+const KANJI_MNEMONIC_FAKE: KanjiMnemonicRaw = {
+  meaning: {
+    gloss: "eat, food",
+    scene: "A person ducks under a roof and inhales a whole bowl of rice.",
+    hook: "person under a roof + rice -> EAT",
+  },
+  readings: [
+    {
+      type: "on",
+      reading: "ショク",
+      sound_hook: "SHOCK",
+      scene: "You take one bite and the flavour is a SHOCK — you eat the whole table.",
+      sentence_japanese: "毎日、食事をします。",
+      sentence_english: "I have meals every day.",
+    },
+    {
+      type: "kun",
+      reading: "た.べる",
+      sound_hook: "TA-BELL",
+      scene: "A dinner BELL rings and everyone runs to eat.",
+      sentence_japanese: "りんごを食べます。",
+      sentence_english: "I eat an apple.",
+    },
+  ],
+  recap: ["ショク -> SHOCK, the flavour", "たべる -> TA-BELL rings, time to eat"],
+};
+
+export async function generateKanjiMnemonic(args: {
+  character: string;
+  meanings: string[];
+  on: string[];
+  kun: string[];
+  client?: ClientLike;
+  signal?: AbortSignal;
+}): Promise<{ mnemonic: KanjiMnemonicRaw; usage: Usage; raw: string }> {
+  if (process.env.NIHONGO_FAKE_AI === "1") {
+    return {
+      mnemonic: KANJI_MNEMONIC_FAKE,
+      usage: { input_tokens: 0, output_tokens: 0 },
+      raw: JSON.stringify(KANJI_MNEMONIC_FAKE),
+    };
+  }
+  const { system, user } = buildKanjiMnemonicPrompt({
+    character: args.character, meanings: args.meanings, on: args.on, kun: args.kun,
+  });
+  const client = (args.client ?? new Anthropic()) as ClientLike;
+  const { value, usage, raw } = await callWithRetry<KanjiMnemonicRaw>({
+    system, user, parse: parseKanjiMnemonic, client, signal: args.signal,
+  });
+  return { mnemonic: value, usage, raw };
 }

@@ -21,6 +21,7 @@ import type {
   ExplainGradeResponse,
   KanjiBrowseResponse,
   KanjiDetail,
+  KanjiMnemonic,
   Skill,
 } from "@nihongo/shared";
 
@@ -155,6 +156,17 @@ export function searchKanji(q?: string, jlpt?: string): Promise<KanjiBrowseRespo
 
 export function fetchKanji(character: string): Promise<KanjiDetail> {
   return api<KanjiDetail>(`/api/kanji/${encodeURIComponent(character)}`);
+}
+
+export function fetchKanjiMnemonic(character: string): Promise<KanjiMnemonic> {
+  return api<KanjiMnemonic>(`/api/kanji/${encodeURIComponent(character)}/mnemonic`);
+}
+
+export function regenerateKanjiMnemonic(character: string): Promise<KanjiMnemonic> {
+  return api<KanjiMnemonic>(
+    `/api/kanji/${encodeURIComponent(character)}/mnemonic/regenerate`,
+    { method: "POST" },
+  );
 }
 
 // ----- Study lists -----
