@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   generateVocabBatch,
   generateSentencesForCards,
+  generateKanjiMnemonic,
   GenerateError,
 } from "./generate.js";
 
@@ -289,11 +290,17 @@ import { generateListeningBatch } from "./generate.js";
 
 describe("generateListeningBatch (fake mode)", () => {
   it("returns a well-formed listening item with zero cost", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
     process.env.NIHONGO_FAKE_AI = "1";
-    const r = await generateListeningBatch({ count: 1 });
-    expect(r.items).toHaveLength(1);
-    expect(r.items[0].questions.length).toBeGreaterThanOrEqual(2);
-    expect(r.usage.output_tokens).toBe(0);
+    try {
+      const r = await generateListeningBatch({ count: 1 });
+      expect(r.items).toHaveLength(1);
+      expect(r.items[0].questions.length).toBeGreaterThanOrEqual(2);
+      expect(r.usage.output_tokens).toBe(0);
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
   });
 });
 
@@ -379,6 +386,42 @@ describe("generateLessonQuiz (fake AI)", () => {
         expect(q.answer_index).toBeLessThanOrEqual(3);
       }
       expect(r.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
+    } finally {
+      if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
+      else process.env.NIHONGO_FAKE_AI = prev;
+    }
+  });
+});
+
+describe("generateKanjiMnemonic", () => {
+  const args = { character: "整", meanings: ["organize"], on: ["セイ"], kun: ["ととの.える"] };
+  const body = {
+    meaning: { gloss: "organize", scene: "A messy bundle beaten into shape.", hook: "messy bundle -> ORGANIZE" },
+    readings: [{
+      type: "on", reading: "セイ", sound_hook: "SAY",
+      scene: "You shout SAY it looks good!",
+      sentence_japanese: "部屋を整理しました。", sentence_english: "I organized the room.",
+    }],
+    recap: ["セイ -> SAY it looks good"],
+  };
+
+  it("returns the parsed mnemonic and the usage", async () => {
+    const { client, create } = fakeClient([{ text: JSON.stringify(body), in: 120, out: 60 }]);
+    const out = await generateKanjiMnemonic({ ...args, client });
+    expect(out.mnemonic.readings[0].sound_hook).toBe("SAY");
+    expect(out.usage).toEqual({ input_tokens: 120, output_tokens: 60 });
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0]![0].messages[0].content).toContain("整");
+  });
+
+  it("returns a deterministic fixture when NIHONGO_FAKE_AI=1", async () => {
+    const prev = process.env.NIHONGO_FAKE_AI;
+    process.env.NIHONGO_FAKE_AI = "1";
+    try {
+      const out = await generateKanjiMnemonic(args);
+      expect(out.mnemonic.readings.length).toBeGreaterThan(0);
+      expect(out.mnemonic.meaning.gloss.length).toBeGreaterThan(0);
+      expect(out.usage).toEqual({ input_tokens: 0, output_tokens: 0 });
     } finally {
       if (prev === undefined) delete process.env.NIHONGO_FAKE_AI;
       else process.env.NIHONGO_FAKE_AI = prev;

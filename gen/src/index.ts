@@ -19,5 +19,6 @@ export {
   generateGrammarLesson,
   generateGrammarSelection,
   generateLessonQuiz,
+  generateKanjiMnemonic,
   GenerateError,
 } from "./generate.js";
