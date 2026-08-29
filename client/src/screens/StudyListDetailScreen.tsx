@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import type { StudyListDetail, LibraryItem, QuickAddStudyItemRequest } from "@nihongo/shared";
+import type { StudyListDetail, LibraryItem, QuickAddStudyItemRequest, Skill } from "@nihongo/shared";
 import {
   fetchStudyList, addStudyItem, removeStudyItem, quickAddStudyItem, previewStudyItem,
   searchStudyCandidates, deleteStudyList,
 } from "../api-hooks";
-import { SKILL_META } from "../lib/skills";
-import { IconClose } from "../components/icons";
+import { SKILL_ORDER, SKILL_META } from "../lib/skills";
+import { IconClose, IconChevron } from "../components/icons";
+import { ItemDetailSheet } from "../components/ItemDetailSheet";
 
 type Props = {
   listId: string;
@@ -17,9 +18,18 @@ type Props = {
 type AddMode = "search" | "quick";
 type QuickKind = "vocab" | "kanji" | "grammar";
 
+// A long list is unreadable as one column, so members are grouped by skill
+// (the Today screen's pattern) and each type opens its own page of cards.
+const PAGE_SIZE = 20;
+
 export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Props) {
   const [detail, setDetail] = useState<StudyListDetail | null>(null);
   const [addMode, setAddMode] = useState<AddMode>("search");
+  // Which skill's cards are open, and where in them. `null` = the section list.
+  const [openSkill, setOpenSkill] = useState<Skill | null>(null);
+  const [page, setPage] = useState(0);
+  // The card whose detail sheet is open, by item id.
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   async function refresh() {
     setDetail(await fetchStudyList(listId));
@@ -28,6 +38,7 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
 
   async function onRemove(itemId: string) {
     await removeStudyItem(listId, itemId);
+    if (openItemId === itemId) setOpenItemId(null);
     await refresh();
   }
 
@@ -36,9 +47,16 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
     onDeleted();
   }
 
+  // Back pops one level: card → type → section list → the lists screen.
+  function goBack() {
+    if (openSkill) { setOpenSkill(null); setPage(0); return; }
+    onBack();
+  }
+
   const header = (title: string) => (
     <div className="study-detail__bar">
-      <button type="button" className="practice-bar__close" onClick={onBack} aria-label="Back to lists">
+      <button type="button" className="practice-bar__close" onClick={goBack}
+              aria-label={openSkill ? "Back to card types" : "Back to lists"}>
         <IconClose />
       </button>
       <h1 className="study-detail__bar-title">{title}</h1>
@@ -55,6 +73,60 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
     );
   }
 
+  const sheet = openItemId ? (
+    <ItemDetailSheet
+      itemId={openItemId}
+      onClose={() => setOpenItemId(null)}
+      onRemove={() => { void onRemove(openItemId); }}
+    />
+  ) : null;
+
+  // One card type, paginated. Clamped so removing the last card on a page
+  // lands on the new last page instead of an empty one.
+  if (openSkill) {
+    const items = detail.items.filter((it) => it.skill === openSkill);
+    const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+    const current = Math.min(page, pageCount - 1);
+    const start = current * PAGE_SIZE;
+    const shown = items.slice(start, start + PAGE_SIZE);
+    const meta = SKILL_META[openSkill];
+
+    return (
+      <main className="screen study-detail">
+        {header(meta.label)}
+        <p className="study-detail__type-count">
+          {items.length} card{items.length === 1 ? "" : "s"}
+          {pageCount > 1 && <> · showing {start + 1}–{start + shown.length}</>}
+        </p>
+
+        <ul className="study-detail__items">
+          {shown.map((it) => (
+            <MemberRow key={it.id} item={it} onOpen={() => setOpenItemId(it.id)} onRemove={() => onRemove(it.id)} />
+          ))}
+          {items.length === 0 && <li className="muted study__empty">No {meta.label.toLowerCase()} cards left in this list.</li>}
+        </ul>
+
+        {pageCount > 1 && (
+          <nav className="study-detail__pager" aria-label="Pages">
+            <button type="button" className="cta" disabled={current === 0} onClick={() => setPage(current - 1)}>
+              Previous
+            </button>
+            <span className="study-detail__pager-label">Page {current + 1} of {pageCount}</span>
+            <button type="button" className="cta" disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)}>
+              Next
+            </button>
+          </nav>
+        )}
+        {sheet}
+      </main>
+    );
+  }
+
+  // Section list: one row per card type present, in the Today screen's order.
+  const sections = SKILL_ORDER
+    .map((skill) => ({ skill, count: detail.items.filter((it) => it.skill === skill).length }))
+    .filter((sec) => sec.count > 0);
+
   return (
     <main className="screen study-detail">
       {header(detail.title)}
@@ -66,12 +138,31 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
         </button>
       </div>
 
-      <ul className="study-detail__items">
-        {detail.items.map((it) => (
-          <MemberRow key={it.id} item={it} onRemove={() => onRemove(it.id)} />
-        ))}
-        {detail.items.length === 0 && <li className="muted study__empty">No cards yet — add some below.</li>}
-      </ul>
+      {sections.length > 0 && (
+        <>
+          <h2 className="today__section-title study-detail__section-title">Cards</h2>
+          <div className="today__skill-list study-detail__sections">
+            {sections.map(({ skill, count }) => {
+              const meta = SKILL_META[skill];
+              return (
+                <button key={skill} type="button" className="today__skill-row"
+                        onClick={() => { setOpenSkill(skill); setPage(0); }}>
+                  <span className="today__skill-glyph">{meta.short}</span>
+                  <span className="today__skill-meta">
+                    <span className="today__skill-name">{meta.label}</span>
+                    {/* The numeral on the right already counts the cards, so
+                        the sub-line carries the skill's Japanese name. */}
+                    <span className="today__skill-counts jp">{meta.ja}</span>
+                  </span>
+                  <span className="today__skill-num">{count}</span>
+                  <span className="today__skill-chev"><IconChevron /></span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+      {detail.items.length === 0 && <p className="muted study__empty">No cards yet — add some below.</p>}
 
       <section className="study-add">
         <div className="lessons__mode-toggle" role="tablist" aria-label="Add cards">
@@ -96,19 +187,24 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
         Delete this list
       </button>
       <p className="kanji-credit">Kanji data: KanjiVG (CC BY-SA 3.0) · KANJIDIC2 (EDRDG)</p>
+      {sheet}
     </main>
   );
 }
 
-function MemberRow({ item, onRemove }: { item: LibraryItem; onRemove: () => void }) {
+// The row itself opens the card; the × stays a separate button beside it, so a
+// tap that means "remove" can never be read as "open".
+function MemberRow({ item, onOpen, onRemove }: { item: LibraryItem; onOpen: () => void; onRemove: () => void }) {
   const meta = SKILL_META[item.skill];
   return (
     <li className="study-item">
-      <span className="study-item__chip">{meta?.short ?? "?"}</span>
-      <span className="study-item__body">
-        <span className="study-item__front">{item.front}</span>
-        <span className="study-item__meaning">{item.meaning}</span>
-      </span>
+      <button type="button" className="study-item__open" onClick={onOpen}>
+        <span className="study-item__chip">{meta?.short ?? "?"}</span>
+        <span className="study-item__body">
+          <span className="study-item__front">{item.front}</span>
+          <span className="study-item__meaning">{item.meaning}</span>
+        </span>
+      </button>
       <button type="button" className="study-item__remove" onClick={onRemove} aria-label="Remove card">
         <IconClose />
       </button>
@@ -179,6 +275,9 @@ function QuickAdd({ listId, onChanged }: { listId: string; onChanged: () => Prom
   const [fields, setFields] = useState<EditFields>({});
   const [readings, setReadings] = useState("");   // kanji only, display-only
   const [error, setError] = useState<string | null>(null);
+  // Members are grouped by type, so a new card doesn't appear beneath this
+  // form any more. Name what was added instead of adding it silently.
+  const [added, setAdded] = useState<string | null>(null);
 
   function restart() {
     setPhase("input");
@@ -198,6 +297,7 @@ function QuickAdd({ listId, onChanged }: { listId: string; onChanged: () => Prom
     if (!input.trim()) return;
     setPhase("loading");
     setError(null);
+    setAdded(null);
     try {
       const p = await previewStudyItem({ kind, input: input.trim() });
       if (p.kind === "vocab") {
@@ -229,7 +329,9 @@ function QuickAdd({ listId, onChanged }: { listId: string; onChanged: () => Prom
         body = { kind, character: f("character"), meaning: f("meaning") };
       }
       await quickAddStudyItem(listId, body);
+      const label = kind === "vocab" ? f("japanese") : kind === "grammar" ? f("pattern") : f("character");
       restart();
+      setAdded(label);
       await onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "save failed");
@@ -294,6 +396,7 @@ function QuickAdd({ listId, onChanged }: { listId: string; onChanged: () => Prom
       {kinds}
       <input className="settings__input" placeholder={KIND_INPUT[kind].placeholder} value={input}
              onChange={(e) => setInput(e.target.value)} maxLength={200} disabled={phase === "loading"} />
+      {added && <p className="study-quick__note" role="status">Added {added} — it's under {SKILL_META[kind].label} above.</p>}
       {error && <p className="muted" role="alert" style={{ color: "var(--error)" }}>{error}</p>}
       <button type="submit" className="cta cta--primary cta--block" disabled={phase === "loading" || !input.trim()}>
         {phase === "loading" ? "Generating…" : "Generate"}

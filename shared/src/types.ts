@@ -461,6 +461,35 @@ export const LibraryResponse = z.object({
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
+// ----- API: items/:id (card detail) -----
+//
+// One card, opened from a list row. Carries the raw prompt/answer JSON so the
+// client can render the whole card per skill (example sentence, options,
+// passage…), the same derived display fields Browse uses, and the card's
+// spaced-repetition state so the learner can see how well it has stuck.
+
+export const ItemDetailResponse = z.object({
+  id: z.string().uuid(),
+  skill: Skill,
+  prompt: z.unknown(),
+  answer: z.unknown(),
+  source: Source,
+  tags: z.array(z.string()),
+  created_at: z.string(),                        // ISO
+  // Display fields — identical derivation to LibraryItem.
+  front: z.string(),
+  reading: z.string().nullable(),
+  meaning: z.string(),
+  mastery: z.number().min(0).max(1),
+  // Review state. Null/zero for a card that has never been studied.
+  box: z.number().int().min(1).max(5).nullable(),
+  next_review_at: z.string().nullable(),         // ISO
+  last_reviewed_at: z.string().nullable(),       // ISO
+  total_reviews: z.number().int().nonnegative(),
+  total_missed: z.number().int().nonnegative(),
+});
+export type ItemDetailResponse = z.infer<typeof ItemDetailResponse>;
+
 // ----- API: items/manual (user-added vocab) -----
 //
 // Two-step flow:

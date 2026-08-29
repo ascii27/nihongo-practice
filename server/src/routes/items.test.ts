@@ -104,3 +104,86 @@ describe("POST /api/items/manual", () => {
     expect(rs.rows[0].c).toBe(0);
   });
 });
+
+describe("GET /api/items/:id", () => {
+  async function insertItem(skill: string, prompt: object, answer: object): Promise<string> {
+    const r = await pool.query(
+      `INSERT INTO items (skill, prompt, answer, source, external_id)
+       VALUES ($1, $2, $3, 'seed', $4) RETURNING id`,
+      [skill, JSON.stringify(prompt), JSON.stringify(answer), `e-${Math.random()}`],
+    );
+    return r.rows[0].id;
+  }
+
+  it("requires passcode", async () => {
+    const id = await insertItem("vocab", { target: "猫" }, { meaning: "cat", reading: "ねこ" });
+    const res = await request(app).get(`/api/items/${id}`);
+    expect(res.status).toBe(401);
+  });
+
+  it("404s for an unknown id", async () => {
+    const res = await request(app)
+      .get("/api/items/00000000-0000-0000-0000-000000000000")
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(404);
+  });
+
+  it("404s for a non-uuid id instead of erroring on the cast", async () => {
+    const res = await request(app).get("/api/items/not-a-uuid").set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(404);
+  });
+
+  it("returns the raw card plus Browse's display fields", async () => {
+    const id = await insertItem(
+      "vocab",
+      { sentence_ruby: "猫が好きです。", target: "猫", sentence_english: "I like cats." },
+      { meaning: "cat", reading: "ねこ" },
+    );
+    const res = await request(app).get(`/api/items/${id}`).set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id,
+      skill: "vocab",
+      front: "猫",
+      reading: "ねこ",
+      meaning: "cat",
+      source: "seed",
+    });
+    // The whole card, so the client can render both faces per skill.
+    expect(res.body.prompt.sentence_english).toBe("I like cats.");
+    expect(res.body.answer.meaning).toBe("cat");
+  });
+
+  it("reports an unstudied card as box null with zero counts", async () => {
+    const id = await insertItem("vocab", { target: "水" }, { meaning: "water", reading: "みず" });
+    const res = await request(app).get(`/api/items/${id}`).set("X-Passcode", PASSCODE);
+    expect(res.body).toMatchObject({
+      box: null,
+      mastery: 0,
+      total_reviews: 0,
+      total_missed: 0,
+      next_review_at: null,
+      last_reviewed_at: null,
+    });
+  });
+
+  it("carries the card's Leitner state once it has been studied", async () => {
+    const id = await insertItem("kanji", { character: "水" }, { meanings: ["water"], on: ["スイ"], kun: ["みず"], stroke_count: 4 });
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, last_reviewed_at, total_reviews, total_missed)
+       VALUES ($1, 4, now(), now(), 7, 2)`,
+      [id],
+    );
+    const res = await request(app).get(`/api/items/${id}`).set("X-Passcode", PASSCODE);
+    expect(res.body).toMatchObject({
+      skill: "kanji",
+      front: "水",
+      box: 4,
+      total_reviews: 7,
+      total_missed: 2,
+    });
+    expect(res.body.mastery).toBeCloseTo(0.8, 5);
+    expect(typeof res.body.next_review_at).toBe("string");
+    expect(typeof res.body.last_reviewed_at).toBe("string");
+  });
+});
