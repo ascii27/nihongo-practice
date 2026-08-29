@@ -12,11 +12,12 @@ type Props = {
 
 type Mode = "recognize" | "draw" | "mnemonic";
 
-// A kanji card with two practice modes over the same review:
+// A kanji card with three practice modes over the same review:
 //   Recognize — tap-to-flip flashcard (glyph → meaning + on/kun readings)
 //   Draw      — trace the glyph with stroke-order help, then self-grade
-// Both grade through the same onAnswer, so kanji advance the Leitner box like
-// any other skill.
+//   Mnemonic  — memory aid for the glyph and its readings; not graded
+// Recognize and Draw both grade through the same onAnswer, so kanji advance
+// the Leitner box like any other skill.
 export function KanjiCard({ item, onAnswer }: Props) {
   const [mode, setMode] = useState<Mode>("recognize");
   const [flipped, setFlipped] = useState(false);
