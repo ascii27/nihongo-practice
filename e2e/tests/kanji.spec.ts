@@ -30,3 +30,28 @@ test("kanji: recognize flip, draw stroke order, then self-grade", async ({ page 
   await page.getByRole("button", { name: /Got it/i }).click();
   await expect(page.locator(POST_GRADE).first()).toBeVisible();
 });
+
+test("kanji: the mnemonic tab writes and shows a memory aid", async ({ page }) => {
+  await login(page);
+  await practiceSkill(page, "kanji");
+
+  await page.getByRole("tab", { name: "Mnemonic" }).click();
+
+  // Meaning scene + the replay hook.
+  await expect(page.locator(".kanji-mnemonic__gloss")).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".kanji-mnemonic__hook")).toBeVisible();
+
+  // Per-reading: sound hook and a ruby-annotated example sentence.
+  await expect(page.locator(".kanji-mnemonic__sound").first()).toBeVisible();
+  await expect(page.locator(".kanji-mnemonic__jp ruby").first()).toBeVisible();
+  await expect(page.locator(".kanji-mnemonic__en").first()).toBeVisible();
+
+  // Swiping must not grade from this tab: the card is still here afterwards.
+  await expect(page.locator(".kanji-mnemonic")).toBeVisible();
+
+  // Back to Recognize, and normal grading still works.
+  await page.getByRole("tab", { name: "Recognize" }).click();
+  await page.getByRole("button", { name: /Tap to reveal/i }).click();
+  await page.getByRole("button", { name: /Got it/i }).click();
+  await expect(page.locator(POST_GRADE).first()).toBeVisible();
+});
