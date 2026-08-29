@@ -31,8 +31,8 @@ export function KanjiMnemonicCard({ character }: Props) {
     setError(null);
     try {
       setMnemonic(await regenerateKanjiMnemonic(character));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "could not write another");
+    } catch {
+      setError("Couldn’t write one — try again.");
     } finally {
       setBusy(false);
     }
