@@ -61,7 +61,7 @@ No change is needed to `server/src/db/reset.ts` or `e2e/tests/fixtures/seed-test
 
 - [ ] **Step 2: Apply the migration**
 
-Run: `npm run migrate`
+Run: `npm run db:migrate`
 
 Expected: the runner reports the new migration applied.
 
