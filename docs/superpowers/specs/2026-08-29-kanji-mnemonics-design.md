@@ -141,8 +141,12 @@ rolled parsers: meaning fields present and non-empty, `readings` a non-empty
 array, each reading with a valid `type` and non-empty `reading` / `sound_hook`
 / `scene` / sentence pair. Over-long `readings` arrays are truncated to 4
 rather than rejected — a model that offers five good readings should not fail
-the whole call. Anything genuinely malformed throws, and the existing retry in
-`callAndParse` handles it.
+the whole call. `recap` is optional in the response and defaults to `[]`; it is
+a convenience restatement of content already carried by the readings, so a
+model that omits it has not failed. `character` is not read from the response
+at all — the server sets it from the character it asked about, so a model that
+echoes the wrong glyph cannot poison the cache key. Anything genuinely
+malformed throws, and the existing retry in `callAndParse` handles it.
 
 ### `generate.ts` — `generateKanjiMnemonic`
 
@@ -183,10 +187,9 @@ GET  /api/kanji/:character/mnemonic            → KanjiMnemonic | 404
 POST /api/kanji/:character/mnemonic/regenerate → KanjiMnemonic | 404
 ```
 
-Both sit behind the existing passcode auth on `/api`. The `:character/mnemonic`
-route must be registered before the existing `/:character` handler is reached —
-Express matches in order, and `/:character` would otherwise swallow nothing
-here, but keeping the more specific route first is the safer habit.
+Both sit behind the existing passcode auth on `/api`. `/:character` matches a
+single path segment, so it does not collide with `/:character/mnemonic`; the
+two-segment routes are still declared first, as the more specific ones.
 
 Generation failure returns 502 with a `MNEMONIC_FAILED` code so the client can
 say "couldn't write one — try again" rather than showing an empty tab.
@@ -242,7 +245,8 @@ glyph; the recap is the quietest.
 **`gen`** — a prompt-builder test asserting the character, meanings and reading
 lists reach the user message; parse tests for a valid object, a fenced object,
 missing meaning fields, an empty `readings` array, a reading missing its
-sentence, and a five-reading response truncating to four.
+sentence, a five-reading response truncating to four, and a response with no
+`recap` defaulting to an empty list.
 
 **`server`** — service tests against a stubbed generate client: cache hit does
 not call the model; cache miss generates, ruby-annotates and stores; a second
