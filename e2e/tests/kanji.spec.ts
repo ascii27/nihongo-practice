@@ -46,8 +46,29 @@ test("kanji: the mnemonic tab writes and shows a memory aid", async ({ page }) =
   await expect(page.locator(".kanji-mnemonic__jp ruby").first()).toBeVisible();
   await expect(page.locator(".kanji-mnemonic__en").first()).toBeVisible();
 
-  // Swiping must not grade from this tab: the card is still here afterwards.
+  // Swiping must not grade from this tab: drag well past the grade
+  // threshold (right = "got it") and confirm the mnemonic panel is still
+  // mounted and the session did not advance. The fixture seeds exactly one
+  // kanji item, so a real grade would jump straight to the summary screen.
+  const card = page.locator(".swipe-card");
+  const box = await card.boundingBox();
+  if (!box) throw new Error("swipe card not found");
+  const startX = box.x + box.width / 2;
+  const startY = box.y + box.height / 2;
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) {
+    await page.mouse.move(startX + i * 25, startY);
+  }
+  await page.mouse.up();
+
+  // SwipeDeck's exit animation (and the onSwipe it fires) is delayed 220ms;
+  // wait past that before asserting nothing changed, or a real grade could
+  // still be in flight when we check.
+  await page.waitForTimeout(400);
+
   await expect(page.locator(".kanji-mnemonic")).toBeVisible();
+  await expect(page.locator(".summary__title")).toHaveCount(0);
 
   // Back to Recognize, and normal grading still works.
   await page.getByRole("tab", { name: "Recognize" }).click();
