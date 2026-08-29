@@ -518,7 +518,7 @@ export async function generateKanjiMnemonic(args: {
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `gen/src/generate.test.ts`. Add `generateKanjiMnemonic` to the import from `./generate.js`. Match the fake-client style already used in that file — read the top of it first and reuse the existing stub helper if one exists; otherwise use this:
+Append to `gen/src/generate.test.ts`. Add `generateKanjiMnemonic` to the import from `./generate.js`. The file already defines a `fakeClient(responses)` helper at the top (`generate.test.ts:8-17`) returning `{ client, create }` — reuse it rather than writing another:
 
 ```ts
 describe("generateKanjiMnemonic", () => {
@@ -533,21 +533,13 @@ describe("generateKanjiMnemonic", () => {
     recap: ["セイ -> SAY it looks good"],
   };
 
-  function fakeClient(text: string) {
-    return {
-      messages: {
-        create: async () => ({
-          content: [{ type: "text", text }],
-          usage: { input_tokens: 10, output_tokens: 20 },
-        }),
-      },
-    };
-  }
-
   it("returns the parsed mnemonic and the usage", async () => {
-    const out = await generateKanjiMnemonic({ ...args, client: fakeClient(JSON.stringify(body)) });
+    const { client, create } = fakeClient([{ text: JSON.stringify(body), in: 120, out: 60 }]);
+    const out = await generateKanjiMnemonic({ ...args, client });
     expect(out.mnemonic.readings[0].sound_hook).toBe("SAY");
-    expect(out.usage).toEqual({ input_tokens: 10, output_tokens: 20 });
+    expect(out.usage).toEqual({ input_tokens: 120, output_tokens: 60 });
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0]![0].messages[0].content).toContain("整");
   });
 
   it("returns a deterministic fixture when NIHONGO_FAKE_AI=1", async () => {
@@ -1037,7 +1029,7 @@ export function regenerateKanjiMnemonic(character: string): Promise<KanjiMnemoni
 }
 ```
 
-Check the `api()` signature at the top of the file before writing the POST call and match it — if it takes `(path, init?)` the above is right; if the codebase has a separate `post()` helper, use that instead and keep the return type.
+`api` is imported from `./api` and is `api<T>(path: string, init: RequestInit = {})` (`client/src/api.ts:12`), so passing `{ method: "POST" }` as the second argument is correct — it attaches the passcode header and throws on a non-2xx response.
 
 - [ ] **Step 2: Verify the client type-checks**
 
@@ -1061,7 +1053,7 @@ git commit -m "feat(kanji-mnemonics): client api helpers"
 - Modify: `client/src/styles/screens.css` (after the `.kanji-draw__*` rules, around line 818)
 
 **Interfaces:**
-- Consumes: `fetchKanjiMnemonic`, `regenerateKanjiMnemonic` (Task 8); `KanjiMnemonic` type (Task 2); the existing `RubyText` component (`client/src/components/RubyText.tsx`), which takes `{ html, className? }` — open it and match its actual prop names before wiring.
+- Consumes: `fetchKanjiMnemonic`, `regenerateKanjiMnemonic` (Task 8); `KanjiMnemonic` type (Task 2); the existing `RubyText` component, which takes `{ html: string; className?: string }` and sanitizes the markup through `sanitizeRuby` before setting it (`client/src/components/RubyText.tsx:8-10`).
 - Produces: `export function KanjiMnemonicCard({ character }: { character: string })`, used by Task 10.
 
 - [ ] **Step 1: Write the component**
@@ -1170,7 +1162,7 @@ export function KanjiMnemonicCard({ character }: Props) {
 
 - [ ] **Step 2: Add the styles**
 
-Append to `client/src/styles/screens.css`, after the `.kanji-draw__*` rules. Match the file's existing single-line rule style and use only tokens already defined there (`--fg-tertiary`, `--border`, `--bg-sunken`, `--radius-lg`, `--font-ui`, `--accent`); check the token names in the file before writing and substitute the real ones if any differ.
+Append to `client/src/styles/screens.css`, after the `.kanji-draw__*` rules (around line 818), matching that file's single-line rule style. Every token used below is already defined in `client/src/styles/tokens.css`: `--bg-sunken` (63), `--border` (64), `--fg-tertiary` (68), `--accent` (69), `--font-ui` (108), `--radius-lg` (126).
 
 ```css
 .kanji-mnemonic { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 340px; align-self: center; text-align: left; overflow-y: auto; }
@@ -1196,7 +1188,7 @@ Append to `client/src/styles/screens.css`, after the `.kanji-draw__*` rules. Mat
 
 Run: `npm --workspace client run build`
 
-Expected: exits 0. If `RubyText` takes different prop names, fix the call site now.
+Expected: exits 0.
 
 - [ ] **Step 4: Commit**
 
@@ -1314,7 +1306,7 @@ Start the stack the way the repo normally does for e2e (see `README.md` / `.gith
 
 Run: `npm --workspace e2e test -- kanji.spec.ts`
 
-Expected: the new test FAILS if run before Tasks 9–10 land; after them it passes. If you are running the whole plan in order, expect PASS here and confirm the assertions are real by temporarily renaming the tab label and watching it fail.
+Expected: PASS, since Tasks 9–10 have already landed. Confirm the assertions are real rather than vacuous: temporarily change the tab label in `KanjiCard.tsx` to `Mnemonics`, re-run, watch this test fail on the missing tab, then change it back.
 
 - [ ] **Step 3: Verify the mnemonic was actually persisted**
 
