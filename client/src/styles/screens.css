@@ -867,10 +867,25 @@
 .study-detail__items { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0; }
 .study-detail__delete { margin: 20px auto 0; display: block; color: var(--fg-tertiary); }
 
-/* A single card row (member or search result) */
-.study-item { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
-.study-item__chip { font-family: var(--font-jp); font-size: 16px; width: 32px; height: 32px; display: grid; place-items: center; color: var(--accent); background: var(--accent-muted); border-radius: 999px; }
-.study-item__body { display: flex; flex-direction: column; min-width: 0; }
+/* Members grouped by card type — the Today screen's skill rows, inset to match
+   this screen rather than the dashboard. */
+.study-detail__section-title { margin: 22px 4px 8px; }
+.study-detail__sections { margin: 0; }
+.study-detail__type-count { font-size: 12px; color: var(--fg-tertiary); margin: 4px 4px 0; }
+
+/* Pager for one card type. Hidden entirely when everything fits on one page. */
+.study-detail__pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
+.study-detail__pager .cta { padding: 8px 16px; font-size: 13px; }
+.study-detail__pager-label { font-family: var(--font-mono); font-size: 12px; color: var(--fg-secondary); }
+
+/* A single card row (member or search result). Members wrap the chip + text in
+   a button that opens the card; the trailing action (remove / add) stays its
+   own control beside it. */
+.study-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.study-item__open { flex: 1; display: flex; align-items: center; gap: 12px; min-width: 0; padding: 0; background: none; text-align: left; }
+.study-item__open:active { opacity: 0.6; }
+.study-item__chip { flex-shrink: 0; font-family: var(--font-jp); font-size: 16px; width: 32px; height: 32px; display: grid; place-items: center; color: var(--accent); background: var(--accent-muted); border-radius: 999px; }
+.study-item__body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .study-item__front { font-family: var(--font-jp); font-size: 17px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .study-item__meaning { font-size: 12px; color: var(--fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .study-item__remove { color: var(--fg-tertiary); background: none; padding: 4px; }
@@ -893,3 +908,59 @@
 .study-detail__bar-spacer { width: 32px; flex-shrink: 0; }
 
 .study-quick__note { font-size: 12px; color: var(--fg-tertiary); margin: 2px 0; }
+
+/* ===== Card detail sheet ================================================= */
+/* A bottom sheet over the current screen: read-only look at one card, opened
+   by tapping a row. Backdrop click, the X, and Esc all close it. */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  animation: fade-in var(--duration-fast) var(--ease-out);
+  overscroll-behavior: contain;
+}
+.sheet__panel {
+  width: 100%;
+  max-width: 560px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 8px 20px calc(24px + env(safe-area-inset-bottom));
+  animation: sheet-up var(--duration-normal) var(--ease-out);
+}
+@keyframes sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.sheet__bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 0 8px; }
+.sheet__kicker { font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--fg-tertiary); }
+
+.item-detail__front { font-family: var(--font-jp); font-size: 28px; line-height: 1.35; color: var(--fg); margin: 2px 0 0; }
+.item-detail__reading { font-family: var(--font-jp); font-size: 14px; color: var(--accent); margin: 4px 0 0; }
+.item-detail__meaning { font-size: 14px; color: var(--fg-secondary); margin: 6px 0 0; }
+
+.item-detail__fields { display: flex; flex-direction: column; gap: 14px; margin-top: 18px; }
+.item-detail__field { display: flex; flex-direction: column; gap: 4px; }
+.item-detail__field-label { font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-tertiary); }
+.item-detail__field-body { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--fg); }
+.item-detail__jp { font-family: var(--font-jp); font-size: 17px; line-height: 1.9; }
+.item-detail__jp.is-passage { font-size: 15px; }
+.item-detail__q { font-size: 14px; color: var(--fg); }
+.item-detail__options { display: flex; flex-wrap: wrap; gap: 6px; }
+.item-detail__option { font-family: var(--font-jp); font-size: 14px; padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--fg-secondary); }
+.item-detail__option.is-correct { border-color: var(--success); background: var(--success-muted); color: var(--success); }
+.item-detail__audio { width: 100%; }
+
+.item-detail__progress { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
+.item-detail__progress-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.item-detail__progress-pct { font-family: var(--font-mono); font-size: 13px; color: var(--fg-secondary); }
+.item-detail__bar { width: 100%; height: 6px; background: var(--bg-sunken); border-radius: 999px; overflow: hidden; }
+.item-detail__bar-fill { height: 100%; border-radius: 999px; background: var(--accent); }
+.item-detail__stats { font-size: 12px; color: var(--fg-secondary); margin: 8px 0 0; }
+.item-detail__remove { margin: 18px auto 0; display: block; color: var(--fg-tertiary); }

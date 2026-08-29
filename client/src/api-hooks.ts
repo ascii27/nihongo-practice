@@ -22,6 +22,7 @@ import type {
   KanjiBrowseResponse,
   KanjiDetail,
   KanjiMnemonic,
+  ItemDetailResponse,
   Skill,
 } from "@nihongo/shared";
 
@@ -143,6 +144,12 @@ export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGra
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+// One card in full — raw prompt/answer plus display fields and review state.
+// Backs the card-detail sheet opened from a study list row.
+export function fetchItem(id: string): Promise<ItemDetailResponse> {
+  return api<ItemDetailResponse>(`/api/items/${encodeURIComponent(id)}`);
 }
 
 // ----- Kanji -----
