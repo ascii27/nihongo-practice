@@ -1,8 +1,8 @@
-export const MODEL = "claude-sonnet-4-6";
+export const MODEL = "claude-sonnet-5";
 
-// Pricing per 1M tokens (sonnet 4.6, USD).
-export const INPUT_PER_MTOK = 3.0;
-export const OUTPUT_PER_MTOK = 15.0;
+// Pricing per 1M tokens (sonnet 5, USD).
+export const INPUT_PER_MTOK = 2.0;
+export const OUTPUT_PER_MTOK = 10.0;
 
 export type Usage = { input_tokens: number; output_tokens: number };
 
