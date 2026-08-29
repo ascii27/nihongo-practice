@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ItemRecord, ReviewResult, KanjiPrompt, KanjiAnswer } from "@nihongo/shared";
 import { SwipeDeck } from "./SwipeDeck";
 import { KanjiDrawCard } from "./KanjiDrawCard";
+import { KanjiMnemonicCard } from "./KanjiMnemonicCard";
 import { SKILL_META } from "../lib/skills";
 
 type Props = {
@@ -9,7 +10,7 @@ type Props = {
   onAnswer: (result: ReviewResult) => void;
 };
 
-type Mode = "recognize" | "draw";
+type Mode = "recognize" | "draw" | "mnemonic";
 
 // A kanji card with two practice modes over the same review:
 //   Recognize — tap-to-flip flashcard (glyph → meaning + on/kun readings)
@@ -45,6 +46,15 @@ export function KanjiCard({ item, onAnswer }: Props) {
         onClick={() => setMode("draw")}
       >
         Draw
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={mode === "mnemonic"}
+        className={`kanji-mode__btn ${mode === "mnemonic" ? "is-active" : ""}`}
+        onClick={() => setMode("mnemonic")}
+      >
+        Mnemonic
       </button>
     </div>
   );
@@ -82,13 +92,15 @@ export function KanjiCard({ item, onAnswer }: Props) {
               </button>
             )}
           </div>
-        ) : (
+        ) : mode === "draw" ? (
           <KanjiDrawCard
             character={p.character}
             meaning={meaning}
             reading={readings || null}
             onAnswer={onAnswer}
           />
+        ) : (
+          <KanjiMnemonicCard character={p.character} />
         )}
       </div>
     </SwipeDeck>
