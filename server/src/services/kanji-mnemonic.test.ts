@@ -29,8 +29,8 @@ describe("getKanjiMnemonic", () => {
 
     expect(m.character).toBe("食");
     expect(m.readings.length).toBeGreaterThan(0);
-    expect(m.readings[0].sentence.jp_ruby).toContain("<ruby>");
-    expect(m.readings[0].sentence.jp_ruby).toContain("<rt>");
+    expect(m.readings[0]!.sentence.jp_ruby).toContain("<ruby>");
+    expect(m.readings[0]!.sentence.jp_ruby).toContain("<rt>");
 
     const row = await pool.query(`SELECT content, model, cost_usd FROM kanji_mnemonics WHERE character = '食'`);
     expect(row.rowCount).toBe(1);
