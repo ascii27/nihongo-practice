@@ -79,3 +79,29 @@ test("study: a long list groups by type, paginates, and opens a card", async ({ 
   await page.getByRole("button", { name: "Back to card types" }).click();
   await expect(page.getByRole("button", { name: /Kanji/ })).toBeVisible();
 });
+
+test("study: deleting a list takes a second, deliberate confirmation", async ({ page }) => {
+  await login(page);
+
+  await page.getByRole("button", { name: "Study", exact: true }).click();
+  await page.getByRole("button", { name: /Long list/ }).click();
+  await expect(page.getByRole("heading", { name: "Long list" })).toBeVisible();
+
+  // The link alone doesn't delete anything — it asks first.
+  await page.getByRole("button", { name: "Delete this list" }).click();
+  const confirm = page.getByRole("dialog", { name: "Delete this list" });
+  await expect(confirm).toBeVisible();
+  await expect(confirm.getByText(/26 cards/)).toBeVisible();
+
+  // Backing out leaves the list alone.
+  await confirm.getByRole("button", { name: "Keep list" }).click();
+  await expect(confirm).toBeHidden();
+  await expect(page.getByRole("heading", { name: "Long list" })).toBeVisible();
+
+  // Confirming deletes it and returns to the lists screen.
+  await page.getByRole("button", { name: "Delete this list" }).click();
+  await page.getByRole("dialog", { name: "Delete this list" })
+    .getByRole("button", { name: "Delete forever" }).click();
+  await expect(page.getByRole("heading", { name: "Study" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Long list/ })).toBeHidden();
+});
