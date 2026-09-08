@@ -873,6 +873,31 @@
 .study-detail__sections { margin: 0; }
 .study-detail__type-count { font-size: 12px; color: var(--fg-tertiary); margin: 4px 4px 0; }
 
+/* One card type, sized to the viewport. The screen itself stops scrolling and
+   the row list becomes the only scroller, which keeps the count line at the top
+   and the pager on screen at the bottom no matter how long the page is. The tab
+   bar is hidden on this route, so .screen's tab-bar allowance goes too. */
+.study-detail--paged {
+  /* `flex: none` matters: .screen is `flex: 1`, whose flex-basis would win over
+     `height` on the main axis and let the screen grow past the viewport. */
+  flex: none;
+  height: calc(100dvh - env(safe-area-inset-top));
+  overflow: hidden;
+  padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
+}
+.study-detail--paged .study-detail__bar,
+.study-detail--paged .study-detail__type-count,
+.study-detail--paged .study-detail__pager { flex-shrink: 0; }
+.study-detail--paged .study-detail__items {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.study-detail--paged .study-detail__items::-webkit-scrollbar { display: none; }
+
 /* Pager for one card type. Hidden entirely when everything fits on one page. */
 .study-detail__pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
 .study-detail__pager .cta { padding: 8px 16px; font-size: 13px; }
