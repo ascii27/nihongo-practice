@@ -957,6 +957,12 @@
 .item-detail__option.is-correct { border-color: var(--success); background: var(--success-muted); color: var(--success); }
 .item-detail__audio { width: 100%; }
 
+/* The kanji memory aid inside the card sheet. The mnemonic's own blocks carry
+   their styling from .kanji-mnemonic; this only sets it off from the fields
+   above it. */
+.item-detail__mnemonic { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
+.item-detail__mnemonic-empty { font-size: 13px; color: var(--fg-secondary); margin: 0; }
+
 .item-detail__progress { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
 .item-detail__progress-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
 .item-detail__progress-pct { font-family: var(--font-mono); font-size: 13px; color: var(--fg-secondary); }

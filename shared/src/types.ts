@@ -342,6 +342,13 @@ export const KanjiMnemonic = z.object({
 });
 export type KanjiMnemonic = z.infer<typeof KanjiMnemonic>;
 
+// A cached-only lookup: `null` means nothing has been written for this kanji
+// yet, which the card view uses to offer generation instead of spending on it.
+export const KanjiMnemonicLookupResponse = z.object({
+  mnemonic: KanjiMnemonic.nullable(),
+});
+export type KanjiMnemonicLookupResponse = z.infer<typeof KanjiMnemonicLookupResponse>;
+
 // ----- Listening item -----
 
 export const ListeningQuestion = z.object({

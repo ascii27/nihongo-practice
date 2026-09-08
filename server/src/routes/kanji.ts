@@ -1,6 +1,8 @@
 import { Router, type Response } from "express";
 import { browseKanji, getKanjiDetail } from "../services/kanji.js";
-import { getKanjiMnemonic, regenerateKanjiMnemonic, KanjiNotFoundError } from "../services/kanji-mnemonic.js";
+import {
+  getKanjiMnemonic, getCachedKanjiMnemonic, regenerateKanjiMnemonic, KanjiNotFoundError,
+} from "../services/kanji-mnemonic.js";
 
 export const kanjiRouter = Router();
 
@@ -15,6 +17,13 @@ kanjiRouter.get("/", async (req, res) => {
   }
   const kanji = await browseKanji({ jlpt, grade, q });
   res.json({ kanji });
+});
+
+// GET /api/kanji/:character/mnemonic/cached — what has already been written,
+// or null. Never generates, so a card view can show a mnemonic it happens to
+// have without committing the learner to the cost of writing one.
+kanjiRouter.get("/:character/mnemonic/cached", async (req, res) => {
+  res.json({ mnemonic: await getCachedKanjiMnemonic(req.params.character) });
 });
 
 // GET /api/kanji/:character/mnemonic — cached memory aid, generated on first

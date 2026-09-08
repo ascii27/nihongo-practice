@@ -76,6 +76,13 @@ async function generateAndStore(character: string): Promise<KanjiMnemonic> {
   return stored ?? content;
 }
 
+// The cached mnemonic or nothing — never generates. The card view asks with
+// this so opening a kanji card costs nothing; the learner decides whether to
+// spend by tapping Write one.
+export async function getCachedKanjiMnemonic(character: string): Promise<KanjiMnemonic | null> {
+  return readCached(character);
+}
+
 export async function getKanjiMnemonic(character: string): Promise<KanjiMnemonic> {
   const cached = await readCached(character);
   if (cached) return cached;
