@@ -862,16 +862,19 @@
 .study__empty { padding: 16px 4px; }
 
 /* Detail screen */
-.study-detail { padding-bottom: 96px; }
+/* Same 16px gutter every other screen uses (.lessons, the dashboard), so the
+   list view lines up with the Study screen it was opened from. The top bar
+   cancels it below and re-adds its own, since it was written full-bleed. */
+.study-detail { padding: 0 16px 96px; }
 .study-detail__actions { margin: 12px 0 8px; }
 .study-detail__items { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0; }
 .study-detail__delete { margin: 20px auto 0; display: block; color: var(--fg-tertiary); }
 
 /* Members grouped by card type — the Today screen's skill rows, inset to match
    this screen rather than the dashboard. */
-.study-detail__section-title { margin: 22px 4px 8px; }
+.study-detail__section-title { margin: 22px 0 8px; }
 .study-detail__sections { margin: 0; }
-.study-detail__type-count { font-size: 12px; color: var(--fg-tertiary); margin: 4px 4px 0; }
+.study-detail__type-count { font-size: 12px; color: var(--fg-tertiary); margin: 4px 0 0; }
 
 /* Pager for one card type. Hidden entirely when everything fits on one page. */
 .study-detail__pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
@@ -903,7 +906,7 @@
 .study-quick__kind.is-active { color: var(--accent-fg); background: var(--accent); }
 
 /* Study-detail top bar: round (X) close + centered title, matching practice-bar. */
-.study-detail__bar { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 16px 8px; }
+.study-detail__bar { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 0 8px; }
 .study-detail__bar-title { flex: 1; font-family: var(--font-display); font-size: 22px; font-weight: 500; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .study-detail__bar-spacer { width: 32px; flex-shrink: 0; }
 

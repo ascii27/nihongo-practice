@@ -76,7 +76,7 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
     return (
       <main className="screen study-detail">
         {header("Study")}
-        <p className="muted" style={{ padding: "24px 4px" }}>Loading…</p>
+        <p className="muted" style={{ padding: "24px 0" }}>Loading…</p>
       </main>
     );
   }
