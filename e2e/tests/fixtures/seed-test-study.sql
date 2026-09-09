@@ -24,6 +24,12 @@ SELECT 'vocab',
        'seed', 'study-long-' || lpad(g::text, 2, '0')
   FROM generate_series(1, 25) g;
 
+-- The reference row behind that kanji card, so its detail sheet can write a
+-- mnemonic on demand (fake AI supplies the text).
+INSERT INTO kanji (character, strokes, stroke_count, radical, meanings, on_yomi, kun_yomi, grade, jlpt) VALUES
+('日', '["M20,30 L54,15","M20,45 L88,45"]', 4, '日',
+ ARRAY['sun','day'], ARRAY['ニチ'], ARRAY['ひ'], 1, 'N5');
+
 INSERT INTO items (skill, prompt, answer, source, external_id) VALUES
 ('kanji',
  '{"character":"日"}',

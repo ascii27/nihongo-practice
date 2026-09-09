@@ -59,6 +59,20 @@ export function KanjiMnemonicCard({ character }: Props) {
 
   return (
     <div className="kanji-mnemonic">
+      <KanjiMnemonicBody mnemonic={mnemonic} />
+      <button type="button" className="kanji-mnemonic__retry" onClick={tryAnother} disabled={busy}>
+        {busy ? "Writing another…" : "Try another"}
+      </button>
+      {error && <p className="kanji-mnemonic__error">{error}</p>}
+    </div>
+  );
+}
+
+// Just the mnemonic itself, with no fetching or retry of its own, so the
+// practice card and the card-detail sheet render an identical memory aid.
+export function KanjiMnemonicBody({ mnemonic }: { mnemonic: KanjiMnemonic }) {
+  return (
+    <>
       <section className="kanji-mnemonic__meaning">
         <p className="kanji-mnemonic__gloss">{mnemonic.meaning.gloss}</p>
         <p className="kanji-mnemonic__scene">{mnemonic.meaning.scene}</p>
@@ -87,11 +101,6 @@ export function KanjiMnemonicCard({ character }: Props) {
           {mnemonic.recap.map((line) => <li key={line}>{line}</li>)}
         </ul>
       )}
-
-      <button type="button" className="kanji-mnemonic__retry" onClick={tryAnother} disabled={busy}>
-        {busy ? "Writing another…" : "Try another"}
-      </button>
-      {error && <p className="kanji-mnemonic__error">{error}</p>}
-    </div>
+    </>
   );
 }

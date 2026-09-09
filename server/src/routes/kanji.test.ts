@@ -121,6 +121,36 @@ describe("kanji mnemonics", () => {
     expect(res.body.readings[0].sentence.jp_ruby).toContain("<ruby>");
   });
 
+  it("cached lookup returns null before anything has been written, and never generates", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("食")}/mnemonic/cached`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.mnemonic).toBeNull();
+    const stored = await pool.query(`SELECT 1 FROM kanji_mnemonics WHERE character = $1`, ["食"]);
+    expect(stored.rowCount).toBe(0);
+  });
+
+  it("cached lookup returns the mnemonic once one exists", async () => {
+    await insertKanji({ character: "食", strokes: ["a"], meanings: ["eat"], on: ["ショク"], kun: ["た.べる"] });
+    await request(app).get(`/api/kanji/${encodeURIComponent("食")}/mnemonic`).set("X-Passcode", PASSCODE);
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("食")}/mnemonic/cached`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.mnemonic.character).toBe("食");
+    expect(res.body.mnemonic.readings[0].sentence.jp_ruby).toContain("<ruby>");
+  });
+
+  it("cached lookup returns null for a character with no reference row", async () => {
+    const res = await request(app)
+      .get(`/api/kanji/${encodeURIComponent("猫")}/mnemonic/cached`)
+      .set("X-Passcode", PASSCODE);
+    expect(res.status).toBe(200);
+    expect(res.body.mnemonic).toBeNull();
+  });
+
   it("404s for a character with no reference row", async () => {
     const res = await request(app)
       .get(`/api/kanji/${encodeURIComponent("猫")}/mnemonic`)
