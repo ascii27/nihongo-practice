@@ -105,3 +105,26 @@ test("study: deleting a list takes a second, deliberate confirmation", async ({ 
   await expect(page.getByRole("heading", { name: "Study" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Long list/ })).toBeHidden();
 });
+
+test("study: a kanji card offers its mnemonic, and writes one on demand", async ({ page }) => {
+  await login(page);
+
+  await page.getByRole("button", { name: "Study", exact: true }).click();
+  await page.getByRole("button", { name: /Long list/ }).click();
+  await page.getByRole("button", { name: /Kanji/ }).click();
+  await page.locator(".study-item__open").first().click();
+
+  // Nothing has been written for this kanji yet, so the sheet offers to —
+  // opening a card must not spend tokens on its own.
+  const sheet = page.getByRole("dialog", { name: "Card detail" });
+  await expect(sheet.getByText("No memory aid for this kanji yet.")).toBeVisible();
+
+  await sheet.getByRole("button", { name: "Write a mnemonic" }).click();
+  await expect(sheet.locator(".kanji-mnemonic__hookline").first()).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Write a mnemonic" })).toBeHidden();
+
+  // Reopening shows the stored one straight away, with no button.
+  await sheet.getByRole("button", { name: "Close card" }).click();
+  await page.locator(".study-item__open").first().click();
+  await expect(sheet.locator(".kanji-mnemonic__hookline").first()).toBeVisible();
+});

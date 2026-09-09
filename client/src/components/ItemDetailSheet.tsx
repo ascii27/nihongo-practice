@@ -10,8 +10,10 @@ import type {
   ListeningPrompt, ListeningAnswer,
   KanjiPrompt, KanjiAnswer,
 } from "@nihongo/shared";
-import { fetchItem } from "../api-hooks";
+import type { KanjiMnemonic } from "@nihongo/shared";
+import { fetchItem, fetchCachedKanjiMnemonic, fetchKanjiMnemonic } from "../api-hooks";
 import { RubyText } from "./RubyText";
+import { KanjiMnemonicBody } from "./KanjiMnemonicCard";
 import { SKILL_META } from "../lib/skills";
 import { IconClose } from "./icons";
 
@@ -65,6 +67,9 @@ export function ItemDetailSheet({ itemId, onClose, onRemove }: Props) {
             {detail.meaning && <p className="item-detail__meaning">{detail.meaning}</p>}
 
             <CardBody detail={detail} />
+            {detail.skill === "kanji" && (
+              <Mnemonic character={(detail.prompt as KanjiPrompt).character} />
+            )}
             <Progress detail={detail} />
 
             {onRemove && (
@@ -257,6 +262,60 @@ function CardBody({ detail }: { detail: ItemDetailResponse }) {
     default:
       return null;
   }
+}
+
+// The kanji memory aid, on the card itself. The lookup is cache-only, so
+// opening a kanji card never spends anything; a kanji nobody has asked about
+// yet shows a button and writes one on demand.
+function Mnemonic({ character }: { character: string }) {
+  const [mnemonic, setMnemonic] = useState<KanjiMnemonic | null>(null);
+  const [state, setState] = useState<"loading" | "absent" | "writing" | "ready" | "failed">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    setMnemonic(null);
+    setState("loading");
+    fetchCachedKanjiMnemonic(character)
+      .then(({ mnemonic: m }) => {
+        if (cancelled) return;
+        setMnemonic(m);
+        setState(m ? "ready" : "absent");
+      })
+      .catch(() => { if (!cancelled) setState("absent"); });
+    return () => { cancelled = true; };
+  }, [character]);
+
+  async function write() {
+    setState("writing");
+    try {
+      setMnemonic(await fetchKanjiMnemonic(character));
+      setState("ready");
+    } catch {
+      setState("failed");
+    }
+  }
+
+  if (state === "loading") return null;
+
+  return (
+    <div className="item-detail__mnemonic">
+      <span className="item-detail__field-label">Mnemonic</span>
+      {mnemonic
+        ? <KanjiMnemonicBody mnemonic={mnemonic} />
+        : (
+          <>
+            <p className="item-detail__mnemonic-empty">
+              {state === "failed"
+                ? "Couldn’t write one — try again."
+                : "No memory aid for this kanji yet."}
+            </p>
+            <button type="button" className="cta cta--block" onClick={write} disabled={state === "writing"}>
+              {state === "writing" ? "Writing…" : "Write a mnemonic"}
+            </button>
+          </>
+        )}
+    </div>
+  );
 }
 
 // Leitner state, in the learner's terms. An unseen card has no review_state at

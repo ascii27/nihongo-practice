@@ -22,6 +22,7 @@ import type {
   KanjiBrowseResponse,
   KanjiDetail,
   KanjiMnemonic,
+  KanjiMnemonicLookupResponse,
   ItemDetailResponse,
   Skill,
 } from "@nihongo/shared";
@@ -167,6 +168,14 @@ export function fetchKanji(character: string): Promise<KanjiDetail> {
 
 export function fetchKanjiMnemonic(character: string): Promise<KanjiMnemonic> {
   return api<KanjiMnemonic>(`/api/kanji/${encodeURIComponent(character)}/mnemonic`);
+}
+
+// The mnemonic already written for this kanji, or null. Never generates — the
+// card view offers that as an explicit choice instead.
+export function fetchCachedKanjiMnemonic(character: string): Promise<KanjiMnemonicLookupResponse> {
+  return api<KanjiMnemonicLookupResponse>(
+    `/api/kanji/${encodeURIComponent(character)}/mnemonic/cached`,
+  );
 }
 
 export function regenerateKanjiMnemonic(character: string): Promise<KanjiMnemonic> {
