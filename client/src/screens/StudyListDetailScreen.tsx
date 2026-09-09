@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { StudyListDetail, LibraryItem, QuickAddStudyItemRequest, Skill } from "@nihongo/shared";
 import {
   fetchStudyList, addStudyItem, removeStudyItem, quickAddStudyItem, previewStudyItem,
@@ -33,11 +33,15 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
   // Deleting a list throws away every card in it, so it asks first.
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // The row list scrolls on its own now, so a new page has to start at its top
+  // rather than wherever the previous page was left.
+  const itemsRef = useRef<HTMLUListElement | null>(null);
 
   async function refresh() {
     setDetail(await fetchStudyList(listId));
   }
   useEffect(() => { void refresh(); }, [listId]);
+  useEffect(() => { itemsRef.current?.scrollTo({ top: 0 }); }, [openSkill, page]);
 
   async function onRemove(itemId: string) {
     await removeStudyItem(listId, itemId);
@@ -100,14 +104,17 @@ export function StudyListDetailScreen({ listId, onBack, onCram, onDeleted }: Pro
     const meta = SKILL_META[openSkill];
 
     return (
-      <main className="screen study-detail">
+      // Fixed to the viewport: the rows scroll inside their own list so the
+      // pager stays put at the foot of the screen. Paging through a long type
+      // shouldn't mean scrolling to the bottom to find "Next" every time.
+      <main className="screen study-detail study-detail--paged">
         {header(meta.label)}
         <p className="study-detail__type-count">
           {items.length} card{items.length === 1 ? "" : "s"}
           {pageCount > 1 && <> · showing {start + 1}–{start + shown.length}</>}
         </p>
 
-        <ul className="study-detail__items">
+        <ul className="study-detail__items" ref={itemsRef}>
           {shown.map((it) => (
             <MemberRow key={it.id} item={it} onOpen={() => setOpenItemId(it.id)} onRemove={() => onRemove(it.id)} />
           ))}

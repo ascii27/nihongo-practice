@@ -128,3 +128,37 @@ test("study: a kanji card offers its mnemonic, and writes one on demand", async 
   await page.locator(".study-item__open").first().click();
   await expect(sheet.locator(".kanji-mnemonic__hookline").first()).toBeVisible();
 });
+
+test("study: a paginated card type fits the viewport, with the pager always reachable", async ({ page }) => {
+  await login(page);
+
+  await page.getByRole("button", { name: "Study", exact: true }).click();
+  await page.getByRole("button", { name: /Long list/ }).click();
+  await page.getByRole("button", { name: /Vocab/ }).click();
+
+  // The pager sits on screen from the start — no scrolling to reach it.
+  const pager = page.getByRole("navigation", { name: "Pages" });
+  await expect(pager).toBeInViewport();
+  await expect(page.getByText("Page 1 of 2")).toBeVisible();
+
+  // The screen itself doesn't scroll; the row list does.
+  const scrolls = await page.evaluate(() => {
+    const list = document.querySelector(".study-detail__items")!;
+    return {
+      page: document.documentElement.scrollHeight > window.innerHeight + 1,
+      list: list.scrollHeight > list.clientHeight,
+      screenFitsViewport: document.querySelector(".study-detail")!.clientHeight <= window.innerHeight,
+    };
+  });
+  expect(scrolls).toEqual({ page: false, list: true, screenFitsViewport: true });
+
+  // Paging forward starts the new page at the top rather than mid-list.
+  await page.evaluate(() => {
+    const list = document.querySelector(".study-detail__items")!;
+    list.scrollTop = list.scrollHeight;
+  });
+  await page.getByRole("button", { name: "Next" }).click();
+  await expect(page.getByText("Page 2 of 2")).toBeVisible();
+  await expect(pager).toBeInViewport();
+  expect(await page.evaluate(() => document.querySelector(".study-detail__items")!.scrollTop)).toBe(0);
+});
