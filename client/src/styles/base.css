@@ -280,6 +280,10 @@ img, video, svg { display: block; max-width: 100%; }
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-top: 0.5px solid var(--color-border);
 }
+/* A sheet is modal: it owns the whole screen, tab bar included. The nav sits
+   above modals in the z scale (it must clear toasts and overlays), so on tab
+   screens that open sheets — Library — it steps aside instead. */
+.app:has(.sheet) .tabbar { display: none; }
 .tabbar__btn {
   display: flex;
   flex-direction: column;

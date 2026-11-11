@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
-import type { Skill } from "@nihongo/shared";
+import { useCallback, useEffect, useState } from "react";
+import type { Focus, ReviewMode, TagSummary } from "@nihongo/shared";
 import { auth } from "./auth";
 import { api } from "./api";
+import { fetchTags } from "./api-hooks";
+import { loadFocus, saveFocus, sanitizeFocus } from "./lib/focus";
 import { PasscodeScreen } from "./screens/PasscodeScreen";
 import { DashboardScreen } from "./screens/DashboardScreen";
 import { LessonsScreen } from "./screens/LessonsScreen";
@@ -9,21 +11,23 @@ import { LessonWalkthroughScreen } from "./screens/LessonWalkthroughScreen";
 import { PracticeScreen } from "./screens/PracticeScreen";
 import { StatsScreen } from "./screens/StatsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { StudyScreen } from "./screens/StudyScreen";
-import { StudyListDetailScreen } from "./screens/StudyListDetailScreen";
+import { LibraryScreen } from "./screens/LibraryScreen";
 import { BottomTabs, type Tab } from "./components/BottomTabs";
 
 type AuthState = "checking" | "needs-auth" | "authed";
-// `practice` stays a valid route (the card-playing engine, reused by cram) even
-// though it no longer has a tab. `study-detail` and `cram` are full-bleed.
-type Route = Tab | "settings" | "lesson" | "practice" | "study-detail" | "cram";
+// `practice` (the card-playing engine) has no tab of its own; it plays the
+// current focus, either as the day's session or as a drill.
+type Route = Tab | "settings" | "lesson" | "practice";
 
 export default function App() {
   const [authState, setAuthState] = useState<AuthState>("checking");
   const [route, setRoute] = useState<Route>("today");
-  const [practiceSkill, setPracticeSkill] = useState<Skill | undefined>(undefined);
   const [lessonId, setLessonId] = useState<string | null>(null);
-  const [studyListId, setStudyListId] = useState<string | null>(null);
+  // The Ready-for-Review focus lives here so Library's "Review this tag" can
+  // set it, and it is remembered per device until cleared.
+  const [focus, setFocus] = useState<Focus>(loadFocus);
+  const [practiceMode, setPracticeMode] = useState<ReviewMode>("scheduled");
+  const [tags, setTags] = useState<TagSummary[]>([]);
 
   useEffect(() => {
     if (!auth.get()) { setAuthState("needs-auth"); return; }
@@ -32,6 +36,17 @@ export default function App() {
       .catch(() => setAuthState("needs-auth"));
   }, []);
 
+  const refreshTags = useCallback(() => {
+    fetchTags()
+      .then((r) => {
+        setTags(r.tags);
+        setFocus((f) => sanitizeFocus(f, r.tags));
+      })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { if (authState === "authed") refreshTags(); }, [authState, refreshTags]);
+  useEffect(() => { saveFocus(focus); }, [focus]);
+
   if (authState === "checking") return <main className="screen screen--centered">Loading…</main>;
   if (authState === "needs-auth") return <PasscodeScreen onAuthed={() => setAuthState("authed")} />;
 
@@ -39,7 +54,10 @@ export default function App() {
   if (route === "today") {
     active = (
       <DashboardScreen
-        onPractice={(skill) => { setPracticeSkill(skill); setRoute("practice"); }}
+        focus={focus}
+        tags={tags}
+        onFocusChange={setFocus}
+        onPractice={(mode) => { setPracticeMode(mode); setRoute("practice"); }}
         onOpenSettings={() => setRoute("settings")}
         onStartLesson={(id) => { setLessonId(id); setRoute("lesson"); }}
         onOpenLessons={() => setRoute("lessons")}
@@ -52,31 +70,21 @@ export default function App() {
       ? <LessonWalkthroughScreen lessonId={lessonId} onExit={() => setRoute("today")} />
       : <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "practice") {
-    // A skill means the owner tapped a skill row, which is free practice: a
-    // fixed-size drill that ignores the daily target and doesn't count against
-    // it. The hero's mixed practice passes no skill and stays budgeted.
     active = (
       <PracticeScreen
-        skill={practiceSkill}
-        free={practiceSkill !== undefined}
-        onDone={() => setRoute("today")}
+        focus={focus}
+        mode={practiceMode}
+        onDone={() => { refreshTags(); setRoute("today"); }}
       />
     );
-  } else if (route === "study") {
-    active = <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
-  } else if (route === "study-detail") {
-    active = studyListId
-      ? <StudyListDetailScreen
-          listId={studyListId}
-          onBack={() => setRoute("study")}
-          onCram={(id) => { setStudyListId(id); setRoute("cram"); }}
-          onDeleted={() => setRoute("study")}
-        />
-      : <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
-  } else if (route === "cram") {
-    active = studyListId
-      ? <PracticeScreen listId={studyListId} onDone={() => setRoute("study-detail")} />
-      : <StudyScreen onOpenList={(id) => { setStudyListId(id); setRoute("study-detail"); }} />;
+  } else if (route === "library") {
+    active = (
+      <LibraryScreen
+        tags={tags}
+        onTagsChanged={refreshTags}
+        onReviewTag={(id) => { setFocus({ tag: id }); setRoute("today"); }}
+      />
+    );
   } else if (route === "stats") {
     active = <StatsScreen />;
   } else {
@@ -88,18 +96,14 @@ export default function App() {
     );
   }
 
-  // The tab bar is hidden on full-bleed screens (practice/cram) and sub-pages.
-  const fullBleed = route === "practice" || route === "settings" || route === "lesson" || route === "cram";
-  const showTabs = !fullBleed && route !== "study-detail";
-  const tab: Tab =
-    route === "settings" || route === "lesson" || route === "practice" ? "today"
-    : route === "study-detail" || route === "cram" ? "study"
-    : route;
+  // The tab bar is hidden on full-bleed screens (practice) and sub-pages.
+  const fullBleed = route === "practice" || route === "settings" || route === "lesson";
+  const tab: Tab = route === "settings" || route === "lesson" || route === "practice" ? "today" : route;
 
   return (
     <div className="app dir-ink">
       {active}
-      {showTabs && <BottomTabs active={tab} onChange={(t) => setRoute(t)} />}
+      {!fullBleed && <BottomTabs active={tab} onChange={(t) => setRoute(t)} />}
     </div>
   );
 }

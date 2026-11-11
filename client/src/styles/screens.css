@@ -1005,4 +1005,68 @@
 .item-detail__bar { width: 100%; height: 6px; background: var(--bg-sunken); border-radius: 999px; overflow: hidden; }
 .item-detail__bar-fill { height: 100%; border-radius: 999px; background: var(--accent); }
 .item-detail__stats { font-size: 12px; color: var(--fg-secondary); margin: 8px 0 0; }
-.item-detail__remove { margin: 18px auto 0; display: block; color: var(--fg-tertiary); }
+
+/* ─────────────────────────────────────────────
+   FOCUS — optional skill/tag narrowing, on Today's hero and in Library
+   ───────────────────────────────────────────── */
+.focus-pickers { display: flex; gap: var(--space-2); }
+.focus-pickers__field { flex: 1; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.focus-pickers__label { font-family: var(--font-ui); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-tertiary); }
+.focus-pickers__select {
+  min-height: 44px; width: 100%; padding: 0 var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px;
+}
+.today__hero .focus-pickers { margin-bottom: var(--space-4); }
+.focus-chip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  min-height: 44px; margin: 0 0 var(--space-3); padding: 0 var(--space-4);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-full);
+  background: var(--accent-muted); color: var(--fg); font-family: var(--font-ui); font-size: 14px;
+}
+
+/* ─────────────────────────────────────────────
+   LIBRARY — fixed to the viewport like a paged list (ASC-19): the rows scroll
+   inside their own list so the pager stays pinned above the tab bar.
+   ───────────────────────────────────────────── */
+.library {
+  /* `flex: none`: .screen is `flex: 1`, whose basis would beat `height`. */
+  flex: none;
+  height: calc(100dvh - env(safe-area-inset-top));
+  overflow: hidden;
+  padding: 20px 16px calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-4));
+}
+.library > :not(.library__items) { flex-shrink: 0; }
+.library__title { margin-bottom: var(--space-3); }
+.library__search { margin: 0 0 var(--space-3); }
+.library__pickers { margin-bottom: var(--space-3); }
+.library__tag-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); }
+.library__tag-chips::-webkit-scrollbar { display: none; }
+.tag-chip {
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-4);
+  border: 1px solid var(--border); border-radius: var(--radius-full);
+  background: var(--bg-raised); color: var(--fg); font-family: var(--font-ui); font-size: 14px; white-space: nowrap;
+}
+.tag-chip__count { color: var(--fg-tertiary); }
+.tag-chip--new { border-style: dashed; color: var(--fg-secondary); background: none; }
+.library__tag-header { display: flex; flex-direction: column; gap: var(--space-2); }
+.library__tag-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.library__tag-name { font-family: var(--font-display); font-size: 20px; font-weight: 500; margin: 0; }
+.library__tag-mastery { font-family: var(--font-mono); font-size: 12px; color: var(--fg-secondary); white-space: nowrap; }
+.library__tag-actions { display: flex; gap: var(--space-2); }
+.library__tag-actions .cta { flex: 1; min-height: 44px; padding: 8px 10px; font-size: 13px; }
+.library__count { font-size: 12px; color: var(--fg-tertiary); margin: var(--space-3) 0 0; }
+.library__items {
+  list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0 0 4px;
+  flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.library__items::-webkit-scrollbar { display: none; }
+.library__row-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-1); }
+.tag-pill {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: 2px var(--space-2); border-radius: var(--radius-full);
+  background: var(--accent-muted); color: var(--fg-secondary); font-family: var(--font-ui); font-size: 11px;
+}
+.item-detail__tags { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.tag-pill--removable { min-height: 44px; padding: 0 var(--space-3); border: 0; font-size: 13px; color: var(--fg); }
+.item-detail__add-tag { margin-top: var(--space-3); }

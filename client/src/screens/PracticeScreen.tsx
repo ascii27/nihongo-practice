@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import type { ItemRecord, ReviewResult, Skill } from "@nihongo/shared";
-import { fetchQueue, startSession, endSession, submitReview, fetchStudyCram } from "../api-hooks";
+import type { Focus, ItemRecord, ReviewMode, ReviewResult } from "@nihongo/shared";
+import { fetchQueue, fetchDrill, startSession, endSession, submitReview } from "../api-hooks";
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 import { ListeningCard } from "../components/ListeningCard";
@@ -13,12 +13,11 @@ type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 
 type Props = {
   onDone: () => void;
-  skill?: Skill;        // optional filter; undefined = mixed
-  listId?: string;      // cram mode: drill every card in a study list, schedule ignored
-  free?: boolean;       // free practice: fixed-size drill, outside the daily target
+  focus: Focus;         // {} = everything
+  mode: ReviewMode;     // drill: every card in the focus, schedule untouched
 };
 
-export function PracticeScreen({ onDone, skill, listId, free }: Props) {
+export function PracticeScreen({ onDone, focus, mode }: Props) {
   const [phase, setPhase] = useState<Phase>("loading");
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRecord[]>([]);
@@ -30,16 +29,16 @@ export function PracticeScreen({ onDone, skill, listId, free }: Props) {
     let cancelled = false;
     (async () => {
       try {
-        if (listId) {
-          // Cram: every card in the list, schedule ignored, no session.
-          const { items: cram } = await fetchStudyCram(listId);
+        if (mode === "drill") {
+          // Drill: every card in the focus, schedule ignored, no session.
+          const { items: drill } = await fetchDrill(focus);
           if (cancelled) return;
           sessionIdRef.current = null;
-          setItems(cram);
-          setPhase(cram.length === 0 ? "empty" : "reviewing");
+          setItems(drill);
+          setPhase(drill.length === 0 ? "empty" : "reviewing");
           return;
         }
-        const [{ id }, queue] = await Promise.all([startSession(skill), fetchQueue(skill, { free })]);
+        const [{ id }, queue] = await Promise.all([startSession(focus), fetchQueue(focus)]);
         if (cancelled) return;
         sessionIdRef.current = id;
         const all = [...queue.due, ...queue.new];
@@ -52,7 +51,8 @@ export function PracticeScreen({ onDone, skill, listId, free }: Props) {
       }
     })();
     return () => { cancelled = true; };
-  }, [skill, listId, free]);
+    // Keyed on the focus's parts: its owner rebuilds the object on every change.
+  }, [focus.skill, focus.tag, mode]);
 
   function handleAnswer(result: ReviewResult) {
     handleAnswerWithText(result);
@@ -68,11 +68,8 @@ export function PracticeScreen({ onDone, skill, listId, free }: Props) {
       reviewed_at: new Date().toISOString(),
       session_id: sessionIdRef.current ?? undefined,
       answer_given,
-      // Cramming a list (`listId`) and drilling one skill (`free`) are both
-      // practice chosen on top of the day's plan. Each still grades and
-      // reschedules normally, but the server keeps them out of the daily
-      // allowance, so neither can empty the queue for the rest of the day.
-      free_practice: listId !== undefined || free === true,
+      // A drill is logged but never moves a card's schedule (server-side).
+      mode,
     });
     if (index + 1 >= items.length) {
       void finishSession();
@@ -101,11 +98,11 @@ export function PracticeScreen({ onDone, skill, listId, free }: Props) {
     return (
       <main className="screen screen--centered">
         <p style={{ fontFamily: "var(--font-display)", fontSize: 22, fontWeight: 500 }}>
-          {listId ? "This list is empty." : free ? "No cards in this skill yet." : "Nothing due here."}
+          {mode === "drill" ? "Nothing to drill here." : "Nothing due here."}
         </p>
-        <p className="muted">{listId ? "Add some cards first." : "Generate more from Settings."}</p>
+        <p className="muted">{mode === "drill" ? "Add or tag some cards in Library." : "Generate more from Settings."}</p>
         <button type="button" className="cta cta--primary" onClick={onDone}>
-          {listId ? "Back to list" : "Back to Today"}
+          Back to Today
         </button>
       </main>
     );
@@ -131,7 +128,7 @@ export function PracticeScreen({ onDone, skill, listId, free }: Props) {
             </div>
           </div>
           <button type="button" className="cta cta--primary cta--lg cta--block" onClick={onDone}>
-            {listId ? "Back to list" : "Back to Today"}
+            Back to Today
           </button>
           <button type="button" className="linkbtn" onClick={practiceAgain}>Practice again</button>
         </div>
