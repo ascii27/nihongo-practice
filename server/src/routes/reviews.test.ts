@@ -8,7 +8,7 @@ vi.mock("../services/hermes.js", () => ({
   emitReviewLogged: vi.fn(() => Promise.resolve()),
   emitMilestone: vi.fn(() => Promise.resolve()),
 }));
-import { emitReviewLogged } from "../services/hermes.js";
+import { emitReviewLogged, emitMilestone } from "../services/hermes.js";
 import { reviewsRouter } from "./reviews.js";
 
 const PASSCODE = "test-passcode";
@@ -248,6 +248,27 @@ describe("drill mode", () => {
     expect(again.body).toEqual({ mode: "drill", box: 0 });
     const rv = await pool.query(`SELECT count(*)::int AS c FROM reviews WHERE item_id = $1`, [id]);
     expect(rv.rows[0].c).toBe(1);
+  });
+
+  // A drill is practice: it extends the streak, so when it is the day's first
+  // review it is also the moment a streak milestone is reached. Skipping
+  // detection there would drop the milestone silently — later scheduled
+  // reviews are no longer "first of today".
+  it("a drill that is the day's first review still reports a streak milestone", async () => {
+    vi.mocked(emitMilestone).mockClear();
+    const id = await insertItem();
+    for (let d = 1; d <= 6; d++) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
+         VALUES ($1, now() - make_interval(days => $2), 'got_it', 1, 2)`, [id, d],
+      );
+    }
+    await post({ item_id: id, result: "got_it", reviewed_at: new Date().toISOString(), mode: "drill", tz: "UTC" })
+      .expect(200);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(emitMilestone).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(emitMilestone).mock.calls[0]![0]).toMatchObject({ milestone_type: "streak", streak_days: 7 });
+    expect(emitReviewLogged).not.toHaveBeenCalled();
   });
 
   it("an explicit scheduled mode schedules normally", async () => {

@@ -9,6 +9,22 @@ import type { Skill } from "@nihongo/shared";
 
 export const reviewsRouter = Router();
 
+// Fire-and-forget: report a streak milestone if this review was the first of
+// the caller's day and the streak just reached a threshold. Runs for drills
+// too — a drill is practice and extends the streak, and when it is the day's
+// first review it is the only moment the milestone can be detected.
+function reportStreakMilestone(tz: string | undefined, item_id: string): void {
+  if (!tz) return;
+  void detectStreakMilestone(tz).then((threshold) => {
+    if (threshold) {
+      return emitMilestone(
+        { milestone_type: "streak", streak_days: threshold, session_date: ymdInTz(new Date(), tz), item_id },
+        new Date().toISOString(),
+      );
+    }
+  }).catch(() => {});
+}
+
 // `reviewed_at` is the (item_id, reviewed_at) idempotency key. The client uses
 // `new Date().toISOString()` which is millisecond-precision; two reviews of
 // the same item within 1ms are treated as the same submission.
@@ -54,7 +70,7 @@ reviewsRouter.post("/", async (req, res) => {
     if (mode === "drill") {
       const cur = await client.query<{ box: number }>(`SELECT box FROM review_state WHERE item_id = $1`, [item_id]);
       const box = cur.rows[0]?.box ?? 0;
-      await client.query(
+      const ins = await client.query(
         `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given, free_practice)
          VALUES ($1, $2, $3, $4, $4, $5, $6, true)
          ON CONFLICT (item_id, reviewed_at) DO NOTHING`,
@@ -62,7 +78,10 @@ reviewsRouter.post("/", async (req, res) => {
       );
       await client.query("COMMIT");
       res.json({ mode: "drill", box });
-      return; // no Hermes: a drill makes no SRS progress
+      // No review_logged event: a drill makes no SRS progress. A streak
+      // milestone still can, but only from a fresh row, not a retried submit.
+      if ((ins.rowCount ?? 0) > 0) reportStreakMilestone(tz, item_id);
+      return;
     }
 
     // Check idempotency: existing review at same timestamp?
@@ -146,16 +165,7 @@ reviewsRouter.post("/", async (req, res) => {
         suspended, session_id: session_id ?? null,
         front: display.front, meaning: display.meaning,
       }).catch(() => {});
-      if (tz) {
-        void detectStreakMilestone(tz).then((threshold) => {
-          if (threshold) {
-            return emitMilestone(
-              { milestone_type: "streak", streak_days: threshold, session_date: ymdInTz(new Date(), tz), item_id },
-              new Date().toISOString(),
-            );
-          }
-        }).catch(() => {});
-      }
+      reportStreakMilestone(tz, item_id);
     } catch (emitErr) {
       console.error("hermes: emit setup failed", emitErr);
     }
