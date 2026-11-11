@@ -1,4 +1,6 @@
 TRUNCATE TABLE reviews, review_state, items, sessions, kanji RESTART IDENTITY CASCADE;
+-- Settings are a seeded singleton that specs may change; reset to the default.
+UPDATE app_settings SET daily_review_target = 30;
 
 -- One kanji reference row (simple placeholder stroke paths) + its review item.
 INSERT INTO kanji (character, strokes, stroke_count, radical, meanings, on_yomi, kun_yomi, grade, jlpt) VALUES

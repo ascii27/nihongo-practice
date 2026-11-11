@@ -33,12 +33,23 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
   const [sheet, setSheet] = useState<Sheet>(null);
   const itemsRef = useRef<HTMLUListElement>(null);
 
-  const query = q.trim();
+  // Search waits for typing to pause, so each keystroke isn't a round trip.
+  const query = useDebounced(q.trim(), 250);
+
+  // Bumped on every request; only the latest one may land, so a slow answer
+  // for an earlier search or filter can't replace newer results.
+  const requestSeq = useRef(0);
   const load = useCallback(async () => {
-    const r = await fetchLibrary({ q: query || undefined, ...filter, offset: page * PAGE_SIZE });
-    setItems(r.items);
-    setTotal(r.total);
-    setLoaded(true);
+    const seq = ++requestSeq.current;
+    try {
+      const r = await fetchLibrary({ q: query || undefined, ...filter, offset: page * PAGE_SIZE });
+      if (seq !== requestSeq.current) return;
+      setItems(r.items);
+      setTotal(r.total);
+      setLoaded(true);
+    } catch {
+      // Leave the current page up; the next filter change or edit retries.
+    }
   }, [query, filter, page]);
 
   useEffect(() => { void load(); }, [load]);
@@ -174,6 +185,15 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
       )}
     </main>
   );
+}
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
 }
 
 function SheetFrame({ label, kicker, onClose, children }: {

@@ -54,7 +54,8 @@ test("library: tag a card from its sheet, then untag it", async ({ page }) => {
   await login(page);
   await openLibrary(page);
   await page.getByLabel("Search library").fill("water");
-  await page.locator(".study-item__open").first().click();
+  // Search is debounced: wait for the matching row, not whatever is first now.
+  await page.locator(".study-item__open", { hasText: "水" }).click();
   const sheet = page.getByRole("dialog", { name: "Card detail" });
   await sheet.getByLabel("Add tag").selectOption({ label: "Long list" });
   await expect(sheet.getByRole("button", { name: "Remove tag Long list" })).toBeVisible();
@@ -124,7 +125,7 @@ test("library: renaming a tag, and deleting one keeps its cards", async ({ page 
   await page.getByRole("dialog", { name: "Delete this tag" }).getByRole("button", { name: "Delete tag" }).click();
   await expect(page.getByRole("button", { name: /^Week 1/ })).toBeHidden();
   await page.getByLabel("Search library").fill("word 1");
-  await expect(page.locator(".study-item").first()).toBeVisible();
+  await expect(page.locator(".study-item__front", { hasText: "語1" }).first()).toBeVisible();
 });
 
 test("library: a kanji card offers its mnemonic, and writes one on demand", async ({ page }) => {
@@ -143,4 +144,21 @@ test("library: a kanji card offers its mnemonic, and writes one on demand", asyn
   await sheet.getByRole("button", { name: "Close card" }).click();
   await page.locator(".study-item__open").first().click();
   await expect(sheet.locator(".kanji-mnemonic__hookline").first()).toBeVisible();
+});
+
+test("library: a slow earlier search can't overwrite the latest results", async ({ page }) => {
+  await login(page);
+  await openLibrary(page);
+  await page.route(/\/api\/library\?.*q=fire/, async (route) => {
+    await new Promise((r) => setTimeout(r, 1500));
+    await route.continue();
+  });
+  const search = page.getByLabel("Search library");
+  await search.fill("fire");
+  await page.waitForTimeout(400);           // let the "fire" request go out
+  await search.fill("water");
+  await expect(page.locator(".study-item__front", { hasText: "水" })).toBeVisible();
+  await page.waitForTimeout(2000);
+  await expect(page.locator(".study-item__front", { hasText: "水" })).toBeVisible();
+  await expect(page.locator(".study-item__front", { hasText: "火" })).toHaveCount(0);
 });

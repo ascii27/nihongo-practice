@@ -36,12 +36,17 @@ export function DashboardScreen({
     setError(err instanceof Error ? err.message : "load failed");
   }, [focus.skill, onFocusChange]);
 
-  const load = useCallback(() => {
-    fetchDashboard(focus).then(setData).catch(onLoadError);
-    // Keyed on the focus's parts: its owner rebuilds the object on every change.
+  // Only the latest focus's response may land: a slow answer for the previous
+  // focus would otherwise put its number under the new label — the hero
+  // promising a session that "Start" then doesn't deal. Keyed on the focus's
+  // parts, because its owner rebuilds the object on every change.
+  useEffect(() => {
+    let cancelled = false;
+    fetchDashboard(focus)
+      .then((d) => { if (!cancelled) { setData(d); setError(null); } })
+      .catch((err) => { if (!cancelled) onLoadError(err); });
+    return () => { cancelled = true; };
   }, [focus.skill, focus.tag, onLoadError]);
-
-  useEffect(() => { load(); }, [load]);
   useEffect(() => { fetchTodayLesson().then(setToday).catch(() => {}); }, []);
 
   // Unlocks one more full target. The response is a complete dashboard payload,
@@ -144,11 +149,19 @@ export function DashboardScreen({
           <>
             <p className="today__hero-label">Ready to review</p>
             <p className="today__hero-count">0</p>
-            <p className="today__hero-done-sub">Nothing due in {label}.</p>
+            <p className="today__hero-done-sub">
+              {data.remaining === 0
+                ? <>Today's target is done — {data.reviewed_today} reviewed.</>
+                : <>Nothing due in {label}.</>}
+            </p>
             {data.drill_available > 0 && (
               <button type="button" className="cta cta--primary cta--lg today__hero-cta"
                       onClick={() => onPractice("drill")}>
-                Drill all {data.drill_available} anyway
+                {/* Without a tag the drill is capped (a 50-card sample), so
+                    "all" would be a promise it doesn't keep. */}
+                {!focus.tag && data.drill_available >= 50
+                  ? `Drill ${data.drill_available} anyway`
+                  : `Drill all ${data.drill_available} anyway`}
               </button>
             )}
             {roundButton}

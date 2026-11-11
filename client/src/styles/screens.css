@@ -856,15 +856,14 @@
 /* In-app dataset credit. */
 .kanji-credit { font-family: var(--font-ui); font-size: 11px; color: var(--fg-tertiary); text-align: center; margin-top: 8px; }
 
-/* ===== Study lists ======================================================= */
+/* ===== Card rows, add-cards flows and pager (shared by Library) ========== */
 
 .study__intro { font-size: 13px; color: var(--fg-secondary); margin: -4px 0 4px; }
 .study__empty { padding: 16px 4px; }
 
 /* Detail screen */
-/* Same 16px gutter every other screen uses (.lessons, the dashboard), so the
-   list view lines up with the Study screen it was opened from. The top bar
-   cancels it below and re-adds its own, since it was written full-bleed. */
+/* Same 16px gutter every other screen uses (.lessons, the dashboard). The top
+   bar cancels it below and re-adds its own, since it was written full-bleed. */
 .study-detail { padding: 0 16px 96px; }
 .study-detail__actions { margin: 12px 0 8px; }
 .study-detail__items { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0; }
@@ -1015,7 +1014,8 @@
 .focus-pickers__select {
   min-height: 44px; width: 100%; padding: 0 var(--space-3);
   border: 1px solid var(--border); border-radius: var(--radius-md);
-  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px;
+  /* 16px, not 14: iOS Safari zooms the page on focus for any smaller control. */
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 16px;
 }
 .today__hero .focus-pickers { margin-bottom: var(--space-4); }
 .focus-chip {

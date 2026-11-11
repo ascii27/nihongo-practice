@@ -1,4 +1,6 @@
 TRUNCATE TABLE reviews, review_state, items, sessions, kanji, tags RESTART IDENTITY CASCADE;
+-- Settings are a seeded singleton that specs may change; reset to the default.
+UPDATE app_settings SET daily_review_target = 30;
 
 -- A couple of existing vocab cards for "search & add".
 INSERT INTO items (skill, prompt, answer, source, external_id) VALUES
