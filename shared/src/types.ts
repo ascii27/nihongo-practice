@@ -483,24 +483,12 @@ export const LibraryItem = z.object({
 });
 export type LibraryItem = z.infer<typeof LibraryItem>;
 
-export const LibrarySkillGroup = z.object({
-  count: z.number().int().nonnegative(),       // total items in the skill
-  avg_mastery: z.number().min(0).max(1),       // mean mastery over all items
-  items: z.array(LibraryItem),                 // capped sample (newest first)
-});
-export type LibrarySkillGroup = z.infer<typeof LibrarySkillGroup>;
-
+// One page of the Library, filtered by an optional search, skill and tag.
+// Newest first (most recently tagged first when filtering by tag).
 export const LibraryResponse = z.object({
-  by_skill: z.object({
-    vocab: LibrarySkillGroup,
-    grammar: LibrarySkillGroup,
-    reading: LibrarySkillGroup,
-    conjugation: LibrarySkillGroup,
-    particle: LibrarySkillGroup,
-    explain: LibrarySkillGroup,
-    listening: LibrarySkillGroup,
-    kanji: LibrarySkillGroup,
-  }),
+  items: z.array(LibraryItem),
+  total: z.number().int().nonnegative(),
+  next_offset: z.number().int().nonnegative().nullable(),
 });
 export type LibraryResponse = z.infer<typeof LibraryResponse>;
 
