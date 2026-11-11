@@ -198,34 +198,63 @@ describe("POST /api/reviews", () => {
     expect(r.rows[0].free_practice).toBe(false);
   });
 
-  it("marks the row when the client says the review was free practice", async () => {
+  it("rejects an unknown mode", async () => {
     const itemId = await insertItem();
     const res = await request(app)
       .post("/api/reviews")
       .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: true });
-    expect(res.status).toBe(200);
-    const r = await pool.query(`SELECT free_practice FROM reviews WHERE item_id = $1`, [itemId]);
-    expect(r.rows[0].free_practice).toBe(true);
-  });
-
-  it("still advances the Leitner box for a free-practice review", async () => {
-    const itemId = await insertItem();
-    await request(app)
-      .post("/api/reviews")
-      .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: true });
-    const r = await pool.query(`SELECT box, total_reviews FROM review_state WHERE item_id = $1`, [itemId]);
-    expect(r.rows[0].box).toBe(1);
-    expect(r.rows[0].total_reviews).toBe(1);
-  });
-
-  it("rejects a non-boolean free_practice flag", async () => {
-    const itemId = await insertItem();
-    const res = await request(app)
-      .post("/api/reviews")
-      .set("X-Passcode", PASSCODE)
-      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), free_practice: "yes" });
+      .send({ item_id: itemId, result: "got_it", reviewed_at: new Date().toISOString(), mode: "cram" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("drill mode", () => {
+  const post = (body: object) => request(app).post("/api/reviews").set("X-Passcode", PASSCODE).send(body);
+
+  beforeEach(() => { vi.mocked(emitReviewLogged).mockClear(); });
+
+  it("logs the review without touching review_state", async () => {
+    const id = await insertItem();
+    const due = new Date(Date.now() + 7 * 86_400_000);
+    await pool.query(
+      `INSERT INTO review_state (item_id, box, next_review_at, total_reviews) VALUES ($1, 3, $2, 4)`, [id, due],
+    );
+    const res = await post({ item_id: id, result: "got_it", reviewed_at: new Date().toISOString(), mode: "drill" });
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ mode: "drill", box: 3 });
+    const rs = await pool.query(`SELECT box, next_review_at, total_reviews FROM review_state WHERE item_id = $1`, [id]);
+    expect(rs.rows[0]).toMatchObject({ box: 3, total_reviews: 4 });
+    expect(rs.rows[0].next_review_at.getTime()).toBe(due.getTime());
+    const rv = await pool.query(`SELECT box_before, box_after, free_practice FROM reviews WHERE item_id = $1`, [id]);
+    expect(rv.rows[0]).toEqual({ box_before: 3, box_after: 3, free_practice: true });
+    await new Promise((r) => setTimeout(r, 25));
+    expect(emitReviewLogged).not.toHaveBeenCalled();
+  });
+
+  it("a drilled brand-new card stays new", async () => {
+    const id = await insertItem();
+    const res = await post({ item_id: id, result: "missed", reviewed_at: new Date().toISOString(), mode: "drill" });
+    expect(res.body).toEqual({ mode: "drill", box: 0 });
+    const rs = await pool.query(`SELECT 1 FROM review_state WHERE item_id = $1`, [id]);
+    expect(rs.rowCount).toBe(0);
+  });
+
+  it("a retried drill submit of a never-studied card is idempotent", async () => {
+    const id = await insertItem();
+    const body = { item_id: id, result: "got_it", reviewed_at: new Date().toISOString(), mode: "drill" };
+    await post(body).expect(200);
+    const again = await post(body);
+    expect(again.status).toBe(200);
+    expect(again.body).toEqual({ mode: "drill", box: 0 });
+    const rv = await pool.query(`SELECT count(*)::int AS c FROM reviews WHERE item_id = $1`, [id]);
+    expect(rv.rows[0].c).toBe(1);
+  });
+
+  it("an explicit scheduled mode schedules normally", async () => {
+    const id = await insertItem();
+    const res = await post({ item_id: id, result: "got_it", reviewed_at: new Date().toISOString(), mode: "scheduled" });
+    expect(res.body.box).toBe(1);
+    const rv = await pool.query(`SELECT free_practice FROM reviews WHERE item_id = $1`, [id]);
+    expect(rv.rows[0].free_practice).toBe(false);
   });
 });

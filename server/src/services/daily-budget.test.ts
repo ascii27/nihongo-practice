@@ -173,13 +173,12 @@ describe("countIntroducedToday", () => {
     expect(await countIntroducedToday("UTC")).toBe(2);
   });
 
-  // Deliberately the opposite of the budget's treatment of free practice:
-  // cramming or drilling a brand-new card still introduces it to the SRS, so it
-  // counts against the day's new-card pacing even though it costs no allowance.
-  it("counts free-practice introductions, unlike the allowance", async () => {
+  // A drill never creates review_state, so a drilled new card is still new:
+  // it introduces nothing and must not eat the day's new-card share.
+  it("ignores drill (free-practice) rows", async () => {
     const id = await insertItem();
     await insertReview(id, { boxBefore: 0, free_practice: true });
-    expect(await countIntroducedToday("UTC")).toBe(1);
+    expect(await countIntroducedToday("UTC")).toBe(0);
     expect((await getDailyBudget("UTC")).reviewed).toBe(0);
   });
 });

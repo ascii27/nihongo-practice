@@ -70,12 +70,19 @@ export type EndSessionRequest = z.infer<typeof EndSessionRequest>;
 export const ReviewResult = z.enum(["got_it", "missed"]);
 export type ReviewResult = z.infer<typeof ReviewResult>;
 
+// `scheduled` grades through the Leitner schedule. `drill` is practice chosen
+// outside the schedule (drill-all-anyway on a focus): it is logged as history
+// and kept out of the daily target, but never moves a card's box or due date.
+export const ReviewMode = z.enum(["scheduled", "drill"]);
+export type ReviewMode = z.infer<typeof ReviewMode>;
+
 export const SubmitReviewRequest = z.object({
   item_id: z.string().uuid(),
   result: ReviewResult,
   reviewed_at: z.string().datetime(),       // ISO, client-supplied
   session_id: z.string().uuid().optional(),
   answer_given: z.string().max(200).optional(),
+  mode: ReviewMode.optional(),              // absent = scheduled
 });
 export type SubmitReviewRequest = z.infer<typeof SubmitReviewRequest>;
 
@@ -86,6 +93,13 @@ export const ReviewStateResponse = z.object({
   total_missed: z.number().int().nonnegative(),
 });
 export type ReviewStateResponse = z.infer<typeof ReviewStateResponse>;
+
+// A drill reports the card's unchanged box (0 = never studied).
+export const DrillReviewResponse = z.object({
+  mode: z.literal("drill"),
+  box: z.number().int().min(0).max(5),
+});
+export type DrillReviewResponse = z.infer<typeof DrillReviewResponse>;
 
 // ----- API: stats/streak -----
 
