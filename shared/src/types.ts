@@ -435,6 +435,11 @@ export type StatsBySkillResponse = z.infer<typeof StatsBySkillResponse>;
 
 // ----- API: library (Browse) -----
 
+// A learner-facing tag on a card. Distinct from ItemRecord.tags (string[]),
+// which holds internal labels such as `lesson:<uuid>` and is never shown.
+export const TagRef = z.object({ id: z.string().uuid(), name: z.string() });
+export type TagRef = z.infer<typeof TagRef>;
+
 // A single browsable card, with display fields derived server-side from the
 // skill-specific prompt/answer JSON, plus a Leitner-box-derived mastery (0..1).
 export const LibraryItem = z.object({
@@ -444,6 +449,7 @@ export const LibraryItem = z.object({
   reading: z.string().nullable(),
   meaning: z.string(),
   mastery: z.number().min(0).max(1),
+  user_tags: z.array(TagRef),
 });
 export type LibraryItem = z.infer<typeof LibraryItem>;
 
@@ -494,6 +500,7 @@ export const ItemDetailResponse = z.object({
   last_reviewed_at: z.string().nullable(),       // ISO
   total_reviews: z.number().int().nonnegative(),
   total_missed: z.number().int().nonnegative(),
+  user_tags: z.array(TagRef),   // learner-facing tags; `tags` (string[]) stays internal
 });
 export type ItemDetailResponse = z.infer<typeof ItemDetailResponse>;
 
@@ -700,73 +707,72 @@ export const LessonStateUpdate = z.object({
 });
 export type LessonStateUpdate = z.infer<typeof LessonStateUpdate>;
 
-// ----- Study lists -----
+// ----- Tags -----
 //
-// A user-built collection mixing any skills (vocab / grammar / kanji / …),
-// mainly for class study. Members are ordinary `items`, so they flow through
-// the normal SRS when due; a list can also be "crammed" (all cards, ignoring
-// the schedule). Mirrors the lessons header + join-table shape.
+// A tag labels ordinary `items` (e.g. "Coto Academy"). Tagged items flow
+// through the normal SRS, are introduced before untagged ones, and can be the
+// focus of a review session. Was "study lists" until 2026-11.
 
-export const StudyListSummary = z.object({
+export const TagSummary = z.object({
   id: z.string().uuid(),
-  title: z.string(),
+  name: z.string(),
   description: z.string(),
   item_count: z.number().int().nonnegative(),
+  avg_mastery: z.number().min(0).max(1),
   created_at: z.string(),
 });
-export type StudyListSummary = z.infer<typeof StudyListSummary>;
+export type TagSummary = z.infer<typeof TagSummary>;
 
-export const StudyListsResponse = z.object({ study_lists: z.array(StudyListSummary) });
-export type StudyListsResponse = z.infer<typeof StudyListsResponse>;
+export const TagsResponse = z.object({ tags: z.array(TagSummary) });
+export type TagsResponse = z.infer<typeof TagsResponse>;
 
-export const StudyListDetail = StudyListSummary.extend({
-  items: z.array(LibraryItem),   // display rows, same shape as Browse
-});
-export type StudyListDetail = z.infer<typeof StudyListDetail>;
+const TagName = z.string().trim().min(1).max(60);
 
-export const CreateStudyListRequest = z.object({
-  title: z.string().min(1).max(120),
+export const CreateTagRequest = z.object({
+  name: TagName,
   description: z.string().max(400).optional(),
 });
-export type CreateStudyListRequest = z.infer<typeof CreateStudyListRequest>;
+export type CreateTagRequest = z.infer<typeof CreateTagRequest>;
 
-export const CreateStudyListResponse = z.object({ id: z.string().uuid() });
-export type CreateStudyListResponse = z.infer<typeof CreateStudyListResponse>;
+export const UpdateTagRequest = z.object({
+  name: TagName.optional(),
+  description: z.string().max(400).optional(),
+}).refine((b) => b.name !== undefined || b.description !== undefined, "nothing to update");
+export type UpdateTagRequest = z.infer<typeof UpdateTagRequest>;
 
-export const AddStudyItemRequest = z.object({ item_id: z.string().uuid() });
-export type AddStudyItemRequest = z.infer<typeof AddStudyItemRequest>;
+export const CreateTagResponse = z.object({ id: z.string().uuid() });
+export type CreateTagResponse = z.infer<typeof CreateTagResponse>;
 
-// Quick-add is a two-step flow (like manual vocab): the learner types a word /
-// kanji / grammar pattern, the server generates an editable translation +
-// example, the learner tweaks it, then saves. Vocab & grammar use the AI;
-// kanji fills meaning/readings from the seeded reference table.
+// Quick-add is a two-step flow: the learner types a word / kanji / grammar
+// pattern, the server drafts editable fields, the learner tweaks, then saves.
+// Vocab & grammar use the AI; kanji fills from the seeded reference table.
 
-export const StudyVocabFields = z.object({
+export const QuickAddVocabFields = z.object({
   japanese: z.string().min(1).max(120),
   english: z.string().min(1).max(120),
   sentence_japanese: z.string().min(1).max(200),
   sentence_english: z.string().min(1).max(200),
 });
-export type StudyVocabFields = z.infer<typeof StudyVocabFields>;
+export type QuickAddVocabFields = z.infer<typeof QuickAddVocabFields>;
 
-export const StudyGrammarFields = z.object({
+export const QuickAddGrammarFields = z.object({
   pattern: z.string().min(1).max(120),
   explanation: z.string().min(1).max(400),
   sentence_japanese: z.string().max(200),
   sentence_english: z.string().max(200),
 });
-export type StudyGrammarFields = z.infer<typeof StudyGrammarFields>;
+export type QuickAddGrammarFields = z.infer<typeof QuickAddGrammarFields>;
 
-// Preview only (no DB write): generate editable fields from a raw input.
-export const StudyPreviewRequest = z.object({
+// Preview only (no DB write): draft editable fields from a raw input.
+export const QuickAddPreviewRequest = z.object({
   kind: z.enum(["vocab", "kanji", "grammar"]),
   input: z.string().min(1).max(200),
 });
-export type StudyPreviewRequest = z.infer<typeof StudyPreviewRequest>;
+export type QuickAddPreviewRequest = z.infer<typeof QuickAddPreviewRequest>;
 
-export const StudyPreviewResponse = z.discriminatedUnion("kind", [
-  StudyVocabFields.extend({ kind: z.literal("vocab"), cost_usd: z.number().nonnegative() }),
-  StudyGrammarFields.extend({ kind: z.literal("grammar"), cost_usd: z.number().nonnegative() }),
+export const QuickAddPreviewResponse = z.discriminatedUnion("kind", [
+  QuickAddVocabFields.extend({ kind: z.literal("vocab"), cost_usd: z.number().nonnegative() }),
+  QuickAddGrammarFields.extend({ kind: z.literal("grammar"), cost_usd: z.number().nonnegative() }),
   z.object({
     kind: z.literal("kanji"),
     character: z.string(),
@@ -775,26 +781,22 @@ export const StudyPreviewResponse = z.discriminatedUnion("kind", [
     cost_usd: z.number().nonnegative(),
   }),
 ]);
-export type StudyPreviewResponse = z.infer<typeof StudyPreviewResponse>;
+export type QuickAddPreviewResponse = z.infer<typeof QuickAddPreviewResponse>;
 
-// Save the (edited) preview into the list.
-export const QuickAddStudyItemRequest = z.discriminatedUnion("kind", [
-  StudyVocabFields.extend({ kind: z.literal("vocab") }),
-  StudyGrammarFields.extend({ kind: z.literal("grammar") }),
+// Save the (edited) preview as a new item carrying the tag.
+export const QuickAddItemRequest = z.discriminatedUnion("kind", [
+  QuickAddVocabFields.extend({ kind: z.literal("vocab") }),
+  QuickAddGrammarFields.extend({ kind: z.literal("grammar") }),
   z.object({
     kind: z.literal("kanji"),
     character: z.string().min(1).max(4),
     meaning: z.string().max(200),
   }),
 ]);
-export type QuickAddStudyItemRequest = z.infer<typeof QuickAddStudyItemRequest>;
+export type QuickAddItemRequest = z.infer<typeof QuickAddItemRequest>;
 
-export const QuickAddStudyItemResponse = z.object({ item_id: z.string().uuid() });
-export type QuickAddStudyItemResponse = z.infer<typeof QuickAddStudyItemResponse>;
+export const QuickAddItemResponse = z.object({ item_id: z.string().uuid() });
+export type QuickAddItemResponse = z.infer<typeof QuickAddItemResponse>;
 
-export const StudyCandidatesResponse = z.object({ items: z.array(LibraryItem) });
-export type StudyCandidatesResponse = z.infer<typeof StudyCandidatesResponse>;
-
-// Cram: every card in the list as review items, schedule ignored.
-export const StudyCramResponse = z.object({ items: z.array(ItemRecord) });
-export type StudyCramResponse = z.infer<typeof StudyCramResponse>;
+export const TagCandidatesResponse = z.object({ items: z.array(LibraryItem) });
+export type TagCandidatesResponse = z.infer<typeof TagCandidatesResponse>;
