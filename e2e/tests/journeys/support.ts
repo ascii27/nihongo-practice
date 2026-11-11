@@ -79,5 +79,17 @@ export async function expectFits(page: Page, step: string, controls: Locator[] =
     const box = (await c.boundingBox())!;
     expect(box.y, `${step}: ${c} is under the status bar`).toBeGreaterThanOrEqual(IPHONE_17.safeTop - 1);
     expect(box.y + box.height, `${step}: ${c} is cut off at the bottom (floor ${floor})`).toBeLessThanOrEqual(floor + 1);
+    // toBeVisible() ignores clipping by an ancestor's overflow, and a squashed
+    // flex item still has a box. Hit-test points near the top and bottom
+    // edges: the element itself must be what's actually painted there.
+    const unclipped = await c.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      return [r.top + Math.min(4, r.height / 2), r.bottom - Math.min(4, r.height / 2)].every((y) => {
+        const hit = document.elementFromPoint(x, y);
+        return !!hit && (el === hit || el.contains(hit));
+      });
+    });
+    expect(unclipped, `${step}: ${c} is clipped or covered`).toBe(true);
   }
 }

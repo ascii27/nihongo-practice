@@ -124,9 +124,23 @@ test.describe("@readonly views", () => {
 
   test("@readonly Today fits, with and without a focus", async ({ page }) => {
     await login(page);
-    await expectFits(page, "Today", [page.locator(".today__hero-cta").first()]);
+    // Today is a long page that scrolls inside its screen: every section must
+    // keep its full height (nothing squashed or clipped) and be reachable.
+    const sections = [
+      page.locator(".today__hero-label").first(),
+      page.locator(".today__hero-count").first(),
+      page.locator(".today__hero-cta").first(),
+    ];
+    for (const s of sections) await s.scrollIntoViewIfNeeded();
+    await expectFits(page, "Today hero", sections);
+    const lastSkill = page.locator(".today__skill-row").last();
+    await lastSkill.scrollIntoViewIfNeeded();
+    await expectFits(page, "Today, last skill row", [lastSkill]);
+
     await page.getByLabel("Tag").selectOption({ index: 1 });
-    await expectFits(page, "Today, focused", [page.getByRole("button", { name: /^Clear focus/ })]);
+    const focused = [page.getByRole("button", { name: /^Clear focus/ }), page.locator(".today__hero-label").first()];
+    for (const s of focused) await s.scrollIntoViewIfNeeded();
+    await expectFits(page, "Today, focused", focused);
     await page.getByRole("button", { name: /^Clear focus/ }).click();
   });
 

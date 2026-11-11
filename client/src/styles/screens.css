@@ -811,7 +811,8 @@
 .teach__note { font-size: 12px; color: var(--fg-secondary); font-style: italic; }
 
 /* Today's-lesson hero */
-.today-hero-lesson { width: 100%; display: flex; flex-direction: column; gap: 6px; align-items: flex-start; text-align: left; padding: 22px 20px; margin: 0 0 16px; border: 1px solid var(--border); border-radius: 16px; background: none; }
+/* Same 20px gutter as the hero below it (Today has no screen padding). */
+.today-hero-lesson { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; text-align: left; padding: 22px 20px; margin: 0 20px 16px; border: 1px solid var(--border); border-radius: 16px; background: none; }
 .today-hero-lesson__kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-secondary); }
 .today-hero-lesson__title { font-family: var(--font-display); font-size: 22px; font-weight: 500; }
 .today-hero-lesson__meta { font-size: 13px; color: var(--fg-secondary); }
