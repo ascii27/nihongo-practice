@@ -88,8 +88,17 @@ intervals, a miss resets to box 1, and a brand-new card's first showing is expos
 stays 1) rather than a real grade. `services/session-plan.ts` is the pure arithmetic for
 how big a session is and how many new cards it may introduce; **both `buildQueue` and the
 dashboard call it** so the number on the hero can't promise cards the session then
-refuses. Free practice (tapping a skill row) is a fixed 20 cards outside the daily budget;
-mixed practice from the hero is budgeted.
+refuses. A session can take an optional **focus** — one skill and/or one tag, parsed and
+turned into SQL once in `services/focus.ts` so the queue, the dashboard and Library filter
+identically; a focus narrows which cards are dealt, never how many the day allows. New
+cards are introduced tagged-first. When a focus has nothing to deal, the hero offers a
+**drill** (`/api/queue?mode=drill`): every card in the focus, graded with
+`mode: "drill"`, which logs the review (`free_practice = true`, outside the daily target)
+but never touches `review_state`.
+
+**Tags** (`tags` + `item_tags`, formerly study lists) label ordinary items, e.g. "Coto
+Academy"; they're managed in the Library tab. `items.tags text[]` is different: internal
+`lesson:<uuid>` labels, never shown — the learner-facing tags travel as `user_tags`.
 
 **Generation.** `gen/src/prompt.ts` builds per-skill prompts, `generate.ts` calls the model
 (`MODEL` is pinned in `gen/src/pricing.ts`) and `parse.ts` validates the response.
