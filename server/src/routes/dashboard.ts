@@ -5,12 +5,15 @@ import { getDailyBudget, unlockRound, previewRound, countIntroducedToday } from 
 import { planSession, sessionSize, DEFAULT_QUEUE_LIMIT } from "../services/session-plan.js";
 import { resolveTz } from "../services/tz.js";
 import type { DailyBudget } from "../services/daily-budget.js";
+import { parseFocus, focusClause, hasFocus } from "../services/focus.js";
+import { countDrill } from "../services/queue.js";
+import type { Focus } from "@nihongo/shared";
 
 const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening", "kanji"] as const;
 
 export const dashboardRouter = Router();
 
-async function buildPayload(tz: string, budget: DailyBudget) {
+async function buildPayload(tz: string, budget: DailyBudget, focus: Focus) {
   // Due counts per skill: items with review_state.next_review_at <= now().
   // Suspended items are excluded to match services/queue.ts — a card the queue
   // will never deal must not be counted as work waiting for you.
@@ -46,16 +49,23 @@ async function buildPayload(tz: string, budget: DailyBudget) {
     by_skill[s] = { due: due.get(s) ?? 0, new: fresh.get(s) ?? 0 };
   }
 
-  // What the next mixed-practice session would actually deal. `remaining` alone
+  // What the next practice session would actually deal. `remaining` alone
   // over-promises: the new-card share caps how much of a new-only deck a session
   // can touch, so a 300-new deck at a target of 30 yields 10 cards, not 30. The
   // hero renders this number directly — it must not re-derive one of its own.
   //
-  // Mixed practice sends no `skill` and no `limit`, so the pools are summed
-  // across every skill and the plan uses the queue route's default limit.
-  const totalNew = newRes.rows.reduce((acc, r) => acc + Number(r.c), 0);
-  const totalDue = dueRes.rows.reduce((acc, r) => acc + Number(r.c), 0);
-  const available = { new: totalNew, due: totalDue };
+  // The pools are counted for the requested focus through the same filter the
+  // queue uses, and the plan uses the queue route's default limit, so the hero
+  // models exactly the session the client will ask for.
+  const f = focusClause(focus, 1);
+  const pools = await pool.query<{ new: number; due: number }>(
+    `SELECT count(*) FILTER (WHERE rs.item_id IS NULL)::int AS new,
+            count(*) FILTER (WHERE rs.next_review_at <= now() AND rs.suspended = false)::int AS due
+       FROM items i LEFT JOIN review_state rs ON rs.item_id = i.id
+      WHERE true ${f.sql}`,
+    f.params,
+  );
+  const available = { new: pools.rows[0]?.new ?? 0, due: pools.rows[0]?.due ?? 0 };
 
   const introducedToday = await countIntroducedToday(tz);
   const session_size = sessionSize(
@@ -79,18 +89,29 @@ async function buildPayload(tz: string, budget: DailyBudget) {
     remaining: budget.remaining,
     session_size,
     another_round_size,
+    drill_available: hasFocus(focus) ? await countDrill(focus) : 0,
     by_skill,
   };
 }
 
 dashboardRouter.get("/", async (req, res) => {
+  const parsed = await parseFocus(req.query);
+  if (!parsed.ok) {
+    res.status(parsed.status).json(parsed.body);
+    return;
+  }
   const tz = resolveTz(req.query.tz);
-  res.json(await buildPayload(tz, await getDailyBudget(tz)));
+  res.json(await buildPayload(tz, await getDailyBudget(tz), parsed.focus));
 });
 
 // Unlocks one more full target for today. Returns the complete dashboard
 // payload so the client can swap state without a second round trip.
 dashboardRouter.post("/round", async (req, res) => {
+  const parsed = await parseFocus(req.query);
+  if (!parsed.ok) {
+    res.status(parsed.status).json(parsed.body);
+    return;
+  }
   const tz = resolveTz(req.query.tz);
-  res.json(await buildPayload(tz, await unlockRound(tz)));
+  res.json(await buildPayload(tz, await unlockRound(tz), parsed.focus));
 });

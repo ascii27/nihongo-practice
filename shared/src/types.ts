@@ -425,6 +425,9 @@ export const DashboardResponse = z.object({
   // What that session would deal after unlocking one more round. 0 means
   // offering another round would be a dead end, so the button stays hidden.
   another_round_size: z.number().int().nonnegative(),
+  // How many cards "Drill all anyway" would deal for the requested focus
+  // (capped like the drill queue). Always 0 without a focus.
+  drill_available: z.number().int().nonnegative(),
   by_skill: z.object({
     vocab: SkillCounts,
     grammar: SkillCounts,
