@@ -37,9 +37,11 @@ libraryRouter.get("/", async (req, res) => {
   const f = focusClause(focus, params.length + 1);
   params.push(...f.params);
   // focusClause pushes the tag last, so when a tag is set it is the final param.
+  // `i.id` breaks ties: rows created or tagged in one statement share a
+  // timestamp, and without a total order OFFSET paging can repeat or skip them.
   const order = focus.tag
-    ? `(SELECT ot.added_at FROM item_tags ot WHERE ot.item_id = i.id AND ot.tag_id = $${params.length}) DESC, i.created_at DESC`
-    : `i.created_at DESC`;
+    ? `(SELECT ot.added_at FROM item_tags ot WHERE ot.item_id = i.id AND ot.tag_id = $${params.length}) DESC, i.created_at DESC, i.id DESC`
+    : `i.created_at DESC, i.id DESC`;
 
   const r = await pool.query<Row>(
     `SELECT i.id, i.skill, i.prompt, i.answer, rs.box, ${userTagsSql("i")} AS user_tags,

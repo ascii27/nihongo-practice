@@ -80,9 +80,24 @@ describe("GET /api/library", () => {
     const p2 = await get("?offset=50");
     expect(p2.body.items).toHaveLength(5);
     expect(p2.body.next_offset).toBeNull();
+    // Rows created in one statement share created_at; paging must still be a
+    // stable partition — every card exactly once across the two pages.
+    const seen = new Set([...p1.body.items, ...p2.body.items].map((i: { id: string }) => i.id));
+    expect(seen.size).toBe(55);
     const past = await get("?offset=500");
     expect(past.body.items).toEqual([]);
     expect(past.body.next_offset).toBeNull();
+  });
+
+  it("breaks created_at ties by id so paging is a stable order", async () => {
+    await pool.query(
+      `INSERT INTO items (skill, prompt, answer, source, created_at)
+       SELECT 'vocab', jsonb_build_object('target','語'||g), '{"meaning":"m"}', 'seed', '2026-01-01'
+         FROM generate_series(1, 8) g`,
+    );
+    const r = await get();
+    const ids = r.body.items.map((i: { id: string }) => i.id);
+    expect(ids).toEqual([...ids].sort().reverse());
   });
 
   it("filters by search, skill and tag and returns user_tags", async () => {
