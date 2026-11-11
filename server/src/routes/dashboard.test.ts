@@ -225,14 +225,19 @@ describe("GET /api/dashboard — another_round_size", () => {
   });
 
   it("is zero when a round would deal nothing", async () => {
-    // A big free_practice already introduced far more new cards than another round's
-    // share would allow, and nothing is due — so unlocking would be a dead end.
+    // One round already unlocked (allowance 60, new share 20), and 40 cards
+    // introduced today — more than even a further round's share of 30 — with
+    // nothing due. Budget is left, but unlocking another round is a dead end.
+    // (Drills can no longer introduce cards, so the introductions are scheduled.)
+    await pool.query(
+      `INSERT INTO daily_rounds (day, extra_rounds) VALUES ((now() AT TIME ZONE 'UTC')::date, 1)`,
+    );
     const settled = await insertSettledItem();
-    for (let i = 0; i < 40; i++) await insertReview(settled, 0, true);
+    for (let i = 0; i < 40; i++) await insertReview(settled, 0);
     for (let i = 0; i < 300; i++) await insertItem("vocab");
 
-    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
-    expect(res.body.remaining).toBe(30);
+    const res = await request(app).get("/api/dashboard?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.remaining).toBe(20);
     expect(res.body.session_size).toBe(0);
     expect(res.body.another_round_size).toBe(0);
   });
