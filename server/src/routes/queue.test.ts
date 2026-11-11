@@ -24,6 +24,8 @@ async function insertItem(opts: {
   skill?: string;
   box?: number;
   nextReviewMinutesAgo?: number;
+  createdMinutesAgo?: number;
+  tags?: string[];          // tag ids
 }) {
   const itemRes = await pool.query(
     `INSERT INTO items (skill, prompt, answer, source, external_id)
@@ -36,6 +38,12 @@ async function insertItem(opts: {
     ],
   );
   const id = itemRes.rows[0].id as string;
+  if (opts.createdMinutesAgo !== undefined) {
+    await pool.query(`UPDATE items SET created_at = now() - make_interval(mins => $2) WHERE id = $1`, [id, opts.createdMinutesAgo]);
+  }
+  for (const tagId of opts.tags ?? []) {
+    await pool.query(`INSERT INTO item_tags (tag_id, item_id) VALUES ($1, $2)`, [tagId, id]);
+  }
   if (opts.box !== undefined) {
     const t = new Date(Date.now() - (opts.nextReviewMinutesAgo ?? 0) * 60_000);
     await pool.query(
@@ -233,81 +241,91 @@ describe("queue sizing follows the daily target", () => {
 // Free practice — what a skill row on Today deals. Deliberately outside the
 // daily budget: the target governs the day's plan, not whether the owner is
 // allowed to drill a skill.
-describe("free practice (?free=1)", () => {
-  async function spendTheBudget(count = 30) {
-    const id = await insertItem({ box: 1, nextReviewMinutesAgo: 30 });
-    for (let i = 0; i < count; i++) {
-      await pool.query(
-        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
-         VALUES ($1, now(), 'got_it', 1::smallint, 2::smallint)`,
-        [id],
-      );
-    }
-  }
+async function makeTag(name: string): Promise<string> {
+  const r = await pool.query(`INSERT INTO tags (name) VALUES ($1) RETURNING id`, [name]);
+  return r.rows[0].id;
+}
+const get = (qs: string) => request(app).get(`/api/queue?tz=UTC${qs}`).set("X-Passcode", PASSCODE);
+const ids = (rows: { id: string }[]) => rows.map((i) => i.id);
 
-  it("serves cards when the budgeted queue is exhausted", async () => {
-    await spendTheBudget();
-    for (let i = 0; i < 25; i++) await insertItem({ skill: "kanji", box: 1, nextReviewMinutesAgo: 30 });
-
-    const budgeted = await request(app).get("/api/queue?skill=kanji&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(budgeted.body.due.length + budgeted.body.new.length).toBe(0);
-
-    const free = await request(app).get("/api/queue?skill=kanji&free=1&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(free.body.due.length + free.body.new.length).toBe(20);
+describe("focus", () => {
+  it("filters due and new by skill × tag", async () => {
+    const coto = await makeTag("Coto Academy");
+    const newHit = await insertItem({ skill: "kanji", tags: [coto] });
+    const dueHit = await insertItem({ skill: "kanji", tags: [coto], box: 2, nextReviewMinutesAgo: 30 });
+    await insertItem({ skill: "kanji" });                                  // right skill, no tag
+    await insertItem({ skill: "kanji", box: 2, nextReviewMinutesAgo: 30 });
+    await insertItem({ skill: "vocab", tags: [coto] });                    // right tag, wrong skill
+    const res = await get(`&skill=kanji&tag=${coto}`);
+    expect(res.status).toBe(200);
+    expect(ids(res.body.new)).toEqual([newHit]);
+    expect(ids(res.body.due)).toEqual([dueHit]);
   });
 
-  it("caps the session at 20 regardless of the daily target", async () => {
-    await pool.query(`UPDATE app_settings SET daily_review_target = 100`);
-    for (let i = 0; i < 60; i++) await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
-
-    const res = await request(app).get("/api/queue?skill=vocab&free=1&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(res.body.due.length + res.body.new.length).toBe(20);
+  it("filters by tag alone across skills", async () => {
+    const coto = await makeTag("Coto Academy");
+    const a = await insertItem({ skill: "kanji", tags: [coto] });
+    const b = await insertItem({ skill: "vocab", tags: [coto] });
+    await insertItem({ skill: "vocab" });
+    const res = await get(`&tag=${coto}`);
+    expect(ids(res.body.new).sort()).toEqual([a, b].sort());
   });
 
-  it("leads with due cards and tops up with new", async () => {
-    for (let i = 0; i < 6; i++) await insertItem({ skill: "vocab", box: 1, nextReviewMinutesAgo: 30 });
-    for (let i = 0; i < 50; i++) await insertItem({ skill: "vocab" });
-
-    const res = await request(app).get("/api/queue?skill=vocab&free=1&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(res.body.due).toHaveLength(6);
-    expect(res.body.new).toHaveLength(14);
+  it("introduces tagged new cards before older untagged ones", async () => {
+    const coto = await makeTag("Coto Academy");
+    const old = await insertItem({ createdMinutesAgo: 1000 });
+    const tagged = await insertItem({ createdMinutesAgo: 1, tags: [coto] });
+    const res = await get("");
+    expect(ids(res.body.new)).toEqual([tagged, old]);
   });
 
-  it("ignores the new-card pacing limit", async () => {
-    for (let i = 0; i < 40; i++) await insertItem({ skill: "explain" });
-
-    // Spend the day's new-card share through ordinary practice first.
-    const introduced = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
-    expect(introduced.body.new).toHaveLength(10);
-    for (const item of introduced.body.new) {
-      await pool.query(
-        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after)
-         VALUES ($1, now(), 'got_it', 0::smallint, 1::smallint)`,
-        [item.id],
-      );
-    }
-
-    // The budgeted queue now refuses new cards; free practice still deals them.
-    const budgeted = await request(app).get("/api/queue?skill=explain&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(budgeted.body.new).toHaveLength(0);
-
-    const free = await request(app).get("/api/queue?skill=explain&free=1&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(free.body.new).toHaveLength(20);
+  it("404s an unknown tag and 400s a malformed one", async () => {
+    expect((await get("&tag=00000000-0000-0000-0000-000000000000")).body.code).toBe("TAG_NOT_FOUND");
+    expect((await get("&tag=nope")).status).toBe(400);
   });
 
-  it("still returns nothing for a skill with no cards at all", async () => {
-    for (let i = 0; i < 10; i++) await insertItem({ skill: "vocab" });
-    const res = await request(app).get("/api/queue?skill=listening&free=1&tz=UTC").set("X-Passcode", PASSCODE);
-    expect(res.body.due).toHaveLength(0);
-    expect(res.body.new).toHaveLength(0);
-  });
-
-  it("does not affect the budgeted queue's own sizing", async () => {
-    for (let i = 0; i < 40; i++) await insertItem({ skill: "vocab" });
-    for (let i = 0; i < 40; i++) await insertItem({ skill: "grammar", box: 1, nextReviewMinutesAgo: 30 });
-
-    const res = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+  it("no longer serves the old free-practice queue", async () => {
+    for (let i = 0; i < 25; i++) await insertItem({ skill: "vocab" });
+    const res = await get("&skill=vocab&free=1");
+    // Budgeted like any focused session: the day's new-card share, not 20.
     expect(res.body.new).toHaveLength(10);
-    expect(res.body.due).toHaveLength(20);
+  });
+});
+
+describe("drill", () => {
+  it("requires a focus", async () => {
+    const res = await get("&mode=drill");
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe("FOCUS_REQUIRED");
+  });
+
+  it("deals every card in a tag regardless of schedule, excluding suspended", async () => {
+    const coto = await makeTag("Coto Academy");
+    const fresh = await insertItem({ tags: [coto] });
+    const notDue = await insertItem({ tags: [coto], box: 4, nextReviewMinutesAgo: -10_000 });
+    const suspended = await insertItem({ tags: [coto], box: 1 });
+    await pool.query(`UPDATE review_state SET suspended = true WHERE item_id = $1`, [suspended]);
+    await insertItem({});                                                   // untagged
+    const res = await get(`&mode=drill&tag=${coto}`);
+    expect(ids(res.body.items).sort()).toEqual([fresh, notDue].sort());
+  });
+
+  it("ignores the daily budget", async () => {
+    const coto = await makeTag("Coto Academy");
+    // Target 10 → a budgeted session could introduce at most 3 new cards.
+    await pool.query(`UPDATE app_settings SET daily_review_target = 10`);
+    for (let i = 0; i < 12; i++) await insertItem({ tags: [coto] });
+    const res = await get(`&mode=drill&tag=${coto}`);
+    expect(res.body.items).toHaveLength(12);
+  });
+
+  it("caps a skill-only drill at 50", async () => {
+    await pool.query(
+      `INSERT INTO items (skill, prompt, answer, source)
+       SELECT 'kanji', '{"character":"日"}', '{"meanings":["sun"],"on":[],"kun":[],"stroke_count":4}', 'seed'
+         FROM generate_series(1, 60)`,
+    );
+    const res = await get("&mode=drill&skill=kanji");
+    expect(res.body.items).toHaveLength(50);
   });
 });

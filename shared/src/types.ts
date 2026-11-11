@@ -50,10 +50,23 @@ export const QueueResponse = z.object({
 });
 export type QueueResponse = z.infer<typeof QueueResponse>;
 
+// ----- Focus -----
+// Optional narrowing of a review session: at most one skill and one tag.
+export const Focus = z.object({
+  skill: Skill.optional(),
+  tag: z.string().uuid().optional(),
+});
+export type Focus = z.infer<typeof Focus>;
+
+// Drill ("drill all anyway"): every card in a focus, schedule ignored.
+export const DrillQueueResponse = z.object({ items: z.array(ItemRecord) });
+export type DrillQueueResponse = z.infer<typeof DrillQueueResponse>;
+
 // ----- API: sessions -----
 
 export const StartSessionRequest = z.object({
   skill_filter: Skill.optional(),
+  tag_filter: z.string().uuid().optional(),
 });
 export type StartSessionRequest = z.infer<typeof StartSessionRequest>;
 

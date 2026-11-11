@@ -1,33 +1,33 @@
 import { Router } from "express";
-import { buildQueue, buildFreeQueue } from "../services/queue.js";
-import { DEFAULT_QUEUE_LIMIT, FREE_PRACTICE_SIZE } from "../services/session-plan.js";
+import { buildQueue, buildDrill } from "../services/queue.js";
+import { DEFAULT_QUEUE_LIMIT } from "../services/session-plan.js";
+import { parseFocus, hasFocus } from "../services/focus.js";
 import { resolveTz } from "../services/tz.js";
 
 export const queueRouter = Router();
 
-const SUPPORTED_SKILLS = new Set(["vocab", "grammar", "particle", "conjugation", "reading", "explain", "listening", "kanji"]);
-
+// GET /api/queue?skill=&tag=&tz=&limit= — the day's budgeted session, narrowed
+// by an optional focus. `mode=drill` deals every card in the focus instead.
 queueRouter.get("/", async (req, res) => {
-  const skillParam = req.query.skill;
-  let skill: string | undefined;
-  if (skillParam !== undefined) {
-    if (typeof skillParam !== "string" || !SUPPORTED_SKILLS.has(skillParam)) {
-      res.status(400).json({ error: `unsupported skill: ${skillParam}`, code: "SKILL_UNSUPPORTED" });
+  const parsed = await parseFocus(req.query);
+  if (!parsed.ok) {
+    res.status(parsed.status).json(parsed.body);
+    return;
+  }
+  const { focus } = parsed;
+
+  // Drill needs a focus: drilling the entire deck is not a session anyone
+  // means to start.
+  if (req.query.mode === "drill") {
+    if (!hasFocus(focus)) {
+      res.status(400).json({ error: "drill needs a skill or tag", code: "FOCUS_REQUIRED" });
       return;
     }
-    skill = skillParam;
-  }
-  // Free practice ignores the daily budget and serves a fixed-size session.
-  // It has its own default size, so an unspecified `limit` means something
-  // different here than it does for the budgeted queue.
-  if (req.query.free === "1") {
-    const limit = Math.min(Math.max(Number(req.query.limit ?? FREE_PRACTICE_SIZE), 1), 500);
-    res.json(await buildFreeQueue({ limit, skill }));
+    res.json({ items: await buildDrill(focus) });
     return;
   }
 
   const limit = Math.min(Math.max(Number(req.query.limit ?? DEFAULT_QUEUE_LIMIT), 1), 500);
   const tz = resolveTz(req.query.tz);
-  const payload = await buildQueue({ limit, skill, tz });
-  res.json(payload);
+  res.json(await buildQueue({ limit, focus, tz }));
 });

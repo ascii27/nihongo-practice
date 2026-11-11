@@ -1,7 +1,8 @@
 import { pool } from "../db/pool.js";
-import type { ItemRecord } from "@nihongo/shared";
+import type { Focus, ItemRecord } from "@nihongo/shared";
 import { getDailyBudget, countIntroducedToday } from "./daily-budget.js";
-import { planSession } from "./session-plan.js";
+import { planSession, drillLimit } from "./session-plan.js";
+import { focusClause } from "./focus.js";
 
 type Row = {
   id: string;
@@ -25,45 +26,47 @@ function toRecord(r: Row): ItemRecord {
   };
 }
 
-// Brand-new items: never reviewed, oldest first so a deck is worked in order.
-async function fetchNew(skillFilter: string | null, limit: number): Promise<ItemRecord[]> {
+const SELECT_ITEM = `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at FROM items i`;
+
+// Brand-new items. Tagged first — a tag is the learner saying "this matters
+// now" (class material) — then oldest first, so a deck is worked in order and
+// a big imported backlog can't bury what was just added for class.
+async function fetchNew(focus: Focus, limit: number): Promise<ItemRecord[]> {
   if (limit <= 0) return [];
+  const f = focusClause(focus, 2);
   const res = await pool.query<Row>(
-    `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
-       FROM items i
+    `${SELECT_ITEM}
        LEFT JOIN review_state rs ON rs.item_id = i.id
-      WHERE ($1::text IS NULL OR i.skill = $1) AND rs.item_id IS NULL
-      ORDER BY i.created_at ASC
-      LIMIT $2`,
-    [skillFilter, limit],
+      WHERE rs.item_id IS NULL ${f.sql}
+      ORDER BY EXISTS (SELECT 1 FROM item_tags t WHERE t.item_id = i.id) DESC, i.created_at ASC
+      LIMIT $1`,
+    [limit, ...f.params],
   );
   return res.rows.map(toRecord);
 }
 
 // A random sample of currently-due, non-suspended items.
-async function fetchDue(skillFilter: string | null, limit: number): Promise<ItemRecord[]> {
+async function fetchDue(focus: Focus, limit: number): Promise<ItemRecord[]> {
   if (limit <= 0) return [];
+  const f = focusClause(focus, 2);
   const res = await pool.query<Row>(
-    `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at
-       FROM items i
+    `${SELECT_ITEM}
        JOIN review_state rs ON rs.item_id = i.id
-      WHERE ($1::text IS NULL OR i.skill = $1)
-        AND rs.next_review_at <= now()
-        AND rs.suspended = false
+      WHERE rs.next_review_at <= now() AND rs.suspended = false ${f.sql}
       ORDER BY random()
-      LIMIT $2`,
-    [skillFilter, limit],
+      LIMIT $1`,
+    [limit, ...f.params],
   );
   return res.rows.map(toRecord);
 }
 
 export async function buildQueue(
-  opts: { limit: number; skill?: string; tz: string },
+  opts: { limit: number; focus: Focus; tz: string },
 ): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
-  const skillFilter = opts.skill ?? null;
-
-  // Session size comes from the daily budget via the shared planner, so the
-  // number on the dashboard hero and the session it starts can never disagree.
+  // Session size comes from the global daily budget via the shared planner, so
+  // the number on the dashboard hero and the session it starts can never
+  // disagree. A focus narrows which cards are dealt, never how many the day
+  // allows.
   const budget = await getDailyBudget(opts.tz);
   const introducedToday = await countIntroducedToday(opts.tz);
   const { sessionCap, newLimit } = planSession(budget, introducedToday, opts.limit);
@@ -71,34 +74,39 @@ export async function buildQueue(
 
   // New first, so that when new cards run short due fills the whole cap instead
   // of the session stopping there. `sessionSize` models this same ordering.
-  const neu = await fetchNew(skillFilter, newLimit);
-  const due = await fetchDue(skillFilter, sessionCap - neu.length);
+  const neu = await fetchNew(opts.focus, newLimit);
+  const due = await fetchDue(opts.focus, sessionCap - neu.length);
 
   return { due, new: neu };
 }
 
-// Free practice: a fixed-size session that ignores the daily budget entirely.
-//
-// This is what a skill row on Today deals. It exists so the owner can always
-// drill a skill on purpose — the daily target governs the day's plan, not
-// whether practice is allowed at all. Neither the allowance nor the new-card
-// pacing limit gates it, and the reviews it produces are flagged
-// `free_practice` so they don't count against the target either.
-//
-// Due first, unlike `buildQueue`: someone who asked for this skill wants the
-// cards they actually owe on it, with new cards topping up only what's left.
-// The budgeted queue leads with new because its new-card share is metered and
-// would otherwise go unspent on a deep due backlog; free practice has no share
-// to protect.
-export async function buildFreeQueue(
-  opts: { limit: number; skill?: string },
-): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
-  const skillFilter = opts.skill ?? null;
-  const cap = Math.max(0, opts.limit);
-  if (cap === 0) return { due: [], new: [] };
+// Drill ("drill all anyway"): every non-suspended card in the focus, shuffled,
+// schedule and daily budget ignored. Grading uses mode "drill", which leaves
+// review_state alone. A skill-only focus is sampled (see `drillLimit`).
+export async function buildDrill(focus: Focus): Promise<ItemRecord[]> {
+  const f = focusClause(focus, 1);
+  const cap = drillLimit(focus);
+  const res = await pool.query<Row>(
+    `${SELECT_ITEM}
+       LEFT JOIN review_state rs ON rs.item_id = i.id
+      WHERE COALESCE(rs.suspended, false) = false ${f.sql}
+      ORDER BY random()
+      ${cap === null ? "" : `LIMIT ${cap}`}`,
+    f.params,
+  );
+  return res.rows.map(toRecord);
+}
 
-  const due = await fetchDue(skillFilter, cap);
-  const neu = await fetchNew(skillFilter, cap - due.length);
-
-  return { due, new: neu };
+// How many cards `buildDrill` would deal — the "Drill all N anyway" number.
+export async function countDrill(focus: Focus): Promise<number> {
+  const f = focusClause(focus, 1);
+  const r = await pool.query<{ c: number }>(
+    `SELECT count(*)::int AS c
+       FROM items i LEFT JOIN review_state rs ON rs.item_id = i.id
+      WHERE COALESCE(rs.suspended, false) = false ${f.sql}`,
+    f.params,
+  );
+  const n = r.rows[0]?.c ?? 0;
+  const cap = drillLimit(focus);
+  return cap === null ? n : Math.min(n, cap);
 }

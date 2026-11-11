@@ -73,7 +73,7 @@ describe("lessons routes (grammar-centered)", () => {
     expect(skillSet).toEqual(["vocab"]);
 
     // The review queue's "new" bucket contains only vocab items from the lesson.
-    const queue = await buildQueue({ limit: 50, tz: "UTC" });
+    const queue = await buildQueue({ limit: 50, focus: {}, tz: "UTC" });
     for (const rec of queue.new) {
       expect(rec.skill).toBe("vocab");
     }
