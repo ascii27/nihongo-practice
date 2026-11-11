@@ -22,10 +22,11 @@ export async function generateViaSettings(page: Page, skill: string): Promise<vo
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
 }
 
-// Start a single-skill session by tapping that skill's row on Today. The rows
-// retain `.skill-card--<skill>` so this stays a stable hook.
+// Focus Today's hero on one skill by tapping its row, then start that focused
+// (budgeted) session. Rows keep `.skill-card--<skill>` as a stable hook.
 export async function practiceSkill(page: Page, skill: string): Promise<void> {
   await page.locator(`.skill-card--${skill}`).click();
+  await page.getByRole("button", { name: /Start focused practice/ }).click();
 }
 
 // Any valid post-grade state: the next card, the in-session counter, or the

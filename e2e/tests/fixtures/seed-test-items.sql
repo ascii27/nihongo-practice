@@ -1,4 +1,4 @@
-TRUNCATE TABLE reviews, review_state, items, sessions, daily_rounds RESTART IDENTITY CASCADE;
+TRUNCATE TABLE reviews, review_state, items, sessions, daily_rounds, tags RESTART IDENTITY CASCADE;
 
 -- app_settings is a seeded singleton — reset its value rather than truncating,
 -- or the app would run against a table with no settings row. Mirrors resetDb().
