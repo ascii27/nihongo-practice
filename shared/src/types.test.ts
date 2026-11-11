@@ -100,9 +100,18 @@ describe("daily review target types", () => {
 
     const with_ = {
       ...without, daily_target: 30, reviewed_today: 4, remaining: 26,
-      session_size: 26, another_round_size: 30,
+      session_size: 26, another_round_size: 30, drill_available: 0,
     };
     expect(DashboardResponse.safeParse(with_).success).toBe(true);
+  });
+
+  it("DashboardResponse requires drill_available", () => {
+    const full = {
+      streak_days: 0, last_practiced_at: null, by_skill: fullBySkill,
+      daily_target: 30, reviewed_today: 4, remaining: 26, session_size: 26, another_round_size: 30,
+    };
+    expect(DashboardResponse.safeParse(full).success).toBe(false);
+    expect(DashboardResponse.safeParse({ ...full, drill_available: 3 }).success).toBe(true);
   });
 
   it("DashboardResponse requires the session-size fields", () => {
