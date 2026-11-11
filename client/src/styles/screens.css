@@ -189,7 +189,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: calc(10px + env(safe-area-inset-top)) 20px 8px;
+  /* No top inset here: body already applies it. Adding it again pushed the
+     card down a second time on notched phones. */
+  padding: 10px 20px 8px;
   flex-shrink: 0;
 }
 .practice-bar__close {
@@ -228,19 +230,21 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+  padding: 8px 16px calc(16px + var(--safe-bottom));
   position: relative;
   overflow: hidden;
 }
 
 .swipe-wrap {
   flex: 1;
+  min-height: 0; /* a flex item's min-height is its content; let it shrink */
   display: flex;
   position: relative;
   touch-action: pan-y;
 }
 .swipe-card {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   border-radius: var(--radius-xl);
@@ -270,8 +274,24 @@
 .swipe-badge--got    { right: 24px; background: var(--success); color: #fff; transform: rotate(8deg); }
 .swipe-badge--missed { left: 24px;  background: var(--error);   color: #fff; transform: rotate(-8deg); }
 
+/* Flip card: the body scrolls (long reading passages, explanations) and the
+   controls footer — reveal, then Missed / Got it — stays pinned on screen. */
+.flipcard { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 28px 24px 20px; }
+.flipcard__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.flipcard__body::-webkit-scrollbar { display: none; }
+.flipcard__controls { flex-shrink: 0; display: flex; flex-direction: column; padding-top: 12px; }
+
 /* overflow within a card scrolls (long reading passages, explanations) */
 .flipcard-inner {
+  min-height: 0;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -495,7 +515,7 @@
 }
 
 /* Summary / done */
-.summary { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px 32px calc(40px + env(safe-area-inset-bottom)); text-align: center; flex: 1; }
+.summary { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 40px 32px calc(40px + var(--safe-bottom)); text-align: center; flex: 1; }
 .summary__seal {
   width: 100px; height: 100px;
   border-radius: 50%;
@@ -858,49 +878,12 @@
 
 /* ===== Card rows, add-cards flows and pager (shared by Library) ========== */
 
-.study__intro { font-size: 13px; color: var(--fg-secondary); margin: -4px 0 4px; }
 .study__empty { padding: 16px 4px; }
 
-/* Detail screen */
-/* Same 16px gutter every other screen uses (.lessons, the dashboard). The top
-   bar cancels it below and re-adds its own, since it was written full-bleed. */
-.study-detail { padding: 0 16px 96px; }
-.study-detail__actions { margin: 12px 0 8px; }
 .study-detail__items { list-style: none; display: flex; flex-direction: column; gap: 8px; margin: 8px 0; padding: 0; }
 .study-detail__delete { margin: 20px auto 0; display: block; color: var(--fg-tertiary); }
 
-/* Members grouped by card type — the Today screen's skill rows, inset to match
-   this screen rather than the dashboard. */
-.study-detail__section-title { margin: 22px 0 8px; }
-.study-detail__sections { margin: 0; }
-.study-detail__type-count { font-size: 12px; color: var(--fg-tertiary); margin: 4px 0 0; }
-
-/* One card type, sized to the viewport. The screen itself stops scrolling and
-   the row list becomes the only scroller, which keeps the count line at the top
-   and the pager on screen at the bottom no matter how long the page is. The tab
-   bar is hidden on this route, so .screen's tab-bar allowance goes too. */
-.study-detail--paged {
-  /* `flex: none` matters: .screen is `flex: 1`, whose flex-basis would win over
-     `height` on the main axis and let the screen grow past the viewport. */
-  flex: none;
-  height: calc(100dvh - env(safe-area-inset-top));
-  overflow: hidden;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 12px);
-}
-.study-detail--paged .study-detail__bar,
-.study-detail--paged .study-detail__type-count,
-.study-detail--paged .study-detail__pager { flex-shrink: 0; }
-.study-detail--paged .study-detail__items {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  padding-bottom: 4px;
-}
-.study-detail--paged .study-detail__items::-webkit-scrollbar { display: none; }
-
-/* Pager for one card type. Hidden entirely when everything fits on one page. */
+/* Pager for a long card list. Hidden entirely when everything fits on one page. */
 .study-detail__pager { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0 4px; }
 .study-detail__pager .cta { padding: 8px 16px; font-size: 13px; }
 .study-detail__pager-label { font-family: var(--font-mono); font-size: 12px; color: var(--fg-secondary); }
@@ -929,11 +912,6 @@
 .study-quick__kind { font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--fg-tertiary); padding: 6px 14px; border-radius: 999px; background: none; }
 .study-quick__kind.is-active { color: var(--accent-fg); background: var(--accent); }
 
-/* Study-detail top bar: round (X) close + centered title, matching practice-bar. */
-.study-detail__bar { display: flex; align-items: center; gap: 12px; padding: calc(10px + env(safe-area-inset-top)) 0 8px; }
-.study-detail__bar-title { flex: 1; font-family: var(--font-display); font-size: 22px; font-weight: 500; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.study-detail__bar-spacer { width: 32px; flex-shrink: 0; }
-
 .study-quick__note { font-size: 12px; color: var(--fg-tertiary); margin: 2px 0; }
 
 /* ===== Card detail sheet ================================================= */
@@ -953,12 +931,14 @@
 .sheet__panel {
   width: 100%;
   max-width: 560px;
-  max-height: 88vh;
+  /* The visible height below the status bar, not 88vh: on iOS `vh` is the
+     toolbars-hidden height, which runs a tall sheet off the bottom. */
+  max-height: calc(100dvh - var(--safe-top) - 12px);
   overflow-y: auto;
   background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  padding: 8px 20px calc(24px + env(safe-area-inset-bottom));
+  padding: 8px 20px calc(24px + var(--safe-bottom));
   animation: sheet-up var(--duration-normal) var(--ease-out);
 }
 @keyframes sheet-up {
@@ -1032,9 +1012,9 @@
 .library {
   /* `flex: none`: .screen is `flex: 1`, whose basis would beat `height`. */
   flex: none;
-  height: calc(100dvh - env(safe-area-inset-top));
+  height: calc(100dvh - var(--safe-top));
   overflow: hidden;
-  padding: 20px 16px calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-4));
+  padding: 20px 16px calc(var(--tab-bar-height) + var(--safe-bottom) + var(--space-4));
 }
 .library > :not(.library__items) { flex-shrink: 0; }
 .library__title { margin-bottom: var(--space-3); }

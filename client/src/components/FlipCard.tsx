@@ -26,12 +26,17 @@ export function FlipCard({ item, onAnswer }: Props) {
 
   return (
     <SwipeDeck onSwipe={onAnswer} canSwipe={flipped} resetKey={item.id}>
-      <div className="flipcard-inner" onClick={() => !flipped && setFlipped(true)}>
-        <span className="flipcard__skill-chip">{label}</span>
-        <PromptFace item={item} />
+      {/* The body scrolls (a long passage can't push the controls off a
+          phone screen); the controls sit in a footer that never scrolls away. */}
+      <div className="flipcard">
+        <div className="flipcard__body" onClick={() => !flipped && setFlipped(true)}>
+          <span className="flipcard__skill-chip">{label}</span>
+          <PromptFace item={item} />
+          {flipped && <AnswerFace item={item} />}
+        </div>
+        <div className="flipcard__controls">
         {flipped ? (
           <>
-            <AnswerFace item={item} />
             <div className="grade-bar">
               <button type="button" className="grade-btn grade-btn--missed" onClick={() => onAnswer("missed")}>
                 Missed
@@ -47,6 +52,7 @@ export function FlipCard({ item, onAnswer }: Props) {
             Tap to reveal
           </button>
         )}
+        </div>
       </div>
     </SwipeDeck>
   );

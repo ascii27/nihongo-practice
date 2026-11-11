@@ -163,6 +163,13 @@
   --z-nav:     400;
 
   /* ── Layout ── */
+  /* Safe-area insets (notch / Dynamic Island / home indicator). Every inset in
+     the app reads these, never env() directly, so tests can emulate a phone:
+     Chromium reports 0 for env(), which hid layouts that only break on iOS. */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
   --tab-bar-height: 56px;  /* bottom navigation height */
   --topbar-height:  52px;  /* top navigation height */
   --card-max-width: 480px; /* practice card max width on large screens */

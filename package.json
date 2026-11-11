@@ -10,6 +10,8 @@
     "build": "npm --workspace shared run build && npm --workspace server run build && npm --workspace client run build",
     "test": "npm --workspace shared test --if-present && npm --workspace gen test && npm --workspace seed test && npm --workspace server test",
     "e2e": "npm --workspace e2e test",
+    "e2e:journeys": "npm --workspace e2e test -- --project=iphone-17",
+    "e2e:prod": "E2E_READ_ONLY=1 npm --workspace e2e test -- --project=iphone-17 --grep @readonly",
     "db:up": "docker compose up -d postgres",
     "db:down": "docker compose down",
     "db:migrate": "npm --workspace server run db:migrate",
