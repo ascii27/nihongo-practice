@@ -4,17 +4,27 @@ import { makeTestApp } from "../test-helpers/app.js";
 import { resetDb } from "../db/reset.js";
 import { pool } from "../db/pool.js";
 import { dashboardRouter } from "./dashboard.js";
+import { queueRouter } from "./queue.js";
 
 const PASSCODE = "test-passcode";
-const app = makeTestApp(PASSCODE, (a) => a.use("/api/dashboard", dashboardRouter));
+const app = makeTestApp(PASSCODE, (a) => {
+  a.use("/api/dashboard", dashboardRouter);
+  a.use("/api/queue", queueRouter);
+});
 
-async function insertItem(skill: string, opts: { nextReviewMinutesAgo?: number; box?: number } = {}) {
+async function insertItem(
+  skill: string,
+  opts: { nextReviewMinutesAgo?: number; box?: number; tags?: string[] } = {},
+) {
   const r = await pool.query(
     `INSERT INTO items (skill, prompt, answer, source, external_id)
      VALUES ($1, '{}'::jsonb, '{}'::jsonb, 'seed', $2) RETURNING id`,
     [skill, `e-${Math.random()}`],
   );
   const id = r.rows[0].id;
+  for (const tagId of opts.tags ?? []) {
+    await pool.query(`INSERT INTO item_tags (tag_id, item_id) VALUES ($1, $2)`, [tagId, id]);
+  }
   if (opts.box !== undefined) {
     const t = new Date(Date.now() - (opts.nextReviewMinutesAgo ?? 0) * 60_000);
     await pool.query(
@@ -225,14 +235,19 @@ describe("GET /api/dashboard — another_round_size", () => {
   });
 
   it("is zero when a round would deal nothing", async () => {
-    // A big free_practice already introduced far more new cards than another round's
-    // share would allow, and nothing is due — so unlocking would be a dead end.
+    // One round already unlocked (allowance 60, new share 20), and 40 cards
+    // introduced today — more than even a further round's share of 30 — with
+    // nothing due. Budget is left, but unlocking another round is a dead end.
+    // (Drills can no longer introduce cards, so the introductions are scheduled.)
+    await pool.query(
+      `INSERT INTO daily_rounds (day, extra_rounds) VALUES ((now() AT TIME ZONE 'UTC')::date, 1)`,
+    );
     const settled = await insertSettledItem();
-    for (let i = 0; i < 40; i++) await insertReview(settled, 0, true);
+    for (let i = 0; i < 40; i++) await insertReview(settled, 0);
     for (let i = 0; i < 300; i++) await insertItem("vocab");
 
-    const res = await request(app).get("/api/dashboard").set("X-Passcode", PASSCODE);
-    expect(res.body.remaining).toBe(30);
+    const res = await request(app).get("/api/dashboard?tz=UTC").set("X-Passcode", PASSCODE);
+    expect(res.body.remaining).toBe(20);
     expect(res.body.session_size).toBe(0);
     expect(res.body.another_round_size).toBe(0);
   });
@@ -277,5 +292,67 @@ describe("POST /api/dashboard/round", () => {
     await request(app).post("/api/dashboard/round").set("X-Passcode", PASSCODE);
     const res = await request(app).post("/api/dashboard/round").set("X-Passcode", PASSCODE);
     expect(res.body.remaining).toBe(90);
+  });
+});
+
+describe("focus", () => {
+  const auth = (r: request.Test) => r.set("X-Passcode", PASSCODE);
+  async function tag(name: string): Promise<string> {
+    return (await pool.query(`INSERT INTO tags (name) VALUES ($1) RETURNING id`, [name])).rows[0].id;
+  }
+
+  it("hero session_size equals what the focused queue deals, for each focus shape", async () => {
+    const coto = await tag("Coto Academy");
+    for (let n = 0; n < 4; n++) await insertItem("kanji", { tags: [coto] });
+    for (let n = 0; n < 2; n++) await insertItem("kanji", { tags: [coto], box: 2, nextReviewMinutesAgo: 30 });
+    for (let n = 0; n < 3; n++) await insertItem("kanji");
+    for (let n = 0; n < 12; n++) await insertItem("vocab", { tags: [coto] });
+    for (let n = 0; n < 5; n++) await insertItem("vocab", { box: 1, nextReviewMinutesAgo: 30 });
+    for (const qs of ["&skill=kanji", `&tag=${coto}`, `&skill=kanji&tag=${coto}`, "&skill=grammar", ""]) {
+      const d = await auth(request(app).get(`/api/dashboard?tz=UTC${qs}`));
+      const q = await auth(request(app).get(`/api/queue?tz=UTC${qs}`));
+      expect(d.body.session_size, qs).toBe(q.body.due.length + q.body.new.length);
+    }
+    // And the focus actually narrows the number.
+    const kanjiCoto = await auth(request(app).get(`/api/dashboard?tz=UTC&skill=kanji&tag=${coto}`));
+    expect(kanjiCoto.body.session_size).toBe(6);
+  });
+
+  it("reports drill_available for a focus and 0 without one", async () => {
+    const coto = await tag("Coto Academy");
+    for (let n = 0; n < 3; n++) await insertItem("kanji", { tags: [coto] });
+    expect((await auth(request(app).get(`/api/dashboard?tz=UTC&tag=${coto}`))).body.drill_available).toBe(3);
+    expect((await auth(request(app).get(`/api/dashboard?tz=UTC`))).body.drill_available).toBe(0);
+  });
+
+  it("keeps by_skill unfocused", async () => {
+    const coto = await tag("Coto Academy");
+    await insertItem("kanji", { tags: [coto] });
+    await insertItem("vocab");
+    const d = await auth(request(app).get(`/api/dashboard?tz=UTC&tag=${coto}`));
+    expect(d.body.by_skill.vocab.new).toBe(1);
+  });
+
+  it("a focused round previews and unlocks against the same focus", async () => {
+    const coto = await tag("Coto Academy");
+    for (let n = 0; n < 15; n++) await insertItem("vocab", { tags: [coto] });
+    for (let n = 0; n < 30; n++) await insertItem("vocab");
+    const settled = await insertItem("vocab", { box: 3, nextReviewMinutesAgo: -600 });
+    for (let n = 0; n < 30; n++) {
+      await pool.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after) VALUES ($1, now(), 'got_it', 1, 2)`,
+        [settled],
+      );
+    }
+    const before = await auth(request(app).get(`/api/dashboard?tz=UTC&tag=${coto}`));
+    expect(before.body.session_size).toBe(0);
+    const after = await auth(request(app).post(`/api/dashboard/round?tz=UTC&tag=${coto}`));
+    expect(after.body.session_size).toBe(before.body.another_round_size);
+    expect(after.body.session_size).toBe(15);   // all 15 tagged, within a 2-round new share of 20
+  });
+
+  it("404s an unknown tag", async () => {
+    const d = await auth(request(app).get(`/api/dashboard?tz=UTC&tag=00000000-0000-0000-0000-000000000000`));
+    expect(d.status).toBe(404);
   });
 });

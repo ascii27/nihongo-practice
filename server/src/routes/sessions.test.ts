@@ -34,6 +34,18 @@ describe("POST /api/sessions", () => {
     const dbRes = await pool.query("SELECT skill_filter FROM sessions WHERE id = $1", [res.body.id]);
     expect(dbRes.rows[0].skill_filter).toBe("vocab");
   });
+
+  it("records a tag filter", async () => {
+    const t = await pool.query(`INSERT INTO tags (name) VALUES ('X') RETURNING id`);
+    const res = await request(app)
+      .post("/api/sessions")
+      .set("X-Passcode", PASSCODE)
+      .send({ tag_filter: t.rows[0].id });
+    expect(res.status).toBe(200);
+
+    const dbRes = await pool.query("SELECT tag_filter FROM sessions WHERE id = $1", [res.body.id]);
+    expect(dbRes.rows[0].tag_filter).toBe(t.rows[0].id);
+  });
 });
 
 describe("PATCH /api/sessions/:id", () => {

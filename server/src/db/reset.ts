@@ -7,7 +7,7 @@ import { pool } from "./pool.js";
 // or every test would run against a table with no settings row.
 export async function resetDb(): Promise<void> {
   await pool.query(`
-    TRUNCATE TABLE reviews, review_state, items, sessions, generations, lessons, kanji, study_lists, daily_rounds
+    TRUNCATE TABLE reviews, review_state, items, sessions, generations, lessons, kanji, tags, daily_rounds
     RESTART IDENTITY CASCADE
   `);
   await pool.query(`UPDATE app_settings SET daily_review_target = 30, updated_at = now()`);

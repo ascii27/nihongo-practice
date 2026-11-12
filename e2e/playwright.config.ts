@@ -15,6 +15,18 @@ export default defineConfig({
   workers: 1,
   use: { baseURL, trace: "retain-on-failure" },
   projects: [
-    { name: "iphone-14", use: { ...devices["iPhone 14"] } },
+    { name: "iphone-14", use: { ...devices["iPhone 14"] }, testIgnore: /journeys\// },
+    // The owner's phone. Journeys only: each step asserts the screen fits, with
+    // the Home-Screen safe-area insets emulated by tests/journeys/support.ts.
+    {
+      name: "iphone-17",
+      testMatch: /journeys\/.*\.spec\.ts/,
+      use: {
+        ...devices["iPhone 14"],
+        viewport: { width: 402, height: 874 },
+        screen: { width: 402, height: 874 },
+        deviceScaleFactor: 3,
+      },
+    },
   ],
 });

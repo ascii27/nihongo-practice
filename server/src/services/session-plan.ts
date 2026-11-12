@@ -1,3 +1,5 @@
+import type { Focus } from "@nihongo/shared";
+
 // How big the next practice session is, and what it is made of.
 //
 // This arithmetic lives apart from `buildQueue` because two callers need it and
@@ -13,10 +15,14 @@
 // will actually ask for, so both read it from here.
 export const DEFAULT_QUEUE_LIMIT = 100;
 
-// Free practice — tapping a skill row on Today — is a fixed, modest session
-// rather than a budget-derived one. It answers "let me drill this for a bit",
-// so it wants a predictable length, not one that shrinks as the day fills up.
-export const FREE_PRACTICE_SIZE = 20;
+// Drill ("drill all anyway") deals every card in a focus. A tag is a
+// hand-built set — a class list — so it is dealt whole; a skill alone can be
+// thousands of cards, so it is sampled.
+export const DRILL_UNTAGGED_CAP = 50;
+
+export function drillLimit(focus: Focus): number | null {
+  return focus.tag !== undefined ? null : DRILL_UNTAGGED_CAP;
+}
 
 export type SessionPlan = {
   sessionCap: number;  // total cards this session may serve

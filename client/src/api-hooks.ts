@@ -25,16 +25,29 @@ import type {
   KanjiMnemonicLookupResponse,
   ItemDetailResponse,
   Skill,
+  Focus,
+  DrillQueueResponse,
+  DrillReviewResponse,
+  ReviewMode,
 } from "@nihongo/shared";
+import { focusQuery } from "./lib/focus";
 
-// `free` asks for a free-practice session: a fixed-size drill of one skill that
-// ignores the daily budget, and whose reviews don't count against the target.
-export function fetchQueue(skill?: Skill, opts: { free?: boolean } = {}): Promise<QueueResponse> {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const params = new URLSearchParams({ tz });
-  if (skill) params.set("skill", skill);
-  if (opts.free) params.set("free", "1");
-  return api<QueueResponse>(`/api/queue?${params.toString()}`);
+function browserTz(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
+// The day's budgeted session, narrowed by the focus ({} = everything).
+export function fetchQueue(focus: Focus): Promise<QueueResponse> {
+  const p = focusQuery(focus);
+  p.set("tz", browserTz());
+  return api<QueueResponse>(`/api/queue?${p.toString()}`);
+}
+
+// Every card in the focus, schedule ignored ("drill all anyway").
+export function fetchDrill(focus: Focus): Promise<DrillQueueResponse> {
+  const p = focusQuery(focus);
+  p.set("mode", "drill");
+  return api<DrillQueueResponse>(`/api/queue?${p.toString()}`);
 }
 
 export function fetchStreak(): Promise<StreakResponse> {
@@ -42,28 +55,29 @@ export function fetchStreak(): Promise<StreakResponse> {
   return api<StreakResponse>(`/api/stats/streak?tz=${encodeURIComponent(tz)}`);
 }
 
-function browserTz(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-}
-
-export function fetchDashboard(): Promise<DashboardResponse> {
-  return api<DashboardResponse>(`/api/dashboard?tz=${encodeURIComponent(browserTz())}`);
+export function fetchDashboard(focus: Focus): Promise<DashboardResponse> {
+  const p = focusQuery(focus);
+  p.set("tz", browserTz());
+  return api<DashboardResponse>(`/api/dashboard?${p.toString()}`);
 }
 
 // Unlocks one more full daily target. Returns the refreshed dashboard payload
 // so the caller can swap state without a second fetch.
-export function unlockAnotherRound(): Promise<DashboardResponse> {
-  return api<DashboardResponse>(`/api/dashboard/round?tz=${encodeURIComponent(browserTz())}`, {
-    method: "POST",
-  });
+export function unlockAnotherRound(focus: Focus): Promise<DashboardResponse> {
+  const p = focusQuery(focus);
+  p.set("tz", browserTz());
+  return api<DashboardResponse>(`/api/dashboard/round?${p.toString()}`, { method: "POST" });
 }
 
 export function fetchStatsBySkill(): Promise<StatsBySkillResponse> {
   return api<StatsBySkillResponse>(`/api/stats/by-skill`);
 }
 
-export function fetchLibrary(): Promise<LibraryResponse> {
-  return api<LibraryResponse>(`/api/library`);
+export function fetchLibrary(opts: { q?: string; skill?: Skill; tag?: string; offset?: number }): Promise<LibraryResponse> {
+  const p = focusQuery({ skill: opts.skill, tag: opts.tag });
+  if (opts.q) p.set("q", opts.q);
+  if (opts.offset) p.set("offset", String(opts.offset));
+  return api<LibraryResponse>(`/api/library?${p.toString()}`);
 }
 
 export function fetchStatsOverview(): Promise<StatsOverviewResponse> {
@@ -71,10 +85,10 @@ export function fetchStatsOverview(): Promise<StatsOverviewResponse> {
   return api<StatsOverviewResponse>(`/api/stats/overview?tz=${encodeURIComponent(tz)}`);
 }
 
-export function startSession(skill?: Skill): Promise<StartSessionResponse> {
+export function startSession(focus: Focus): Promise<StartSessionResponse> {
   return api<StartSessionResponse>("/api/sessions", {
     method: "POST",
-    body: JSON.stringify({ skill_filter: skill ?? "vocab" }),
+    body: JSON.stringify({ skill_filter: focus.skill, tag_filter: focus.tag }),
   });
 }
 
@@ -91,12 +105,12 @@ export function submitReview(input: {
   reviewed_at: string;
   session_id?: string;
   answer_given?: string;
-  free_practice?: boolean;
-}): Promise<ReviewStateResponse> {
+  mode?: ReviewMode;
+}): Promise<ReviewStateResponse | DrillReviewResponse> {
   // Attach the caller's IANA timezone so the server can detect streak
   // milestones ("first review of today"). Harmless if the field is unused.
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  return api<ReviewStateResponse>("/api/reviews", {
+  return api<ReviewStateResponse | DrillReviewResponse>("/api/reviews", {
     method: "POST",
     body: JSON.stringify({ ...input, tz }),
   });
@@ -148,7 +162,7 @@ export function gradeExplanation(input: ExplainGradeRequest): Promise<ExplainGra
 }
 
 // One card in full — raw prompt/answer plus display fields and review state.
-// Backs the card-detail sheet opened from a study list row.
+// Backs the card-detail sheet opened from a Library row.
 export function fetchItem(id: string): Promise<ItemDetailResponse> {
   return api<ItemDetailResponse>(`/api/items/${encodeURIComponent(id)}`);
 }
@@ -185,50 +199,41 @@ export function regenerateKanjiMnemonic(character: string): Promise<KanjiMnemoni
   );
 }
 
-// ----- Study lists -----
+// ----- Tags -----
 import type {
-  StudyListsResponse, StudyListDetail, CreateStudyListRequest, CreateStudyListResponse,
-  QuickAddStudyItemRequest, QuickAddStudyItemResponse, StudyCandidatesResponse, StudyCramResponse,
-  StudyPreviewRequest, StudyPreviewResponse,
+  TagsResponse, CreateTagRequest, CreateTagResponse, UpdateTagRequest,
+  QuickAddItemRequest, QuickAddItemResponse, TagCandidatesResponse,
+  QuickAddPreviewRequest, QuickAddPreviewResponse,
 } from "@nihongo/shared";
 
-export function fetchStudyLists(): Promise<StudyListsResponse> {
-  return api<StudyListsResponse>("/api/study-lists");
+export function fetchTags(): Promise<TagsResponse> {
+  return api<TagsResponse>("/api/tags");
 }
-export function fetchStudyList(id: string): Promise<StudyListDetail> {
-  return api<StudyListDetail>(`/api/study-lists/${id}`);
+export function createTag(body: CreateTagRequest): Promise<CreateTagResponse> {
+  return api<CreateTagResponse>("/api/tags", { method: "POST", body: JSON.stringify(body) });
 }
-export function createStudyList(body: CreateStudyListRequest): Promise<CreateStudyListResponse> {
-  return api<CreateStudyListResponse>("/api/study-lists", { method: "POST", body: JSON.stringify(body) });
+export function updateTag(id: string, body: UpdateTagRequest): Promise<void> {
+  return api<void>(`/api/tags/${id}`, { method: "PATCH", body: JSON.stringify(body) });
 }
-export function deleteStudyList(id: string): Promise<void> {
-  return api<void>(`/api/study-lists/${id}`, { method: "DELETE" });
+export function deleteTag(id: string): Promise<void> {
+  return api<void>(`/api/tags/${id}`, { method: "DELETE" });
 }
-export function addStudyItem(listId: string, itemId: string): Promise<{ status: string }> {
-  return api<{ status: string }>(`/api/study-lists/${listId}/items`, {
-    method: "POST", body: JSON.stringify({ item_id: itemId }),
-  });
+export function tagItem(tagId: string, itemId: string): Promise<void> {
+  return api<void>(`/api/tags/${tagId}/items/${itemId}`, { method: "PUT" });
 }
-export function previewStudyItem(body: StudyPreviewRequest): Promise<StudyPreviewResponse> {
-  return api<StudyPreviewResponse>("/api/study-lists/preview", {
-    method: "POST", body: JSON.stringify(body),
-  });
+export function untagItem(tagId: string, itemId: string): Promise<void> {
+  return api<void>(`/api/tags/${tagId}/items/${itemId}`, { method: "DELETE" });
 }
-export function quickAddStudyItem(listId: string, body: QuickAddStudyItemRequest): Promise<QuickAddStudyItemResponse> {
-  return api<QuickAddStudyItemResponse>(`/api/study-lists/${listId}/quick-add`, {
-    method: "POST", body: JSON.stringify(body),
-  });
+export function previewQuickAdd(body: QuickAddPreviewRequest): Promise<QuickAddPreviewResponse> {
+  return api<QuickAddPreviewResponse>("/api/tags/preview", { method: "POST", body: JSON.stringify(body) });
 }
-export function removeStudyItem(listId: string, itemId: string): Promise<void> {
-  return api<void>(`/api/study-lists/${listId}/items/${itemId}`, { method: "DELETE" });
+export function quickAddToTag(tagId: string, body: QuickAddItemRequest): Promise<QuickAddItemResponse> {
+  return api<QuickAddItemResponse>(`/api/tags/${tagId}/quick-add`, { method: "POST", body: JSON.stringify(body) });
 }
-export function searchStudyCandidates(listId: string, q: string, skill?: string): Promise<StudyCandidatesResponse> {
-  const params = new URLSearchParams({ q });
-  if (skill) params.set("skill", skill);
-  return api<StudyCandidatesResponse>(`/api/study-lists/${listId}/candidates?${params.toString()}`);
-}
-export function fetchStudyCram(listId: string): Promise<StudyCramResponse> {
-  return api<StudyCramResponse>(`/api/study-lists/${listId}/cram`);
+export function searchTagCandidates(tagId: string, q: string, skill?: string): Promise<TagCandidatesResponse> {
+  const p = new URLSearchParams({ q });
+  if (skill) p.set("skill", skill);
+  return api<TagCandidatesResponse>(`/api/tags/${tagId}/candidates?${p.toString()}`);
 }
 
 // ----- Lessons (Phase 2) -----

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planSession, sessionSize, DEFAULT_QUEUE_LIMIT } from "./session-plan.js";
+import { planSession, sessionSize, DEFAULT_QUEUE_LIMIT, drillLimit, DRILL_UNTAGGED_CAP } from "./session-plan.js";
 
 // A budget shaped like `getDailyBudget` returns, with only the fields the
 // planner reads. `reviewed`/`allowance` are irrelevant here — `remaining` is
@@ -89,5 +89,14 @@ describe("sessionSize", () => {
 
   it("is zero when the budget allows no session at all", () => {
     expect(sessionSize({ sessionCap: 0, newLimit: 0 }, { new: 300, due: 300 })).toBe(0);
+  });
+});
+
+describe("drillLimit", () => {
+  it("caps a skill-only focus and leaves a tagged focus uncapped", () => {
+    expect(drillLimit({ skill: "kanji" })).toBe(DRILL_UNTAGGED_CAP);
+    expect(DRILL_UNTAGGED_CAP).toBe(50);
+    expect(drillLimit({ tag: "11111111-1111-1111-1111-111111111111" })).toBeNull();
+    expect(drillLimit({ skill: "kanji", tag: "11111111-1111-1111-1111-111111111111" })).toBeNull();
   });
 });

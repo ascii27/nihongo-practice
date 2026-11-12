@@ -4,7 +4,10 @@ import { pool } from "../db/pool.js";
 
 export const sessionsRouter = Router();
 
-const StartBody = z.object({ skill_filter: z.string().optional() });
+const StartBody = z.object({
+  skill_filter: z.string().optional(),
+  tag_filter: z.string().uuid().optional(),
+});
 const EndBody = z.object({ ended_at: z.string() });
 
 sessionsRouter.post("/", async (req, res) => {
@@ -13,10 +16,10 @@ sessionsRouter.post("/", async (req, res) => {
     res.status(400).json({ error: "invalid body", code: "BAD_BODY" });
     return;
   }
-  const { skill_filter } = parsed.data;
+  const { skill_filter, tag_filter } = parsed.data;
   const r = await pool.query(
-    `INSERT INTO sessions (skill_filter) VALUES ($1) RETURNING id`,
-    [skill_filter ?? null],
+    `INSERT INTO sessions (skill_filter, tag_filter) VALUES ($1, $2) RETURNING id`,
+    [skill_filter ?? null, tag_filter ?? null],
   );
   res.json({ id: r.rows[0].id });
 });

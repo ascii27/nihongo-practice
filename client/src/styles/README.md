@@ -243,11 +243,11 @@ Classes in `base.css` that React components (Task 11+) should use:
 
 ## iOS Safe Area
 
-`base.css` applies `env(safe-area-inset-*)` padding to `body`. Components should **not** add their own safe-area padding unless they are `position: fixed` (like `.tab-bar`, `.topbar`).
+`base.css` applies the safe-area tokens (`var(--safe-top)` etc., defined in `tokens.css` from `env(safe-area-inset-*)`) as padding on `body`. Never use `env()` directly — tests emulate the iPhone's insets by overriding these tokens, and Chromium/WebKit report 0 for `env()`. Components should **not** add their own safe-area padding unless they are `position: fixed` (like `.tab-bar`, `.topbar`).
 
 Fixed elements must independently handle safe-area insets:
-- `.tab-bar` adds `padding-bottom: env(safe-area-inset-bottom)` and adjusts its own height.
-- `.topbar` adds `padding-top: calc(var(--space-2) + env(safe-area-inset-top))`.
+- `.tab-bar` adds `padding-bottom: var(--safe-bottom)` and adjusts its own height.
+- `.topbar` is not fixed and adds no inset of its own (body already provides it).
 
 ---
 
@@ -260,4 +260,5 @@ Fixed elements must independently handle safe-area insets:
 5. **The font stack assumes Noto Serif JP is loaded.** It's imported at the top of `tokens.css` via Google Fonts. If offline support is added (service worker), pre-cache these font files or the UI will fall back to Georgia/Hiragino.
 6. **`@import` in `tokens.css`** pulls Noto Serif JP + DM Mono. In production, move the `<link rel="preconnect">` and font `<link>` tags to `index.html` for fastest render — Vite won't automatically do this from a CSS `@import`.
 7. **Input focus rings use `:focus-visible`.** `input`, `textarea`, and `select` do not suppress `outline` globally — they rely on `:focus-visible` so mouse/touch users see no ring while keyboard users get a clear accent border + glow. Do not add `outline: none` to these elements unconditionally.
-8. **Safe-area insets are applied once on `body`.** Screen layout classes (`.screen`, `.screen--centered`, `.today-screen`) must not add `env(safe-area-inset-bottom)` to their own padding-bottom — `body` already provides this clearance. Only `position: fixed` elements (`.tab-bar`, `.topbar`) should reference safe-area insets directly.
+8. **The app is one screen tall; the top inset is applied once, on `body`.** `#root` is `calc(100dvh - var(--safe-top))` and screens scroll their own content — the document never scrolls. Validate with `npm run e2e:journeys` (iPhone 17, insets emulated).
+   **Safe-area insets are applied once on `body`.** Screen layout classes (`.screen`, `.screen--centered`, `.today-screen`) must not add `env(safe-area-inset-bottom)` to their own padding-bottom — `body` already provides this clearance. Only `position: fixed` elements (`.tab-bar`, `.topbar`) should reference safe-area insets directly.

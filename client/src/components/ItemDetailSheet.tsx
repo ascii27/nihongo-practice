@@ -10,8 +10,8 @@ import type {
   ListeningPrompt, ListeningAnswer,
   KanjiPrompt, KanjiAnswer,
 } from "@nihongo/shared";
-import type { KanjiMnemonic } from "@nihongo/shared";
-import { fetchItem, fetchCachedKanjiMnemonic, fetchKanjiMnemonic } from "../api-hooks";
+import type { KanjiMnemonic, TagSummary } from "@nihongo/shared";
+import { fetchItem, fetchCachedKanjiMnemonic, fetchKanjiMnemonic, tagItem, untagItem } from "../api-hooks";
 import { RubyText } from "./RubyText";
 import { KanjiMnemonicBody } from "./KanjiMnemonicCard";
 import { SKILL_META } from "../lib/skills";
@@ -20,14 +20,15 @@ import { IconClose } from "./icons";
 type Props = {
   itemId: string;
   onClose: () => void;
-  // Optional list-scoped action, shown at the foot of the sheet.
-  onRemove?: () => void;
+  // When given, the sheet shows the card's tags and lets them be changed.
+  tags?: TagSummary[];
+  onTagsChanged?: () => void;
 };
 
-// A read-only look at one card, opened by tapping a row. Shows the whole card
-// — both faces, per skill — plus how well it has stuck. Nothing here grades or
-// edits; practising a card still goes through Practice / cram.
-export function ItemDetailSheet({ itemId, onClose, onRemove }: Props) {
+// A look at one card, opened by tapping a row. Shows the whole card — both
+// faces, per skill — plus how well it has stuck, and its tags. Nothing here
+// grades; practising a card still goes through Practice.
+export function ItemDetailSheet({ itemId, onClose, tags, onTagsChanged }: Props) {
   const [detail, setDetail] = useState<ItemDetailResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,16 +72,63 @@ export function ItemDetailSheet({ itemId, onClose, onRemove }: Props) {
               <Mnemonic character={(detail.prompt as KanjiPrompt).character} />
             )}
             <Progress detail={detail} />
-
-            {onRemove && (
-              <button type="button" className="linkbtn item-detail__remove" onClick={onRemove}>
-                Remove from this list
-              </button>
+            {tags && (
+              <ItemTags
+                detail={detail}
+                tags={tags}
+                onChanged={async () => {
+                  setDetail(await fetchItem(itemId));
+                  onTagsChanged?.();
+                }}
+              />
             )}
           </>
         )}
       </div>
     </div>
+  );
+}
+
+// The card's tags: each removable, plus a picker for the tags it lacks. This is
+// how a card from the bulk decks joins a tag such as "Coto Academy".
+function ItemTags({ detail, tags, onChanged }: {
+  detail: ItemDetailResponse; tags: TagSummary[]; onChanged: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const available = tags.filter((t) => !detail.user_tags.some((u) => u.id === t.id));
+
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    try {
+      await action();
+      await onChanged();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Field label="Tags">
+      <div className="item-detail__tags">
+        {detail.user_tags.map((t) => (
+          <button key={t.id} type="button" className="tag-pill tag-pill--removable" disabled={busy}
+                  aria-label={`Remove tag ${t.name}`} onClick={() => run(() => untagItem(t.id, detail.id))}>
+            {t.name} <span aria-hidden="true">×</span>
+          </button>
+        ))}
+        {detail.user_tags.length === 0 && <span className="muted">No tags</span>}
+      </div>
+      {available.length > 0 && (
+        <label className="focus-pickers__field item-detail__add-tag">
+          <span className="focus-pickers__label">Add tag</span>
+          <select className="focus-pickers__select" value="" disabled={busy}
+                  onChange={(e) => { const id = e.target.value; if (id) void run(() => tagItem(id, detail.id)); }}>
+            <option value="">Choose…</option>
+            {available.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </label>
+      )}
+    </Field>
   );
 }
 

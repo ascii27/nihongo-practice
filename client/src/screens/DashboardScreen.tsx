@@ -1,37 +1,60 @@
-import { useCallback, useEffect, useState } from "react";
-import type { DashboardResponse, Skill, TodayLessonResponse } from "@nihongo/shared";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { DashboardResponse, Focus, ReviewMode, TagSummary, TodayLessonResponse } from "@nihongo/shared";
 import { fetchDashboard, fetchTodayLesson, unlockAnotherRound } from "../api-hooks";
+import { ApiError } from "../api";
 import { SKILL_ORDER, SKILL_META } from "../lib/skills";
+import { focusLabel } from "../lib/focus";
+import { FocusPickers } from "../components/FocusPickers";
 import { IconChevron } from "../components/icons";
 
 type Props = {
-  onPractice: (skill?: Skill) => void;   // undefined = mixed
+  focus: Focus;                              // {} = everything
+  tags: TagSummary[];
+  onFocusChange: (f: Focus) => void;
+  onPractice: (mode: ReviewMode) => void;    // practises the current focus
   onOpenSettings: () => void;
   onStartLesson: (id: string) => void;
   onOpenLessons: () => void;
 };
 
-export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onOpenLessons }: Props) {
+export function DashboardScreen({
+  focus, tags, onFocusChange, onPractice, onOpenSettings, onStartLesson, onOpenLessons,
+}: Props) {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [today, setToday] = useState<TodayLessonResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rounding, setRounding] = useState(false);
+  const heroRef = useRef<HTMLElement>(null);
 
-  const load = useCallback(() => {
-    fetchDashboard()
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "load failed"));
-    fetchTodayLesson().then(setToday).catch(() => {});
-  }, []);
+  // A focus on a tag that has since been deleted answers 404; drop the tag and
+  // reload rather than showing an error.
+  const onLoadError = useCallback((err: unknown) => {
+    if (err instanceof ApiError && err.code === "TAG_NOT_FOUND") {
+      onFocusChange(focus.skill ? { skill: focus.skill } : {});
+      return;
+    }
+    setError(err instanceof Error ? err.message : "load failed");
+  }, [focus.skill, onFocusChange]);
 
-  useEffect(() => { load(); }, [load]);
+  // Only the latest focus's response may land: a slow answer for the previous
+  // focus would otherwise put its number under the new label — the hero
+  // promising a session that "Start" then doesn't deal. Keyed on the focus's
+  // parts, because its owner rebuilds the object on every change.
+  useEffect(() => {
+    let cancelled = false;
+    fetchDashboard(focus)
+      .then((d) => { if (!cancelled) { setData(d); setError(null); } })
+      .catch((err) => { if (!cancelled) onLoadError(err); });
+    return () => { cancelled = true; };
+  }, [focus.skill, focus.tag, onLoadError]);
+  useEffect(() => { fetchTodayLesson().then(setToday).catch(() => {}); }, []);
 
   // Unlocks one more full target. The response is a complete dashboard payload,
   // so it replaces state directly instead of triggering a refetch.
   async function anotherRound() {
     setRounding(true);
     try {
-      setData(await unlockAnotherRound());
+      setData(await unlockAnotherRound(focus));
     } catch (err) {
       setError(err instanceof Error ? err.message : "couldn't start another round");
     } finally {
@@ -68,6 +91,7 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
       {rounding ? "Dealing another round…" : `Go another round (+${data.another_round_size})`}
     </button>
   ) : null;
+  const label = focusLabel(focus, tags);
   const lastLabel = data.last_practiced_at
     ? new Date(data.last_practiced_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : "never";
@@ -109,8 +133,40 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
           which is the one shape where a session would come back empty. The
           number shown is `session_size` in every state, so it always equals
           what "Start mixed practice" will deal. */}
-      <section className="today__hero">
-        {pool === 0 ? (
+      <section className="today__hero" ref={heroRef}>
+        <FocusPickers focus={focus} tags={tags} onChange={onFocusChange} />
+        {label && (
+          <button type="button" className="focus-chip" onClick={() => onFocusChange({})}
+                  aria-label={`Clear focus ${label}`}>
+            {label} <span aria-hidden="true">×</span>
+          </button>
+        )}
+        {/* A focus that yields no session gets its own state first: the
+            unfocused copy below talks about the whole deck, which is not what
+            was asked. It offers a drill of everything in the focus — outside
+            the schedule — and another round when one would deal cards. */}
+        {label && data.session_size === 0 ? (
+          <>
+            <p className="today__hero-label">Ready to review</p>
+            <p className="today__hero-count">0</p>
+            <p className="today__hero-done-sub">
+              {data.remaining === 0
+                ? <>Today's target is done — {data.reviewed_today} reviewed.</>
+                : <>Nothing due in {label}.</>}
+            </p>
+            {data.drill_available > 0 && (
+              <button type="button" className="cta cta--primary cta--lg today__hero-cta"
+                      onClick={() => onPractice("drill")}>
+                {/* Without a tag the drill is capped (a 50-card sample), so
+                    "all" would be a promise it doesn't keep. */}
+                {!focus.tag && data.drill_available >= 50
+                  ? `Drill ${data.drill_available} anyway`
+                  : `Drill all ${data.drill_available} anyway`}
+              </button>
+            )}
+            {roundButton}
+          </>
+        ) : pool === 0 ? (
           <>
             <p className="today__hero-label">Ready to review</p>
             <p className="today__hero-count">0</p>
@@ -148,9 +204,13 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
           <>
             <p className="today__hero-label">Ready to review</p>
             <p className="today__hero-count">{heroCount}</p>
-            <p className="today__hero-sub">cards across all skills &nbsp;·&nbsp; <span className="jp">混合練習</span></p>
-            <button type="button" className="cta cta--primary cta--lg today__hero-cta" onClick={() => onPractice(undefined)}>
-              Start mixed practice
+            <p className="today__hero-sub">
+              {label
+                ? <>cards · {label}</>
+                : <>cards across all skills &nbsp;·&nbsp; <span className="jp">混合練習</span></>}
+            </p>
+            <button type="button" className="cta cta--primary cta--lg today__hero-cta" onClick={() => onPractice("scheduled")}>
+              {label ? "Start focused practice" : "Start mixed practice"}
             </button>
           </>
         )}
@@ -163,7 +223,15 @@ export function DashboardScreen({ onPractice, onOpenSettings, onStartLesson, onO
           const total = due + n;
           const meta = SKILL_META[s];
           return (
-            <button key={s} type="button" className={`today__skill-row skill-card--${s}`} onClick={() => onPractice(s)}>
+            <button
+              key={s} type="button" className={`today__skill-row skill-card--${s}`}
+              onClick={() => {
+                // A skill row focuses the hero on that skill (keeping any tag);
+                // the session itself starts from the hero.
+                onFocusChange({ ...focus, skill: s });
+                heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
               <span className="today__skill-glyph">{meta.short}</span>
               <span className="today__skill-meta">
                 <span className="today__skill-name">{meta.label}</span>

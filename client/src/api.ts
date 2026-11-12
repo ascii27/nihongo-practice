@@ -3,9 +3,21 @@ import { auth } from "./auth";
 const BASE = import.meta.env.VITE_API_BASE ?? "";
 
 export class AuthError extends Error {}
+// Error bodies are `{ error, code }` JSON; the message is the human `error`
+// text (falling back to the raw body) and `code` lets callers branch on
+// specific failures such as TAG_NOT_FOUND.
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  code: string | null;
+  constructor(public status: number, body: string) {
+    let message = body;
+    let code: string | null = null;
+    try {
+      const parsed = JSON.parse(body) as { error?: unknown; code?: unknown };
+      if (typeof parsed.error === "string") message = parsed.error;
+      if (typeof parsed.code === "string") code = parsed.code;
+    } catch { /* not JSON — keep the raw text */ }
     super(message);
+    this.code = code;
   }
 }
 

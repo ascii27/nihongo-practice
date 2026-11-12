@@ -9,6 +9,22 @@ import type { Skill } from "@nihongo/shared";
 
 export const reviewsRouter = Router();
 
+// Fire-and-forget: report a streak milestone if this review was the first of
+// the caller's day and the streak just reached a threshold. Runs for drills
+// too — a drill is practice and extends the streak, and when it is the day's
+// first review it is the only moment the milestone can be detected.
+function reportStreakMilestone(tz: string | undefined, item_id: string): void {
+  if (!tz) return;
+  void detectStreakMilestone(tz).then((threshold) => {
+    if (threshold) {
+      return emitMilestone(
+        { milestone_type: "streak", streak_days: threshold, session_date: ymdInTz(new Date(), tz), item_id },
+        new Date().toISOString(),
+      );
+    }
+  }).catch(() => {});
+}
+
 // `reviewed_at` is the (item_id, reviewed_at) idempotency key. The client uses
 // `new Date().toISOString()` which is millisecond-precision; two reviews of
 // the same item within 1ms are treated as the same submission.
@@ -19,12 +35,10 @@ const Body = z.object({
   session_id: z.string().uuid().optional(),
   answer_given: z.string().max(200).optional(),
   tz: z.string().optional(), // IANA timezone, for streak-milestone events
-  // True when the grading came from practice the owner asked for outside the
-  // day's plan: cramming a study list, or drilling a single skill from Today.
-  // Kept out of the daily review allowance (see services/daily-budget.ts);
-  // everything else about the review — Leitner scheduling, new-card
-  // introduction counting, streaks, Hermes — is unchanged.
-  free_practice: z.boolean().optional(),
+  // `drill` = practice outside the schedule (drill-all-anyway on a focus):
+  // logged with free_practice = true, so it stays out of the daily target, but
+  // it never moves review_state and emits nothing to Hermes. Absent = scheduled.
+  mode: z.enum(["scheduled", "drill"]).optional(),
 });
 
 reviewsRouter.post("/", async (req, res) => {
@@ -33,7 +47,7 @@ reviewsRouter.post("/", async (req, res) => {
     res.status(400).json({ error: "invalid body", code: "BAD_BODY" });
     return;
   }
-  const { item_id, result, reviewed_at, session_id, answer_given, tz, free_practice } = parsed.data;
+  const { item_id, result, reviewed_at, session_id, answer_given, tz, mode } = parsed.data;
 
   const client = await pool.connect();
   try {
@@ -46,6 +60,27 @@ reviewsRouter.post("/", async (req, res) => {
     if (itemRes.rowCount === 0) {
       await client.query("ROLLBACK");
       res.status(404).json({ error: "item not found", code: "ITEM_NOT_FOUND" });
+      return;
+    }
+
+    // Drill: history only. Read the current box for the log row and leave
+    // review_state alone — a brand-new card stays new (box 0, no state row).
+    // ON CONFLICT makes a retried submit idempotent without the scheduled
+    // path's duplicate check, which assumes a review_state row exists.
+    if (mode === "drill") {
+      const cur = await client.query<{ box: number }>(`SELECT box FROM review_state WHERE item_id = $1`, [item_id]);
+      const box = cur.rows[0]?.box ?? 0;
+      const ins = await client.query(
+        `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given, free_practice)
+         VALUES ($1, $2, $3, $4, $4, $5, $6, true)
+         ON CONFLICT (item_id, reviewed_at) DO NOTHING`,
+        [item_id, reviewed_at, result, box, session_id ?? null, answer_given ?? null],
+      );
+      await client.query("COMMIT");
+      res.json({ mode: "drill", box });
+      // No review_logged event: a drill makes no SRS progress. A streak
+      // milestone still can, but only from a fresh row, not a retried submit.
+      if ((ins.rowCount ?? 0) > 0) reportStreakMilestone(tz, item_id);
       return;
     }
 
@@ -107,7 +142,7 @@ reviewsRouter.post("/", async (req, res) => {
     await client.query(
       `INSERT INTO reviews (item_id, reviewed_at, result, box_before, box_after, session_id, answer_given, free_practice)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null, answer_given ?? null, free_practice ?? false],
+      [item_id, reviewed_at, result, prev?.box ?? 0, next.box, session_id ?? null, answer_given ?? null, false],
     );
 
     await client.query("COMMIT");
@@ -130,16 +165,7 @@ reviewsRouter.post("/", async (req, res) => {
         suspended, session_id: session_id ?? null,
         front: display.front, meaning: display.meaning,
       }).catch(() => {});
-      if (tz) {
-        void detectStreakMilestone(tz).then((threshold) => {
-          if (threshold) {
-            return emitMilestone(
-              { milestone_type: "streak", streak_days: threshold, session_date: ymdInTz(new Date(), tz), item_id },
-              new Date().toISOString(),
-            );
-          }
-        }).catch(() => {});
-      }
+      reportStreakMilestone(tz, item_id);
     } catch (emitErr) {
       console.error("hermes: emit setup failed", emitErr);
     }

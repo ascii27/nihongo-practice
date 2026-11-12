@@ -8,9 +8,10 @@ import {
   GenerateError,
 } from "@nihongo/gen";
 import { ManualVocabPreviewRequest, ManualVocabSaveRequest } from "@nihongo/shared";
-import type { Skill } from "@nihongo/shared";
+import type { Skill, TagRef } from "@nihongo/shared";
 import { pool } from "../db/pool.js";
 import { itemDisplay, boxToMastery } from "../services/item-display.js";
+import { userTagsSql } from "../services/tags.js";
 
 export const itemsRouter = Router();
 
@@ -32,6 +33,7 @@ type ItemRow = {
   last_reviewed_at: Date | null;
   total_reviews: number | null;
   total_missed: number | null;
+  user_tags: TagRef[];
 };
 
 // POST /api/items/manual/translate — preview only, no DB write.
@@ -111,7 +113,7 @@ itemsRouter.get("/:id", async (req, res) => {
   const r = await pool.query<ItemRow>(
     `SELECT i.id, i.skill, i.prompt, i.answer, i.source, i.tags, i.created_at,
             rs.box, rs.next_review_at, rs.last_reviewed_at,
-            rs.total_reviews, rs.total_missed
+            rs.total_reviews, rs.total_missed, ${userTagsSql("i")} AS user_tags
        FROM items i
        LEFT JOIN review_state rs ON rs.item_id = i.id
       WHERE i.id = $1`,
@@ -140,5 +142,6 @@ itemsRouter.get("/:id", async (req, res) => {
     last_reviewed_at: row.last_reviewed_at ? row.last_reviewed_at.toISOString() : null,
     total_reviews: row.total_reviews ?? 0,
     total_missed: row.total_missed ?? 0,
+    user_tags: row.user_tags,
   });
 });

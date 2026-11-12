@@ -128,6 +128,14 @@ describe("GET /api/items/:id", () => {
     expect(res.status).toBe(404);
   });
 
+  it("includes learner-facing tags on the detail", async () => {
+    const id = await insertItem("vocab", { target: "猫" }, { meaning: "cat", reading: "ねこ" });
+    const t = await pool.query(`INSERT INTO tags (name) VALUES ('Coto Academy') RETURNING id`);
+    await pool.query(`INSERT INTO item_tags (tag_id, item_id) VALUES ($1, $2)`, [t.rows[0].id, id]);
+    const res = await request(app).get(`/api/items/${id}`).set("X-Passcode", PASSCODE);
+    expect(res.body.user_tags).toEqual([{ id: t.rows[0].id, name: "Coto Academy" }]);
+  });
+
   it("404s for a non-uuid id instead of erroring on the cast", async () => {
     const res = await request(app).get("/api/items/not-a-uuid").set("X-Passcode", PASSCODE);
     expect(res.status).toBe(404);

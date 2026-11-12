@@ -42,9 +42,9 @@ body {
   background-color: var(--color-bg);
 
   /* iOS safe-area insets — notch + home indicator */
-  padding-top:    env(safe-area-inset-top);
-  padding-right:  env(safe-area-inset-right);
-  padding-left:   env(safe-area-inset-left);
+  padding-top:    var(--safe-top);
+  padding-right:  var(--safe-right);
+  padding-left:   var(--safe-left);
 
   min-height: 100%;
   min-height: 100dvh; /* dynamic viewport height — critical for iOS Safari */
@@ -70,11 +70,16 @@ body::before {
   background-size: 128px 128px;
 }
 
+/* The app is exactly one screen tall. `body` already pads the top inset, so
+   #root is the visible height minus that inset — not a full 100dvh stacked
+   under it, which pushed every screen ~62px past the bottom on a Home-Screen
+   iPhone. Screens scroll their own content (.screen is overflow-y: auto); the
+   document itself never scrolls. */
 #root {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  min-height: 100dvh;
+  height: calc(100dvh - var(--safe-top));
+  overflow: hidden;
 }
 
 /* ─────────────────────────────────────────────
@@ -206,9 +211,15 @@ img, video, svg { display: block; max-width: 100%; }
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-5));
+  padding-bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + var(--space-5));
 }
 .screen::-webkit-scrollbar { display: none; }
+/* Screens are now exactly one viewport tall and scroll their own content, so
+   their sections must keep their natural height — as flex items they would
+   otherwise shrink to fit and clip (Today's hero and skill list did). The few
+   regions meant to flex — Library's list, the practice stage — say `flex: 1`
+   in screens.css, which loads later and wins. */
+.screen > * { flex-shrink: 0; }
 
 .screen--centered {
   align-items: center;
@@ -222,7 +233,7 @@ img, video, svg { display: block; max-width: 100%; }
 .screen--practice { padding: 0; }
 
 /* Inner screens that hide the tab bar (Settings). */
-.screen--flush { padding-bottom: calc(env(safe-area-inset-bottom) + var(--space-6)); }
+.screen--flush { padding-bottom: calc(var(--safe-bottom) + var(--space-6)); }
 
 /* ─────────────────────────────────────────────
    TOP BAR — large title, optional back / right action
@@ -274,12 +285,16 @@ img, video, svg { display: block; max-width: 100%; }
   z-index: var(--z-nav);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  padding: 8px 8px calc(8px + var(--safe-bottom));
   background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-top: 0.5px solid var(--color-border);
 }
+/* A sheet is modal: it owns the whole screen, tab bar included. The nav sits
+   above modals in the z scale (it must clear toasts and overlays), so on tab
+   screens that open sheets — Library — it steps aside instead. */
+.app:has(.sheet) .tabbar { display: none; }
 .tabbar__btn {
   display: flex;
   flex-direction: column;
