@@ -1,12 +1,12 @@
 # User journeys
 
 The primary workflows the app exists for, as the owner uses it: on an **iPhone 17,
-opened from the Home Screen** (full-screen, drawn under the status bar). Each journey is
+opened from the Home Screen** (below an opaque status bar). Each journey is
 backed by a Playwright spec in `e2e/tests/journeys/journeys.spec.ts`, run in the
-`iphone-17` project (402×874, WebKit) with the Home-Screen safe-area insets emulated
-(62px top, 34px bottom). At every step the spec asserts the screen **fits**: the page
-itself doesn't scroll, and the controls named below are wholly visible between the
-status bar and the tab bar (or home indicator).
+`iphone-17` project (402×812 — the 874pt screen less the 62pt status bar — WebKit) with
+the home indicator's 34px bottom inset emulated. At every step the spec asserts the
+screen **fits**: the page itself doesn't scroll, the tab bar sits on the bottom edge, and
+the controls named below are wholly visible above the tab bar (or home indicator).
 
 | Mark | Meaning |
 |---|---|
