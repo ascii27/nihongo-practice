@@ -23,7 +23,8 @@ export default defineConfig({
       testMatch: /journeys\/.*\.spec\.ts/,
       use: {
         ...devices["iPhone 14"],
-        viewport: { width: 402, height: 874 },
+        // Below the opaque status bar; see IPHONE_17 in tests/journeys/support.ts.
+        viewport: { width: 402, height: 812 },
         screen: { width: 402, height: 874 },
         deviceScaleFactor: 3,
       },

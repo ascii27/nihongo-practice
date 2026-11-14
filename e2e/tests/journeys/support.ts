@@ -2,12 +2,13 @@ import { test as base, expect, type Locator, type Page } from "@playwright/test"
 import { loadFixture } from "../fixtures";
 import { PASSCODE } from "../helpers";
 
-// iPhone 17 opened from the Home Screen: the app draws under the status bar
-// (viewport-fit=cover + black-translucent), so iOS reports these insets.
-// Chromium reports 0 for env(safe-area-inset-*), which is exactly how layouts
-// that overflow on the phone passed every test — so the journeys set the CSS
-// tokens the app reads instead (see client/src/styles/tokens.css).
-export const IPHONE_17 = { width: 402, height: 874, safeTop: 62, safeBottom: 34 };
+// iPhone 17 opened from the Home Screen. The status bar is opaque
+// (apple-mobile-web-app-status-bar-style: default), so the page starts below
+// it: 874 − 62 = 812pt tall, no top inset, the home indicator's 34pt at the
+// bottom. Chromium reports 0 for env(safe-area-inset-*), which is exactly how
+// layouts that overflow on the phone passed every test — so the journeys set
+// the CSS tokens the app reads instead (see client/src/styles/tokens.css).
+export const IPHONE_17 = { width: 402, height: 812, safeTop: 0, safeBottom: 34 };
 
 // Read-only runs (E2E_READ_ONLY=1, used against production) must not change
 // anything: any non-GET /api request fails the test instead of reaching the
@@ -71,9 +72,14 @@ export async function expectFits(page: Page, step: string, controls: Locator[] =
   const overflow = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
   expect(overflow, `${step}: the page scrolls by ${overflow}px`).toBeLessThanOrEqual(1);
   const tabbar = page.locator(".tabbar");
-  const floor = (await tabbar.isVisible())
-    ? (await tabbar.boundingBox())!.y
-    : IPHONE_17.height - IPHONE_17.safeBottom;
+  let floor = IPHONE_17.height - IPHONE_17.safeBottom;
+  if (await tabbar.isVisible()) {
+    // The tab bar sits flush on the bottom edge — ASC-21 was it floating a
+    // status-bar height above it, covering the Today CTA.
+    const bar = (await tabbar.boundingBox())!;
+    expect(bar.y + bar.height, `${step}: the tab bar floats off the bottom edge`).toBeCloseTo(IPHONE_17.height, 0);
+    floor = bar.y;
+  }
   for (const c of controls) {
     await expect(c, step).toBeVisible();
     const box = (await c.boundingBox())!;

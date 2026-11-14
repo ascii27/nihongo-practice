@@ -34,7 +34,9 @@ jobs:
       - run: npm --workspace server test
 
   e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, where Playwright can't install
+    # WebKit ("Playwright does not support webkit on ubuntu26.04-x64").
+    runs-on: ubuntu-24.04
     needs: test
     services:
       postgres:
