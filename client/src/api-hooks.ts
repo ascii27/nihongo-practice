@@ -43,6 +43,13 @@ export function fetchQueue(focus: Focus): Promise<QueueResponse> {
   return api<QueueResponse>(`/api/queue?${p.toString()}`);
 }
 
+// The SRS tab's session: every due card in the whole deck plus what is left of
+// today's new-card share, daily target ignored. Never takes a focus.
+export function fetchSrsQueue(): Promise<QueueResponse> {
+  const p = new URLSearchParams({ mode: "srs", tz: browserTz() });
+  return api<QueueResponse>(`/api/queue?${p.toString()}`);
+}
+
 // Every card in the focus, schedule ignored ("drill all anyway").
 export function fetchDrill(focus: Focus): Promise<DrillQueueResponse> {
   const p = focusQuery(focus);

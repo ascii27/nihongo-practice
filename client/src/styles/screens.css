@@ -810,12 +810,25 @@
 .teach__example { display: flex; flex-direction: column; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .teach__note { font-size: 12px; color: var(--fg-secondary); font-style: italic; }
 
-/* Today's-lesson hero */
-/* Same 20px gutter as the hero below it (Today has no screen padding). */
-.today-hero-lesson { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; text-align: left; padding: 22px 20px; margin: 0 20px 16px; border: 1px solid var(--border); border-radius: 16px; background: none; }
-.today-hero-lesson__kicker { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-secondary); }
-.today-hero-lesson__title { font-family: var(--font-display); font-size: 22px; font-weight: 500; }
-.today-hero-lesson__meta { font-size: 13px; color: var(--fg-secondary); }
+/* Today's lesson — a compact row under the hero. Same 20px gutter as the hero
+   (Today has no screen padding); 44px+ touch target. */
+.today-lesson { display: flex; align-items: center; gap: 14px; width: calc(100% - 40px); min-height: 64px; text-align: left; padding: 12px 14px; margin: 0 20px 24px; border: 1px solid var(--border); border-radius: 14px; background: none; color: var(--fg); }
+.today-lesson__icon { flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--accent-muted); color: var(--accent); display: grid; place-items: center; }
+.today-lesson__icon svg { width: 20px; height: 20px; }
+.today-lesson__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.today-lesson__kicker { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-tertiary); }
+.today-lesson__title { font-family: var(--font-display); font-size: 17px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today-lesson__meta { font-size: 12px; color: var(--fg-secondary); }
+.today-lesson__chev { flex: none; color: var(--fg-tertiary); }
+.today-lesson__chev svg { width: 16px; height: 16px; }
+
+/* Daily / SRS tabs at the top of the Today hero. A segmented control, like
+   the kanji Recognize / Draw toggle. */
+.hero-tabs { position: relative; display: flex; gap: 2px; padding: 3px; margin: 0 0 var(--space-5); border: 1px solid var(--border); border-radius: 999px; background: var(--bg-sunken); }
+.hero-tabs__tab { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; font-family: var(--font-ui); font-size: 14px; font-weight: 600; color: var(--fg-tertiary); border-radius: 999px; background: none; }
+.hero-tabs__tab.is-active { color: var(--accent-fg); background: var(--accent); }
+.hero-tabs__icon { width: 17px; height: 17px; }
+.hero-panel { position: relative; }
 
 /* ===== Kanji practice ===================================================== */
 

@@ -37,11 +37,42 @@ export function planSession(
   const sessionCap = Math.min(limit, budget.remaining);
   if (sessionCap <= 0) return { sessionCap: 0, newLimit: 0 };
 
-  // New cards get a third of the target per round — at the default 30 that is
-  // the 10/day this app has always used.
-  const newShare = Math.round(budget.target / 3) * (1 + budget.extra_rounds);
-  const newLimit = Math.max(0, Math.min(sessionCap, newShare - introducedToday));
+  const newLimit = Math.max(0, Math.min(sessionCap, newShare(budget) - introducedToday));
   return { sessionCap, newLimit };
+}
+
+// New cards get a third of the target per round — at the default 30 that is
+// the 10/day this app has always used. One share for the whole day, whichever
+// tab introduces the cards.
+function newShare(budget: { target: number; extra_rounds: number }): number {
+  return Math.round(budget.target / 3) * (1 + budget.extra_rounds);
+}
+
+// The SRS tab reviews the whole deck on the Leitner schedule: every due card,
+// with no focus and no daily target. It is still a session someone has to sit
+// through on a phone, so one sitting deals at most this many; whatever is left
+// is still due afterwards and the hero offers it again.
+export const SRS_SESSION_CAP = 200;
+
+export type SrsPlan = { due: number; new: number };
+
+// How many due and new cards an SRS session deals. Due comes first — that is
+// what the schedule says you are about to forget — and new cards fill what is
+// left of the cap, up to what remains of today's new-card share (the same share
+// the Daily tab draws on, so switching tabs can't double the day's new cards).
+//
+// Pure, like `sessionSize`: `buildSrsQueue` fetches exactly these counts and
+// the dashboard shows their sum, so the SRS hero can't promise a different
+// session than the one it starts.
+export function planSrs(
+  budget: { target: number; extra_rounds: number },
+  introducedToday: number,
+  available: { new: number; due: number },
+): SrsPlan {
+  const due = Math.min(SRS_SESSION_CAP, available.due);
+  const newLeft = Math.max(0, newShare(budget) - introducedToday);
+  const neu = Math.min(newLeft, available.new, SRS_SESSION_CAP - due);
+  return { due, new: neu };
 }
 
 // How many cards the plan actually yields against the pools on hand.

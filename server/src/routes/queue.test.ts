@@ -328,4 +328,32 @@ describe("drill", () => {
     const res = await get("&mode=drill&skill=kanji");
     expect(res.body.items).toHaveLength(50);
   });
+
+  describe("mode=srs", () => {
+    it("deals every due card across the deck, past the daily target", async () => {
+      await pool.query(`UPDATE app_settings SET daily_review_target = 10`);
+      for (let n = 0; n < 25; n++) await insertItem({ skill: n % 2 ? "kanji" : "vocab", box: 2, nextReviewMinutesAgo: 30 });
+      await insertItem({ box: 2, nextReviewMinutesAgo: -600 });   // not due yet
+      const scheduled = await request(app).get("/api/queue?tz=UTC").set("X-Passcode", PASSCODE);
+      expect(scheduled.body.due.length).toBe(10);
+      const srs = await request(app).get("/api/queue?tz=UTC&mode=srs").set("X-Passcode", PASSCODE);
+      expect(srs.status).toBe(200);
+      expect(srs.body.due.length).toBe(25);
+    });
+
+    it("adds new cards up to what is left of today's share", async () => {
+      const seen = await insertItem({ box: 1 });
+      await recordNewExposureToday(seen);
+      for (let n = 0; n < 20; n++) await insertItem({});
+      const srs = await request(app).get("/api/queue?tz=UTC&mode=srs").set("X-Passcode", PASSCODE);
+      // Default target 30 → a share of 10, one already introduced today.
+      expect(srs.body.new.length).toBe(9);
+    });
+
+    it("refuses a focus", async () => {
+      const res = await request(app).get("/api/queue?mode=srs&skill=vocab").set("X-Passcode", PASSCODE);
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("FOCUS_NOT_ALLOWED");
+    });
+  });
 });

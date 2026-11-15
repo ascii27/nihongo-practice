@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Focus, ReviewMode, TagSummary } from "@nihongo/shared";
+import type { Focus, TagSummary } from "@nihongo/shared";
+import type { PracticeKind } from "./lib/practice";
 import { auth } from "./auth";
 import { api } from "./api";
 import { fetchTags } from "./api-hooks";
@@ -16,7 +17,7 @@ import { BottomTabs, type Tab } from "./components/BottomTabs";
 
 type AuthState = "checking" | "needs-auth" | "authed";
 // `practice` (the card-playing engine) has no tab of its own; it plays the
-// current focus, either as the day's session or as a drill.
+// current focus as the day's session or as a drill, or the whole deck (SRS).
 type Route = Tab | "settings" | "lesson" | "practice";
 
 export default function App() {
@@ -26,7 +27,7 @@ export default function App() {
   // The Ready-for-Review focus lives here so Library's "Review this tag" can
   // set it, and it is remembered per device until cleared.
   const [focus, setFocus] = useState<Focus>(loadFocus);
-  const [practiceMode, setPracticeMode] = useState<ReviewMode>("scheduled");
+  const [practiceMode, setPracticeMode] = useState<PracticeKind>("scheduled");
   const [tags, setTags] = useState<TagSummary[]>([]);
 
   useEffect(() => {

@@ -101,6 +101,7 @@ describe("daily review target types", () => {
     const with_ = {
       ...without, daily_target: 30, reviewed_today: 4, remaining: 26,
       session_size: 26, another_round_size: 30, drill_available: 0,
+      srs_size: 40, srs_due: 30, srs_new: 10,
     };
     expect(DashboardResponse.safeParse(with_).success).toBe(true);
   });
@@ -109,9 +110,21 @@ describe("daily review target types", () => {
     const full = {
       streak_days: 0, last_practiced_at: null, by_skill: fullBySkill,
       daily_target: 30, reviewed_today: 4, remaining: 26, session_size: 26, another_round_size: 30,
+      srs_size: 40, srs_due: 30, srs_new: 10,
     };
     expect(DashboardResponse.safeParse(full).success).toBe(false);
     expect(DashboardResponse.safeParse({ ...full, drill_available: 3 }).success).toBe(true);
+  });
+
+  it("DashboardResponse requires the SRS fields", () => {
+    const full = {
+      streak_days: 0, last_practiced_at: null, by_skill: fullBySkill,
+      daily_target: 30, reviewed_today: 4, remaining: 26, session_size: 26, another_round_size: 30,
+      drill_available: 0, srs_size: 40, srs_due: 30, srs_new: 10,
+    };
+    expect(DashboardResponse.safeParse(full).success).toBe(true);
+    const { srs_size: _s, ...withoutSize } = full;
+    expect(DashboardResponse.safeParse(withoutSize).success).toBe(false);
   });
 
   it("DashboardResponse requires the session-size fields", () => {

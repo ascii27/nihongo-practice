@@ -2,11 +2,11 @@ import { Router } from "express";
 import { pool } from "../db/pool.js";
 import { computeStreak } from "../services/streak.js";
 import { getDailyBudget, unlockRound, previewRound, countIntroducedToday } from "../services/daily-budget.js";
-import { planSession, sessionSize, DEFAULT_QUEUE_LIMIT } from "../services/session-plan.js";
+import { planSession, planSrs, sessionSize, DEFAULT_QUEUE_LIMIT } from "../services/session-plan.js";
 import { resolveTz } from "../services/tz.js";
 import type { DailyBudget } from "../services/daily-budget.js";
 import { parseFocus, focusClause, hasFocus } from "../services/focus.js";
-import { countDrill } from "../services/queue.js";
+import { countDrill, countDeck } from "../services/queue.js";
 import type { Focus } from "@nihongo/shared";
 
 const SKILLS = ["vocab", "grammar", "reading", "conjugation", "particle", "explain", "listening", "kanji"] as const;
@@ -81,6 +81,9 @@ async function buildPayload(tz: string, budget: DailyBudget, focus: Focus) {
     available,
   );
 
+  // The SRS tab ignores the focus: it is always the whole deck.
+  const srs = planSrs(budget, introducedToday, await countDeck());
+
   return {
     streak_days: streakDays,
     last_practiced_at: last ? last.toISOString() : null,
@@ -90,6 +93,9 @@ async function buildPayload(tz: string, budget: DailyBudget, focus: Focus) {
     session_size,
     another_round_size,
     drill_available: hasFocus(focus) ? await countDrill(focus) : 0,
+    srs_size: srs.due + srs.new,
+    srs_due: srs.due,
+    srs_new: srs.new,
     by_skill,
   };
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import type { Focus, ItemRecord, ReviewMode, ReviewResult } from "@nihongo/shared";
-import { fetchQueue, fetchDrill, startSession, endSession, submitReview } from "../api-hooks";
+import type { Focus, ItemRecord, ReviewResult } from "@nihongo/shared";
+import { fetchQueue, fetchSrsQueue, fetchDrill, startSession, endSession, submitReview } from "../api-hooks";
+import type { PracticeKind } from "../lib/practice";
 import { FlipCard } from "../components/FlipCard";
 import { MultipleChoiceCard } from "../components/MultipleChoiceCard";
 import { ListeningCard } from "../components/ListeningCard";
@@ -14,7 +15,8 @@ type Phase = "loading" | "empty" | "reviewing" | "summary" | "error";
 type Props = {
   onDone: () => void;
   focus: Focus;         // {} = everything
-  mode: ReviewMode;     // drill: every card in the focus, schedule untouched
+  mode: PracticeKind;   // drill: every card in the focus, schedule untouched;
+                        // srs: the whole deck's due cards, focus ignored
 };
 
 export function PracticeScreen({ onDone, focus, mode }: Props) {
@@ -38,7 +40,9 @@ export function PracticeScreen({ onDone, focus, mode }: Props) {
           setPhase(drill.length === 0 ? "empty" : "reviewing");
           return;
         }
-        const [{ id }, queue] = await Promise.all([startSession(focus), fetchQueue(focus)]);
+        const [{ id }, queue] = mode === "srs"
+          ? await Promise.all([startSession({}), fetchSrsQueue()])
+          : await Promise.all([startSession(focus), fetchQueue(focus)]);
         if (cancelled) return;
         sessionIdRef.current = id;
         const all = [...queue.due, ...queue.new];
@@ -68,8 +72,9 @@ export function PracticeScreen({ onDone, focus, mode }: Props) {
       reviewed_at: new Date().toISOString(),
       session_id: sessionIdRef.current ?? undefined,
       answer_given,
-      // A drill is logged but never moves a card's schedule (server-side).
-      mode,
+      // A drill is logged but never moves a card's schedule (server-side); an
+      // SRS session is an ordinary scheduled review.
+      mode: mode === "drill" ? "drill" : "scheduled",
     });
     if (index + 1 >= items.length) {
       void finishSession();
