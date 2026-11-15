@@ -100,10 +100,15 @@ export function DashboardScreen({
     : "never";
 
   // The SRS tab: the whole deck on the Leitner schedule. No focus and no daily
-  // target — every due card, plus what is left of today's new-card share. The
-  // number is the server's `srs_size`, exactly what "Start SRS review" deals.
-  // `by_skill` is unfocused, so its due total tells a capped sitting apart.
+  // target — every due card, plus what is left of today's new-card share.
+  //
+  // The big number is everything the tab has to cover (`by_skill` is unfocused,
+  // so its due total is the whole deck), not one sitting: with the 200-card cap
+  // a 235-due deck read "200" before and after a session, so progress was
+  // invisible. When the cap bites, the button names the sitting instead
+  // ("Review 200" — the server's `srs_size`, exactly what it deals).
   const totalDue = SKILL_ORDER.reduce((acc, s) => acc + data.by_skill[s].due, 0);
+  const srsCapped = totalDue > data.srs_due;
   const srsPanel = data.srs_size === 0 ? (
     <>
       <p className="today__hero-label">Due across your deck</p>
@@ -117,14 +122,14 @@ export function DashboardScreen({
   ) : (
     <>
       <p className="today__hero-label">Due across your deck</p>
-      <p className="today__hero-count">{data.srs_size}</p>
+      <p className="today__hero-count">{totalDue + data.srs_new}</p>
       <p className="today__hero-sub">
-        {data.srs_due} due{data.srs_new > 0 && <> · {data.srs_new} new</>}
-        {totalDue > data.srs_due && <> · first {data.srs_due} of {totalDue}</>}
+        {srsCapped ? <>{data.srs_due} per session</> : <>{data.srs_due} due</>}
+        {data.srs_new > 0 && <> · {data.srs_new} new</>}
         &nbsp;·&nbsp; <span className="jp">全体復習</span>
       </p>
       <button type="button" className="cta cta--primary cta--lg today__hero-cta" onClick={() => onPractice("srs")}>
-        Start SRS review
+        {srsCapped ? `Review ${data.srs_size}` : "Start SRS review"}
       </button>
     </>
   );
