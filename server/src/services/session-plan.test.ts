@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { planSession, sessionSize, DEFAULT_QUEUE_LIMIT, drillLimit, DRILL_UNTAGGED_CAP } from "./session-plan.js";
+import { planSession, sessionSize, planSrs, SRS_SESSION_CAP, DEFAULT_QUEUE_LIMIT, drillLimit, DRILL_UNTAGGED_CAP } from "./session-plan.js";
 
 // A budget shaped like `getDailyBudget` returns, with only the fields the
 // planner reads. `reviewed`/`allowance` are irrelevant here — `remaining` is
@@ -98,5 +98,25 @@ describe("drillLimit", () => {
     expect(DRILL_UNTAGGED_CAP).toBe(50);
     expect(drillLimit({ tag: "11111111-1111-1111-1111-111111111111" })).toBeNull();
     expect(drillLimit({ skill: "kanji", tag: "11111111-1111-1111-1111-111111111111" })).toBeNull();
+  });
+});
+
+describe("planSrs", () => {
+  it("deals every due card, ignoring the daily target", () => {
+    expect(planSrs(budget({ remaining: 0 }), 10, { due: 80, new: 0 })).toEqual({ due: 80, new: 0 });
+  });
+
+  it("adds what is left of today's new-card share", () => {
+    expect(planSrs(budget(), 4, { due: 5, new: 300 })).toEqual({ due: 5, new: 6 });
+    expect(planSrs(budget({ extra_rounds: 1 }), 4, { due: 5, new: 300 }).new).toBe(16);
+  });
+
+  it("introduces nothing once the share is spent", () => {
+    expect(planSrs(budget(), 40, { due: 5, new: 300 }).new).toBe(0);
+  });
+
+  it("caps one sitting, due first", () => {
+    expect(planSrs(budget(), 0, { due: 500, new: 50 })).toEqual({ due: SRS_SESSION_CAP, new: 0 });
+    expect(planSrs(budget(), 0, { due: SRS_SESSION_CAP - 3, new: 50 }).new).toBe(3);
   });
 });

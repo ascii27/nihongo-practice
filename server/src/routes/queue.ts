@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildQueue, buildDrill } from "../services/queue.js";
+import { buildQueue, buildDrill, buildSrsQueue } from "../services/queue.js";
 import { DEFAULT_QUEUE_LIMIT } from "../services/session-plan.js";
 import { parseFocus, hasFocus } from "../services/focus.js";
 import { resolveTz } from "../services/tz.js";
@@ -7,7 +7,8 @@ import { resolveTz } from "../services/tz.js";
 export const queueRouter = Router();
 
 // GET /api/queue?skill=&tag=&tz=&limit= — the day's budgeted session, narrowed
-// by an optional focus. `mode=drill` deals every card in the focus instead.
+// by an optional focus. `mode=drill` deals every card in the focus instead;
+// `mode=srs` deals the whole deck's due cards, focus and daily target ignored.
 queueRouter.get("/", async (req, res) => {
   const parsed = await parseFocus(req.query);
   if (!parsed.ok) {
@@ -15,6 +16,17 @@ queueRouter.get("/", async (req, res) => {
     return;
   }
   const { focus } = parsed;
+
+  // SRS reviews the whole deck: a focus would contradict it, so it is refused
+  // rather than silently ignored.
+  if (req.query.mode === "srs") {
+    if (hasFocus(focus)) {
+      res.status(400).json({ error: "srs reviews the whole deck; drop skill and tag", code: "FOCUS_NOT_ALLOWED" });
+      return;
+    }
+    res.json(await buildSrsQueue(resolveTz(req.query.tz)));
+    return;
+  }
 
   // Drill needs a focus: drilling the entire deck is not a session anyone
   // means to start.

@@ -77,3 +77,23 @@ export const IconBrush = ({ className }: IconProps) => (
     <path d="M13 6l5 5" />
   </svg>
 );
+
+// Daily tab on the Today hero — a day on the calendar.
+export const IconDaily = ({ className }: IconProps) => (
+  <svg {...base} className={className} aria-hidden>
+    <rect x="3.5" y="5" width="17" height="15" rx="2" />
+    <path d="M3.5 10h17" />
+    <path d="M8 3v4M16 3v4" />
+    <circle cx="12" cy="15" r="1.4" />
+  </svg>
+);
+
+// SRS tab on the Today hero — the review cycle.
+export const IconCycle = ({ className }: IconProps) => (
+  <svg {...base} className={className} aria-hidden>
+    <path d="M20 12a8 8 0 0 1-13.7 5.6" />
+    <path d="M4 12a8 8 0 0 1 13.7-5.6" />
+    <path d="M17.7 2.8v3.8h-3.8" />
+    <path d="M6.3 21.2v-3.8h3.8" />
+  </svg>
+);

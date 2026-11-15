@@ -428,6 +428,13 @@ export const DashboardResponse = z.object({
   // How many cards "Drill all anyway" would deal for the requested focus
   // (capped like the drill queue). Always 0 without a focus.
   drill_available: z.number().int().nonnegative(),
+  // The SRS tab: the whole deck on the Leitner schedule, focus and daily target
+  // ignored. `srs_size` is exactly what "Start SRS review" will deal (every due
+  // card plus what is left of today's new-card share, capped per session);
+  // `srs_due` and `srs_new` are its parts, for the hero's sub-copy.
+  srs_size: z.number().int().nonnegative(),
+  srs_due: z.number().int().nonnegative(),
+  srs_new: z.number().int().nonnegative(),
   by_skill: z.object({
     vocab: SkillCounts,
     grammar: SkillCounts,

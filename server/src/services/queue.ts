@@ -1,7 +1,7 @@
 import { pool } from "../db/pool.js";
 import type { Focus, ItemRecord } from "@nihongo/shared";
 import { getDailyBudget, countIntroducedToday } from "./daily-budget.js";
-import { planSession, drillLimit } from "./session-plan.js";
+import { planSession, planSrs, drillLimit } from "./session-plan.js";
 import { focusClause } from "./focus.js";
 
 type Row = {
@@ -77,6 +77,29 @@ export async function buildQueue(
   const neu = await fetchNew(opts.focus, newLimit);
   const due = await fetchDue(opts.focus, sessionCap - neu.length);
 
+  return { due, new: neu };
+}
+
+// The whole deck's pools, unfocused: brand-new cards and due, non-suspended
+// ones. The SRS tab sizes its session from these.
+export async function countDeck(): Promise<{ new: number; due: number }> {
+  const r = await pool.query<{ new: number; due: number }>(
+    `SELECT count(*) FILTER (WHERE rs.item_id IS NULL)::int AS new,
+            count(*) FILTER (WHERE rs.next_review_at <= now() AND rs.suspended = false)::int AS due
+       FROM items i LEFT JOIN review_state rs ON rs.item_id = i.id`,
+  );
+  return { new: r.rows[0]?.new ?? 0, due: r.rows[0]?.due ?? 0 };
+}
+
+// SRS ("the full deck"): every due card regardless of tag or skill, plus what
+// is left of today's new-card share, ignoring the daily review target. Graded
+// as ordinary scheduled reviews, so it moves boxes like any session.
+export async function buildSrsQueue(tz: string): Promise<{ due: ItemRecord[]; new: ItemRecord[] }> {
+  const budget = await getDailyBudget(tz);
+  const introducedToday = await countIntroducedToday(tz);
+  const plan = planSrs(budget, introducedToday, await countDeck());
+  const due = await fetchDue({}, plan.due);
+  const neu = await fetchNew({}, plan.new);
   return { due, new: neu };
 }
 

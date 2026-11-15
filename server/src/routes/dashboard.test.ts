@@ -325,6 +325,20 @@ describe("focus", () => {
     expect((await auth(request(app).get(`/api/dashboard?tz=UTC`))).body.drill_available).toBe(0);
   });
 
+  it("srs_size equals what the SRS queue deals, whatever the focus", async () => {
+    const coto = await tag("Coto Academy");
+    for (let n = 0; n < 40; n++) await insertItem("vocab", { box: 2, nextReviewMinutesAgo: 30 });
+    for (let n = 0; n < 3; n++) await insertItem("kanji", { tags: [coto], box: 1, nextReviewMinutesAgo: 30 });
+    for (let n = 0; n < 15; n++) await insertItem("grammar");
+    const q = await auth(request(app).get(`/api/queue?tz=UTC&mode=srs`));
+    for (const qs of ["", `&tag=${coto}`, "&skill=grammar"]) {
+      const d = await auth(request(app).get(`/api/dashboard?tz=UTC${qs}`));
+      expect(d.body.srs_size, qs).toBe(q.body.due.length + q.body.new.length);
+      expect(d.body.srs_due, qs).toBe(43);
+      expect(d.body.srs_new, qs).toBe(10);
+    }
+  });
+
   it("keeps by_skill unfocused", async () => {
     const coto = await tag("Coto Academy");
     await insertItem("kanji", { tags: [coto] });
