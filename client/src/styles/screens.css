@@ -992,10 +992,10 @@
 .item-detail__add-tag { margin-top: var(--space-3); }
 
 /* ===== Today: add hero (ASC-26) ============================================ */
-/* The add hero shares the practice hero's card; its forms were built for
-   Settings' flat sections, so they drop that padding and sit on the wash. */
-.today__add .settings__gen { position: relative; margin: 0; padding: 0; background: none; border: none; }
-.today__add .hero-tabs { margin-bottom: var(--space-4); }
+/* The add hero shares the practice hero's card; the quick-add form sits on the
+   wash above the hero's ::before, so it needs its own stacking context. */
+.today__add .study-quick { position: relative; }
+.today__add-tag { margin: 0 0 var(--space-1); }
 
 /* ===== Library: skills (ASC-26) ============================================ */
 .library__skill-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); margin-bottom: var(--space-2); }
@@ -1003,6 +1003,15 @@
 .skill-chip { display: inline-flex; align-items: center; gap: var(--space-2); }
 .skill-chip__glyph { font-family: var(--font-jp); color: var(--accent); }
 .skill-chip__num.is-zero { opacity: 0.6; }
+.skill-chip--new { border-style: dashed; color: var(--fg-secondary); background: none; }
+/* GenerateForm was built for Settings' flat sections; inside a sheet it drops
+   that card chrome. */
+.sheet .settings__gen { margin: 0; padding: 0; background: none; border: none; }
 .library__skill-header { margin-bottom: var(--space-3); }
 .library__skill-header .library__tag-mastery { margin-left: auto; }
 .library__skill-clear { flex-shrink: 0; align-self: center; }
+/* On Today the type picker is a primary control, so it gets the hero tabs'
+   size and full width rather than the sheet's compact pills. */
+.today__add .study-quick__kinds { align-self: stretch; display: flex; }
+.today__add .study-quick__kind { flex: 1; min-height: 40px; font-size: 14px; }
+.today__add .settings__input { font-size: 16px; }  /* below 16px iOS zooms on focus */

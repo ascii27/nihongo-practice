@@ -5,6 +5,8 @@ import { SKILL_META, SKILL_ORDER } from "../lib/skills";
 import { canGenerate } from "../lib/today";
 import { FocusPickers } from "../components/FocusPickers";
 import { AddCards } from "../components/AddCards";
+import { GenerateForm } from "../components/GenerateForm";
+import { isQuickKind } from "../components/QuickAddForm";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ItemDetailSheet } from "../components/ItemDetailSheet";
 import { IconClose, IconSearch } from "../components/icons";
@@ -22,7 +24,7 @@ type Props = {
 // Matches the server's page size (LIBRARY_PAGE), so one server page is one pager page.
 const PAGE_SIZE = 50;
 
-type Sheet = "new-tag" | "manage" | "confirm-delete" | "add" | null;
+type Sheet = "new-tag" | "manage" | "confirm-delete" | "add" | "generate" | null;
 
 // Everything in the deck, searchable and filterable by skill and tag; tags are
 // created and managed here. Fixed to the viewport like a paged list (ASC-19):
@@ -104,7 +106,8 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
           counts={bySkill?.[filter.skill] ?? null}
           onClear={() => changeFilter({ ...filter, skill: undefined })}
           onStudy={() => onStudy(filter)}
-          onAdd={canGenerate(filter.skill) ? () => onAdd(filter) : null}
+          onAdd={isQuickKind(filter.skill) ? () => onAdd(filter) : null}
+          onGenerate={canGenerate(filter.skill) ? () => setSheet("generate") : null}
         />
       ) : (
         // Unlabelled on purpose: each chip names its skill, and a "Skills"
@@ -123,6 +126,9 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
               </button>
             );
           })}
+          <button type="button" className="skill-chip skill-chip--new" onClick={() => setSheet("generate")}>
+            + Generate
+          </button>
         </div>
       )}
 
@@ -220,6 +226,15 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
       {sheet === "add" && activeTag && (
         <AddCards tagId={activeTag.id} tagName={activeTag.name} onChanged={refreshAll} onClose={() => setSheet(null)} />
       )}
+      {sheet === "generate" && (
+        <SheetFrame label="Generate cards" kicker="Generate cards" onClose={() => setSheet(null)}>
+          <GenerateForm
+            mode="full"
+            defaultSkill={filter.skill && canGenerate(filter.skill) ? filter.skill : undefined}
+            onSuccess={() => { void refreshAll(); }}
+          />
+        </SheetFrame>
+      )}
       {openItemId && (
         <ItemDetailSheet itemId={openItemId} tags={tags} onClose={() => setOpenItemId(null)} onTagsChanged={refreshAll} />
       )}
@@ -227,15 +242,17 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
   );
 }
 
-// A skill picked from the chip row: its counts, and the two ways back to Today.
-// Kanji can't be generated (they come from the seeded dataset), so it gets no
-// Add button rather than one that lands on a form that can't make kanji.
-function SkillHeader({ skill, counts, onClear, onStudy, onAdd }: {
+// A skill picked from the chip row: its counts, the two ways back to Today
+// (study it, or add one card of it), and Generate. Add exists only for the
+// three types Today's add hero makes; Generate only for skills the model can
+// make (not kanji, which come from the seeded dataset).
+function SkillHeader({ skill, counts, onClear, onStudy, onAdd, onGenerate }: {
   skill: NonNullable<Focus["skill"]>;
   counts: { due: number; new: number } | null;
   onClear: () => void;
   onStudy: () => void;
   onAdd: (() => void) | null;
+  onGenerate: (() => void) | null;
 }) {
   const meta = SKILL_META[skill];
   return (
@@ -257,6 +274,7 @@ function SkillHeader({ skill, counts, onClear, onStudy, onAdd }: {
       <div className="library__tag-actions">
         <button type="button" className="cta cta--primary" onClick={onStudy}>Study this skill</button>
         {onAdd && <button type="button" className="cta" onClick={onAdd}>Add {meta.label.toLowerCase()}</button>}
+        {onGenerate && <button type="button" className="cta" onClick={onGenerate}>Generate</button>}
       </div>
     </section>
   );

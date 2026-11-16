@@ -35,7 +35,7 @@ export default function App() {
   const [todayTarget, setTodayTarget] = useState<TodayTarget | null>(null);
   function go(r: Route) { setTodayTarget(null); setRoute(r); }
   function openToday(section: TodaySection, f: Focus) {
-    setTodayTarget((t) => ({ section, skill: f.skill, nonce: (t?.nonce ?? 0) + 1 }));
+    setTodayTarget((t) => ({ section, skill: f.skill, tag: f.tag, nonce: (t?.nonce ?? 0) + 1 }));
     setRoute("today");
   }
 
@@ -71,6 +71,7 @@ export default function App() {
         onOpenSettings={() => go("settings")}
         onStartLesson={(id) => { setLessonId(id); go("lesson"); }}
         onOpenLessons={() => go("lessons")}
+        onTagsChanged={refreshTags}
         target={todayTarget}
       />
     );

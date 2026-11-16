@@ -1,15 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardResponse, Focus, TagSummary, TodayLessonResponse } from "@nihongo/shared";
-import { fetchDashboard, fetchTodayLesson, unlockAnotherRound } from "../api-hooks";
+import { addItem, fetchDashboard, fetchTodayLesson, unlockAnotherRound } from "../api-hooks";
 import { ApiError } from "../api";
 import { SKILL_ORDER } from "../lib/skills";
 import { focusLabel } from "../lib/focus";
 import { FocusPickers } from "../components/FocusPickers";
-import { GenerateForm } from "../components/GenerateForm";
-import { ManualItemForm } from "../components/ManualItemForm";
+import { QuickAddForm, isQuickKind } from "../components/QuickAddForm";
 import { IconChevron, IconCycle, IconDaily, IconStudy } from "../components/icons";
 import { loadHeroTab, saveHeroTab, type HeroTab, type PracticeKind } from "../lib/practice";
-import { canGenerate, loadAddTab, saveAddTab, type AddTab, type TodayTarget } from "../lib/today";
+import type { TodayTarget } from "../lib/today";
 
 type Props = {
   focus: Focus;                              // {} = everything
@@ -19,13 +18,14 @@ type Props = {
   onOpenSettings: () => void;
   onStartLesson: (id: string) => void;
   onOpenLessons: () => void;
-  // A hand-off from Library's skill view: scroll to that hero, and for "add"
-  // preset the generator to the skill.
+  onTagsChanged: () => void;                 // a tagged add changes the tag's count
+  // A hand-off from Library: scroll to that hero, and for "add" preset the
+  // card type (vocab, kanji or grammar) and the tag from what Library showed.
   target: TodayTarget | null;
 };
 
 export function DashboardScreen({
-  focus, tags, onFocusChange, onPractice, onOpenSettings, onStartLesson, onOpenLessons, target,
+  focus, tags, onFocusChange, onPractice, onOpenSettings, onStartLesson, onOpenLessons, onTagsChanged, target,
 }: Props) {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [today, setToday] = useState<TodayLessonResponse | null>(null);
@@ -35,11 +35,8 @@ export function DashboardScreen({
   function chooseTab(t: HeroTab) { setTab(t); saveHeroTab(t); }
   const heroRef = useRef<HTMLElement>(null);
   const addRef = useRef<HTMLElement>(null);
-  // A hand-off asking for Generate opens that tab without remembering it: the
-  // remembered tab is the learner's own choice, not Library's.
-  const [addTab, setAddTab] = useState<AddTab>(() =>
-    target?.section === "add" && target.skill && canGenerate(target.skill) ? "generate" : loadAddTab());
-  function chooseAddTab(t: AddTab) { setAddTab(t); saveAddTab(t); }
+  // The add hero's tag: none by default, or the one Library was showing.
+  const [addTag, setAddTag] = useState<string>(target?.section === "add" ? target.tag ?? "" : "");
   // Bumped when a card lands from the add hero, so the practice hero's number
   // takes it in without a trip away and back.
   const [reloadTick, setReloadTick] = useState(0);
@@ -79,7 +76,7 @@ export function DashboardScreen({
       saveHeroTab("daily");
       heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     } else {
-      if (target.skill && canGenerate(target.skill)) setAddTab("generate");
+      setAddTag(target.tag ?? "");
       addRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
     // Only the nonce: `target` itself is a new object on each hand-off.
@@ -292,30 +289,27 @@ export function DashboardScreen({
           view lands here with the generator preset to that skill. */}
       <section className="today__hero today__add" ref={addRef} aria-label="Add cards">
         <p className="today__hero-label">Add to your deck</p>
-        <div className="hero-tabs" role="tablist" aria-label="Add cards">
-          <button type="button" role="tab" id="add-tab-word" aria-controls="add-panel"
-                  aria-selected={addTab === "word"} className={`hero-tabs__tab ${addTab === "word" ? "is-active" : ""}`}
-                  onClick={() => chooseAddTab("word")}>
-            Add a word
-          </button>
-          <button type="button" role="tab" id="add-tab-generate" aria-controls="add-panel"
-                  aria-selected={addTab === "generate"} className={`hero-tabs__tab ${addTab === "generate" ? "is-active" : ""}`}
-                  onClick={() => chooseAddTab("generate")}>
-            Generate
-          </button>
-        </div>
-        <div className="hero-panel" id="add-panel" role="tabpanel" aria-labelledby={`add-tab-${addTab}`}>
-          {addTab === "word" ? (
-            <ManualItemForm onSaved={bumpReload} />
-          ) : (
-            <GenerateForm
-              key={target?.nonce ?? 0}
-              mode="full"
-              defaultSkill={target?.section === "add" && target.skill && canGenerate(target.skill) ? target.skill : undefined}
-              onSuccess={bumpReload}
-            />
-          )}
-        </div>
+        <QuickAddForm
+          key={target?.nonce ?? 0}
+          initialKind={target?.section === "add" && isQuickKind(target.skill) ? target.skill : "vocab"}
+          extra={
+            <label className="focus-pickers__field today__add-tag">
+              <span className="focus-pickers__label">Tag</span>
+              <select className="focus-pickers__select"
+                      value={addTag} onChange={(e) => setAddTag(e.target.value)}>
+                <option value="">No tag</option>
+                {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </label>
+          }
+          saveLabel="Add to deck"
+          save={async (body) => { await addItem(addTag ? { ...body, tag_id: addTag } : body); }}
+          addedNote={(label) => {
+            const t = tags.find((x) => x.id === addTag);
+            return t ? `Added ${label}, tagged ${t.name}.` : `Added ${label} to your deck.`;
+          }}
+          onAdded={() => { bumpReload(); onTagsChanged(); }}
+        />
       </section>
 
       {/* Today's lesson, compact: the two heroes above are the day's main actions. */}

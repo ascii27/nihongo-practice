@@ -43,7 +43,7 @@ test.describe("J2 class review", () => {
   test("focus on the class tag → focused session", async ({ page }) => {
     seed("seed-journeys");
     await login(page);
-    await page.getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     const start = page.getByRole("button", { name: "Start focused practice" });
     await expectFits(page, "focused hero", [start]);
     await start.click();
@@ -56,7 +56,7 @@ test.describe("J3 before class", () => {
     seed("seed-journeys");
     await login(page);
     await page.getByLabel("Skill").selectOption({ label: "Vocab" });
-    await page.getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     await page.getByRole("button", { name: "Start focused practice" }).click();
     await reviewCard(page, "introduce 水");
     await page.getByRole("button", { name: "Back to Today" }).click();
@@ -140,7 +140,7 @@ test.describe("@readonly views", () => {
     await expectFits(page, "Today, add hero", [addTabs]);
     await expectFits(page, "Today, lesson row", [lesson]);
 
-    await page.getByLabel("Tag").selectOption({ index: 1 });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ index: 1 });
     const focused = [page.getByRole("button", { name: /^Clear focus/ }), page.locator(".today__hero-label").first()];
     for (const s of focused) await s.scrollIntoViewIfNeeded();
     await expectFits(page, "Today, focused", focused);

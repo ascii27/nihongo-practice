@@ -820,6 +820,10 @@ export const QuickAddItemRequest = z.discriminatedUnion("kind", [
 ]);
 export type QuickAddItemRequest = z.infer<typeof QuickAddItemRequest>;
 
+// Today's add hero: the same card, with the tag optional (POST /api/items/quick-add).
+export const AddItemRequest = z.object({ tag_id: z.string().uuid().optional() }).and(QuickAddItemRequest);
+export type AddItemRequest = z.infer<typeof AddItemRequest>;
+
 export const QuickAddItemResponse = z.object({ item_id: z.string().uuid() });
 export type QuickAddItemResponse = z.infer<typeof QuickAddItemResponse>;
 

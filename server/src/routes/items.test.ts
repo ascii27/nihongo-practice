@@ -105,6 +105,42 @@ describe("POST /api/items/manual", () => {
   });
 });
 
+describe("POST /api/items/quick-add", () => {
+  const vocab = {
+    kind: "vocab", japanese: "テスト", english: "test",
+    sentence_japanese: "テストです。", sentence_english: "It's a test.",
+  };
+  const post = (body: object) =>
+    request(app).post("/api/items/quick-add").set("X-Passcode", PASSCODE).send(body);
+
+  it("adds a card with no tag", async () => {
+    const res = await post(vocab);
+    expect(res.status).toBe(201);
+    const r = await pool.query(`SELECT skill, source FROM items WHERE id = $1`, [res.body.item_id]);
+    expect(r.rows[0]).toEqual({ skill: "vocab", source: "user" });
+    expect((await pool.query(`SELECT count(*)::int AS c FROM item_tags`)).rows[0].c).toBe(0);
+  });
+
+  it("adds a kanji card and tags it when a tag is given", async () => {
+    const t = await pool.query<{ id: string }>(`INSERT INTO tags (name) VALUES ('Week 1') RETURNING id`);
+    const res = await post({ kind: "kanji", character: "食", meaning: "eat", tag_id: t.rows[0]!.id });
+    expect(res.status).toBe(201);
+    const r = await pool.query(`SELECT i.skill FROM items i JOIN item_tags it ON it.item_id = i.id WHERE it.tag_id = $1`, [t.rows[0]!.id]);
+    expect(r.rows).toEqual([{ skill: "kanji" }]);
+  });
+
+  it("404s an unknown tag and writes nothing", async () => {
+    const res = await post({ ...vocab, tag_id: "00000000-0000-4000-8000-000000000000" });
+    expect(res.status).toBe(404);
+    expect(res.body.code).toBe("TAG_NOT_FOUND");
+    expect((await pool.query(`SELECT count(*)::int AS c FROM items`)).rows[0].c).toBe(0);
+  });
+
+  it("rejects a malformed card with 400", async () => {
+    expect((await post({ kind: "vocab", japanese: "" })).status).toBe(400);
+  });
+});
+
 describe("GET /api/items/:id", () => {
   async function insertItem(skill: string, prompt: object, answer: object): Promise<string> {
     const r = await pool.query(

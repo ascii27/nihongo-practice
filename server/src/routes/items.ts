@@ -7,11 +7,11 @@ import {
   computeCost,
   GenerateError,
 } from "@nihongo/gen";
-import { ManualVocabPreviewRequest, ManualVocabSaveRequest } from "@nihongo/shared";
+import { AddItemRequest, ManualVocabPreviewRequest, ManualVocabSaveRequest } from "@nihongo/shared";
 import type { Skill, TagRef } from "@nihongo/shared";
 import { pool } from "../db/pool.js";
 import { itemDisplay, boxToMastery } from "../services/item-display.js";
-import { userTagsSql } from "../services/tags.js";
+import { quickAddItem, userTagsSql } from "../services/tags.js";
 
 export const itemsRouter = Router();
 
@@ -100,6 +100,24 @@ itemsRouter.post("/manual", async (req, res) => {
       created_at: row.created_at.toISOString(),
     },
   });
+});
+
+// POST /api/items/quick-add — Today's add hero: save an (edited) quick-add
+// preview as a new card of any of the three kinds, tagged when a tag is given.
+// Same card-building as the tag route; only the tag is optional.
+itemsRouter.post("/quick-add", async (req, res) => {
+  const parsed = AddItemRequest.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.errors[0]?.message ?? "invalid input", code: "INVALID_INPUT" });
+    return;
+  }
+  const { tag_id, ...card } = parsed.data;
+  const r = await quickAddItem(tag_id ?? null, card);
+  if (!r) {
+    res.status(404).json({ error: "tag not found", code: "TAG_NOT_FOUND" });
+    return;
+  }
+  res.status(201).json(r);
 });
 
 // GET /api/items/:id — one card in full: raw prompt/answer JSON (so the client

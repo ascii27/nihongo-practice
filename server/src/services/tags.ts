@@ -181,17 +181,19 @@ export async function previewQuickItem(req: QuickAddPreviewRequest): Promise<Qui
   };
 }
 
-// Create a new user item from the (edited) preview and tag it, in one
-// transaction. Null when the tag doesn't exist.
-export async function quickAddItem(tagId: string, req: QuickAddItemRequest): Promise<{ item_id: string } | null> {
+// Create a new user item from the (edited) preview and, given a tag, tag it,
+// in one transaction. Null when the tag doesn't exist.
+export async function quickAddItem(tagId: string | null, req: QuickAddItemRequest): Promise<{ item_id: string } | null> {
   const built = await buildQuickItem(req);
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    const tag = await client.query(`SELECT 1 FROM tags WHERE id = $1`, [tagId]);
-    if ((tag.rowCount ?? 0) === 0) {
-      await client.query("ROLLBACK");
-      return null;
+    if (tagId !== null) {
+      const tag = await client.query(`SELECT 1 FROM tags WHERE id = $1`, [tagId]);
+      if ((tag.rowCount ?? 0) === 0) {
+        await client.query("ROLLBACK");
+        return null;
+      }
     }
     const ir = await client.query<{ id: string }>(
       `INSERT INTO items (skill, prompt, answer, source, external_id)
@@ -199,7 +201,9 @@ export async function quickAddItem(tagId: string, req: QuickAddItemRequest): Pro
       [built.skill, JSON.stringify(built.prompt), JSON.stringify(built.answer), `user-${randomUUID()}`],
     );
     const itemId = ir.rows[0]!.id;
-    await client.query(`INSERT INTO item_tags (tag_id, item_id) VALUES ($1, $2)`, [tagId, itemId]);
+    if (tagId !== null) {
+      await client.query(`INSERT INTO item_tags (tag_id, item_id) VALUES ($1, $2)`, [tagId, itemId]);
+    }
     await client.query("COMMIT");
     return { item_id: itemId };
   } catch (err) {

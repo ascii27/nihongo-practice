@@ -9,15 +9,18 @@ export async function login(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
 }
 
-// Card generation lives in Today's add hero (ASC-26). Generate cards for
-// `skill` and wait for the result; the page stays on Today.
+// Card generation lives in Library (ASC-26): the "+ Generate" chip opens a
+// sheet. Generate cards for `skill`, wait for the result, and close the sheet;
+// the page stays on Library.
 // Fake-AI fixtures cap the actual inserted count regardless of the request.
 export async function generateCards(page: Page, skill: string): Promise<void> {
-  const add = page.getByRole("region", { name: "Add cards" });
-  await add.getByRole("tab", { name: "Generate" }).click();
-  await add.getByLabel("Card type").selectOption(skill);
-  await add.getByRole("button", { name: /^Generate \d/ }).click();
-  await expect(add.getByRole("status")).toBeVisible({ timeout: 15_000 });
+  await openLibrary(page);
+  await page.getByRole("button", { name: "+ Generate" }).click();
+  const sheet = page.getByRole("dialog", { name: "Generate cards" });
+  await sheet.getByLabel("Card type").selectOption(skill);
+  await sheet.getByRole("button", { name: /^Generate \d/ }).click();
+  await expect(sheet.getByRole("status")).toBeVisible({ timeout: 15_000 });
+  await sheet.getByRole("button", { name: "Close generate cards" }).click();
 }
 
 export async function openLibrary(page: Page): Promise<void> {

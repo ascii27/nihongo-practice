@@ -162,3 +162,39 @@ test("library: a slow earlier search can't overwrite the latest results", async 
   await expect(page.locator(".study-item__front", { hasText: "水" })).toBeVisible();
   await expect(page.locator(".study-item__front", { hasText: "火" })).toHaveCount(0);
 });
+
+test("library: a skill's Add hands off to Today, preset to that type and the tag on view", async ({ page }) => {
+  await login(page);
+  await openLibrary(page);
+  await page.getByRole("button", { name: /^Coto Academy/ }).click();
+  await page.locator(".skill-card--kanji").click();
+  await page.getByRole("button", { name: "Add kanji" }).click();
+
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  const add = page.getByRole("region", { name: "Add cards" });
+  await expect(add).toBeInViewport();
+  await expect(add.getByRole("tab", { name: "Kanji" })).toHaveAttribute("aria-selected", "true");
+  await expect(add.getByLabel("Tag")).toHaveValue(/.+/);
+  await expect(add.getByLabel("Tag").locator("option:checked")).toHaveText("Coto Academy");
+
+  await add.getByPlaceholder(/Kanji/).fill("山");
+  await add.getByRole("button", { name: "Generate" }).click();
+  await add.getByLabel("Meaning").fill("mountain");
+  await add.getByRole("button", { name: "Add to deck" }).click();
+  await expect(add.getByRole("status")).toHaveText("Added 山, tagged Coto Academy.");
+});
+
+test("library: a skill's Generate opens the generator preset to it; kanji has neither", async ({ page }) => {
+  await login(page);
+  await openLibrary(page);
+  await page.locator(".skill-card--grammar").click();
+  await page.getByRole("button", { name: "Generate", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Generate cards" }).getByLabel("Card type")).toHaveValue("grammar");
+  await page.getByRole("button", { name: "Close generate cards" }).click();
+
+  await page.getByRole("button", { name: "Clear skill Grammar" }).click();
+  await page.locator(".skill-card--kanji").click();
+  await expect(page.getByRole("button", { name: "Study this skill" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Generate", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add kanji" })).toBeVisible();
+});
