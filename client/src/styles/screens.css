@@ -960,15 +960,6 @@
 .library__title { margin-bottom: var(--space-3); }
 .library__search { margin: 0 0 var(--space-3); }
 .library__pickers { margin-bottom: var(--space-3); }
-.library__tag-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); }
-.library__tag-chips::-webkit-scrollbar { display: none; }
-.tag-chip, .skill-chip {
-  flex-shrink: 0; min-height: 44px; padding: 0 var(--space-4);
-  border: 1px solid var(--border); border-radius: var(--radius-full);
-  background: var(--bg-raised); color: var(--fg); font-family: var(--font-ui); font-size: 14px; white-space: nowrap;
-}
-.tag-chip__count, .skill-chip__num { color: var(--fg-tertiary); }
-.tag-chip--new { border-style: dashed; color: var(--fg-secondary); background: none; }
 .library__tag-header { display: flex; flex-direction: column; gap: var(--space-2); }
 .library__tag-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
 .library__tag-name { font-family: var(--font-display); font-size: 20px; font-weight: 500; margin: 0; }
@@ -997,13 +988,11 @@
 .today__add .study-quick { position: relative; }
 .today__add-tag { margin: 0 0 var(--space-1); }
 
-/* ===== Library: skills (ASC-26) ============================================ */
-.library__skill-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); margin-bottom: var(--space-2); }
-.library__skill-chips::-webkit-scrollbar { display: none; }
-.skill-chip { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* ===== Library: head + skill header (ASC-26) =============================== */
+.library__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+.library__head-actions { display: flex; gap: var(--space-4); }
+.library__head-actions .topbar__action { min-height: 44px; }
 .skill-chip__glyph { font-family: var(--font-jp); color: var(--accent); }
-.skill-chip__num.is-zero { opacity: 0.6; }
-.skill-chip--new { border-style: dashed; color: var(--fg-secondary); background: none; }
 /* GenerateForm was built for Settings' flat sections; inside a sheet it drops
    that card chrome. */
 .sheet .settings__gen { margin: 0; padding: 0; background: none; border: none; }

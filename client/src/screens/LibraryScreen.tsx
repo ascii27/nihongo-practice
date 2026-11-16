@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardResponse, Focus, LibraryItem, TagSummary } from "@nihongo/shared";
 import { fetchDashboard, fetchLibrary, createTag, updateTag, deleteTag } from "../api-hooks";
-import { SKILL_META, SKILL_ORDER } from "../lib/skills";
+import { SKILL_META } from "../lib/skills";
 import { canGenerate } from "../lib/today";
 import { FocusPickers } from "../components/FocusPickers";
 import { AddCards } from "../components/AddCards";
@@ -89,7 +89,16 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
 
   return (
     <main className="screen library">
-      <h1 className="lessons__title library__title">Library</h1>
+      {/* The two creation actions sit beside the title rather than in chip
+          rows, so filtering is just the two pickers and the list keeps the
+          room. */}
+      <header className="library__head">
+        <h1 className="lessons__title library__title">Library</h1>
+        <div className="library__head-actions">
+          <button type="button" className="topbar__action" onClick={() => setSheet("new-tag")}>New tag</button>
+          <button type="button" className="topbar__action" onClick={() => setSheet("generate")}>Generate</button>
+        </div>
+      </header>
 
       <div className="browse__search library__search">
         <span className="browse__search-icon"><IconSearch /></span>
@@ -109,28 +118,7 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
           onAdd={isQuickKind(filter.skill) ? () => onAdd(filter) : null}
           onGenerate={canGenerate(filter.skill) ? () => setSheet("generate") : null}
         />
-      ) : (
-        // Unlabelled on purpose: each chip names its skill, and a "Skills"
-        // label here would collide with the Skill picker's label above.
-        <div className="library__skill-chips">
-          {SKILL_ORDER.map((s) => {
-            const c = bySkill?.[s];
-            const n = c ? c.due + c.new : null;
-            return (
-              <button key={s} type="button" className={`skill-chip skill-card--${s}`}
-                      onClick={() => changeFilter({ ...filter, skill: s })}
-                      aria-label={n === null ? SKILL_META[s].label : `${SKILL_META[s].label}, ${n} to study`}>
-                <span className="skill-chip__glyph" aria-hidden="true">{SKILL_META[s].short}</span>
-                {SKILL_META[s].label}
-                {n !== null && <span className={`skill-chip__num ${n === 0 ? "is-zero" : ""}`}>· {n}</span>}
-              </button>
-            );
-          })}
-          <button type="button" className="skill-chip skill-chip--new" onClick={() => setSheet("generate")}>
-            + Generate
-          </button>
-        </div>
-      )}
+      ) : null}
 
       {activeTag ? (
         <section className="library__tag-header" aria-label="Tag">
@@ -147,19 +135,7 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd
             <button type="button" className="cta" onClick={() => setSheet("manage")}>Manage tag</button>
           </div>
         </section>
-      ) : (
-        <div className="library__tag-chips" aria-label="Your tags">
-          {tags.map((t) => (
-            <button key={t.id} type="button" className="tag-chip"
-                    onClick={() => changeFilter({ ...filter, tag: t.id })}>
-              {t.name} <span className="tag-chip__count">· {t.item_count}</span>
-            </button>
-          ))}
-          <button type="button" className="tag-chip tag-chip--new" onClick={() => setSheet("new-tag")}>
-            + New tag
-          </button>
-        </div>
-      )}
+      ) : null}
 
       <p className="library__count">
         {total} card{total === 1 ? "" : "s"}

@@ -73,7 +73,7 @@ test.describe("J4 add class material", () => {
     seed("seed-journeys");
     await login(page);
     await page.getByRole("button", { name: "Library", exact: true }).click();
-    await page.getByRole("button", { name: /^Coto Academy/ }).click();
+    await page.locator(".library__pickers").getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     await expectFits(page, "tag view", [
       page.getByRole("button", { name: "Review this tag" }),
       page.getByRole("button", { name: "Add cards" }),
@@ -151,7 +151,7 @@ test.describe("@readonly views", () => {
     await login(page);
     await page.getByRole("button", { name: "Library", exact: true }).click();
     await expectFits(page, "Library", [page.getByRole("navigation", { name: "Pages" })]);
-    await page.locator(".tag-chip").first().click();
+    await page.locator(".library__pickers").getByLabel("Tag").selectOption({ index: 1 });
     await expectFits(page, "Library, tag", [
       page.getByRole("button", { name: "Review this tag" }),
       page.getByRole("button", { name: "Manage tag" }),

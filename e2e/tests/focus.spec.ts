@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, openLibrary } from "./helpers";
+import { login, openLibrary, pickLibrarySkill } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-tags");
@@ -45,7 +45,7 @@ test("focus: empty focus offers drill, and drilling leaves the box unchanged", a
 test("focus: studying a skill from Library sets the focus, which survives a reload", async ({ page }) => {
   await login(page);
   await openLibrary(page);
-  await page.locator(".skill-card--vocab").click();
+  await pickLibrarySkill(page, "vocab");
   await expect(page.getByRole("region", { name: "Skill" }).getByRole("heading", { name: "Vocab" })).toBeVisible();
   await page.getByRole("button", { name: "Study this skill" }).click();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();

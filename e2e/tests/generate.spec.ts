@@ -13,7 +13,7 @@ test("empty dashboard → generate vocab in Library → Today counts them", asyn
 
   await generateCards(page, "vocab");
   // Fake AI returns 5 vocab items (VOCAB_FAKE has 5 entries).
-  await expect(page.locator(".skill-card--vocab .skill-chip__num")).toHaveText("· 5");
+  await expect(page.locator(".library__count")).toHaveText(/^5 cards/);
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page.locator(".today__hero-count")).toContainText("5", { timeout: 10_000 });
 });
@@ -43,7 +43,7 @@ test("Today's add hero adds a word, a kanji and a grammar point", async ({ page 
   await expect(add.getByRole("status")).toBeVisible();
 
   await expectSkillCount(page, "kanji", 1);
-  await expect(page.locator(".skill-card--grammar .skill-chip__num")).toHaveText("· 1");
+  await expectSkillCount(page, "grammar", 1);
 });
 
 test("settings lists the run after generation", async ({ page }) => {
