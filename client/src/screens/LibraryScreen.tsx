@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Focus, LibraryItem, TagSummary } from "@nihongo/shared";
-import { fetchLibrary, createTag, updateTag, deleteTag } from "../api-hooks";
-import { SKILL_META } from "../lib/skills";
+import type { DashboardResponse, Focus, LibraryItem, TagSummary } from "@nihongo/shared";
+import { fetchDashboard, fetchLibrary, createTag, updateTag, deleteTag } from "../api-hooks";
+import { SKILL_META, SKILL_ORDER } from "../lib/skills";
+import { canGenerate } from "../lib/today";
 import { FocusPickers } from "../components/FocusPickers";
 import { AddCards } from "../components/AddCards";
 import { ConfirmDelete } from "../components/ConfirmDelete";
@@ -12,6 +13,10 @@ type Props = {
   tags: TagSummary[];
   onTagsChanged: () => void;
   onReviewTag: (tagId: string) => void;
+  // The skill view's two hand-offs back to Today: practise what's being looked
+  // at, or open the add hero preset to the skill.
+  onStudy: (focus: Focus) => void;
+  onAdd: (focus: Focus) => void;
 };
 
 // Matches the server's page size (LIBRARY_PAGE), so one server page is one pager page.
@@ -22,7 +27,7 @@ type Sheet = "new-tag" | "manage" | "confirm-delete" | "add" | null;
 // Everything in the deck, searchable and filterable by skill and tag; tags are
 // created and managed here. Fixed to the viewport like a paged list (ASC-19):
 // the rows scroll inside their own list and the pager stays pinned at the foot.
-export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
+export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd }: Props) {
   const [filter, setFilter] = useState<Focus>({});
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
@@ -32,6 +37,12 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const itemsRef = useRef<HTMLUListElement>(null);
+  // Per-skill due/new counts, the same numbers Today's skill list used to show.
+  const [bySkill, setBySkill] = useState<DashboardResponse["by_skill"] | null>(null);
+  const loadCounts = useCallback(() => {
+    fetchDashboard({}).then((d) => setBySkill(d.by_skill)).catch(() => {});
+  }, []);
+  useEffect(() => { loadCounts(); }, [loadCounts]);
 
   // Search waits for typing to pause, so each keystroke isn't a round trip.
   const query = useDebounced(q.trim(), 250);
@@ -68,8 +79,9 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
 
   const refreshAll = useCallback(async () => {
     onTagsChanged();
+    loadCounts();
     await load();
-  }, [onTagsChanged, load]);
+  }, [onTagsChanged, loadCounts, load]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -85,6 +97,34 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
       <div className="library__pickers">
         <FocusPickers focus={filter} tags={tags} onChange={changeFilter} />
       </div>
+
+      {filter.skill ? (
+        <SkillHeader
+          skill={filter.skill}
+          counts={bySkill?.[filter.skill] ?? null}
+          onClear={() => changeFilter({ ...filter, skill: undefined })}
+          onStudy={() => onStudy(filter)}
+          onAdd={canGenerate(filter.skill) ? () => onAdd(filter) : null}
+        />
+      ) : (
+        // Unlabelled on purpose: each chip names its skill, and a "Skills"
+        // label here would collide with the Skill picker's label above.
+        <div className="library__skill-chips">
+          {SKILL_ORDER.map((s) => {
+            const c = bySkill?.[s];
+            const n = c ? c.due + c.new : null;
+            return (
+              <button key={s} type="button" className={`skill-chip skill-card--${s}`}
+                      onClick={() => changeFilter({ ...filter, skill: s })}
+                      aria-label={n === null ? SKILL_META[s].label : `${SKILL_META[s].label}, ${n} to study`}>
+                <span className="skill-chip__glyph" aria-hidden="true">{SKILL_META[s].short}</span>
+                {SKILL_META[s].label}
+                {n !== null && <span className={`skill-chip__num ${n === 0 ? "is-zero" : ""}`}>· {n}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {activeTag ? (
         <section className="library__tag-header" aria-label="Tag">
@@ -184,6 +224,41 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
         <ItemDetailSheet itemId={openItemId} tags={tags} onClose={() => setOpenItemId(null)} onTagsChanged={refreshAll} />
       )}
     </main>
+  );
+}
+
+// A skill picked from the chip row: its counts, and the two ways back to Today.
+// Kanji can't be generated (they come from the seeded dataset), so it gets no
+// Add button rather than one that lands on a form that can't make kanji.
+function SkillHeader({ skill, counts, onClear, onStudy, onAdd }: {
+  skill: NonNullable<Focus["skill"]>;
+  counts: { due: number; new: number } | null;
+  onClear: () => void;
+  onStudy: () => void;
+  onAdd: (() => void) | null;
+}) {
+  const meta = SKILL_META[skill];
+  return (
+    <section className="library__tag-header library__skill-header" aria-label="Skill">
+      <div className="library__tag-title-row">
+        <h2 className="library__tag-name">
+          <span className="skill-chip__glyph" aria-hidden="true">{meta.short}</span> {meta.label}
+        </h2>
+        {counts && (
+          <span className="library__tag-mastery">
+            {counts.due + counts.new > 0 ? `${counts.due} due · ${counts.new} new` : "all caught up"}
+          </span>
+        )}
+        <button type="button" className="practice-bar__close library__skill-clear" onClick={onClear}
+                aria-label={`Clear skill ${meta.label}`}>
+          <IconClose />
+        </button>
+      </div>
+      <div className="library__tag-actions">
+        <button type="button" className="cta cta--primary" onClick={onStudy}>Study this skill</button>
+        {onAdd && <button type="button" className="cta" onClick={onAdd}>Add {meta.label.toLowerCase()}</button>}
+      </div>
+    </section>
   );
 }
 

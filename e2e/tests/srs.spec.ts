@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login } from "./helpers";
+import { login, openLibrary } from "./helpers";
 
 function sql(statement: string): void {
   execSync(`psql "${process.env.DATABASE_URL}" -v ON_ERROR_STOP=1 -c "${statement}"`, { stdio: "ignore" });
@@ -41,8 +41,10 @@ test("srs: the SRS tab reviews the whole deck, past the daily target and the foc
   await page.getByRole("button", { name: "Close practice" }).click();
   await expect(page.getByRole("tab", { name: "SRS" })).toHaveAttribute("aria-selected", "true");
 
-  // Tapping a skill row focuses Daily on that skill.
+  // Studying a skill from Library lands on Daily, focused on that skill.
+  await openLibrary(page);
   await page.locator(".skill-card--kanji").click();
+  await page.getByRole("button", { name: "Study this skill" }).click();
   await expect(page.getByRole("tab", { name: "Daily" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByLabel("Skill")).toHaveValue("kanji");
 });

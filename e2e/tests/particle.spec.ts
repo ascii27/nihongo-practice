@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill, POST_GRADE } from "./helpers";
+import { login, expectSkillCount, generateCards, practiceSkill, POST_GRADE } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -8,8 +8,8 @@ test.beforeEach(() => {
 
 test("particle skill: generate → answer one MC card", async ({ page }) => {
   await login(page);
-  await generateViaSettings(page, "particle");
-  await expect(page.locator(".skill-card--particle .today__skill-num")).toContainText("3", { timeout: 10_000 });
+  await generateCards(page, "particle");
+  await expectSkillCount(page, "particle", 3);
 
   await practiceSkill(page, "particle");
   // Four option buttons rendered.

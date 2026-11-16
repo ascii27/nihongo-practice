@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, practiceSkill, POST_GRADE } from "./helpers";
+import { login, expectSkillCount, practiceSkill, POST_GRADE } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-kanji");
@@ -10,7 +10,7 @@ test("kanji: recognize flip, draw stroke order, then self-grade", async ({ page 
   await login(page);
 
   // The seeded kanji shows as a new card on Today.
-  await expect(page.locator(".skill-card--kanji .today__skill-num")).toContainText("1", { timeout: 10_000 });
+  await expectSkillCount(page, "kanji", 1);
   await practiceSkill(page, "kanji");
 
   // Recognize face: glyph up front, flip reveals meaning + stroke count.

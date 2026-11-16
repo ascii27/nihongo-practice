@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill, POST_GRADE } from "./helpers";
+import { login, expectSkillCount, generateCards, practiceSkill, POST_GRADE } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -8,10 +8,10 @@ test.beforeEach(() => {
 
 test("grammar skill: generate → review one card → queue advances", async ({ page }) => {
   await login(page);
-  await generateViaSettings(page, "grammar");
+  await generateCards(page, "grammar");
 
   // Fake AI inserts 3 grammar items → the Today row total reads 3.
-  await expect(page.locator(".skill-card--grammar .today__skill-num")).toContainText("3", { timeout: 10_000 });
+  await expectSkillCount(page, "grammar", 3);
 
   await practiceSkill(page, "grammar");
   // Pattern renders on the prompt face.

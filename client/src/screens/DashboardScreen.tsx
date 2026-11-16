@@ -2,11 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardResponse, Focus, TagSummary, TodayLessonResponse } from "@nihongo/shared";
 import { fetchDashboard, fetchTodayLesson, unlockAnotherRound } from "../api-hooks";
 import { ApiError } from "../api";
-import { SKILL_ORDER, SKILL_META } from "../lib/skills";
+import { SKILL_ORDER } from "../lib/skills";
 import { focusLabel } from "../lib/focus";
 import { FocusPickers } from "../components/FocusPickers";
+import { GenerateForm } from "../components/GenerateForm";
+import { ManualItemForm } from "../components/ManualItemForm";
 import { IconChevron, IconCycle, IconDaily, IconStudy } from "../components/icons";
 import { loadHeroTab, saveHeroTab, type HeroTab, type PracticeKind } from "../lib/practice";
+import { canGenerate, loadAddTab, saveAddTab, type AddTab, type TodayTarget } from "../lib/today";
 
 type Props = {
   focus: Focus;                              // {} = everything
@@ -16,10 +19,13 @@ type Props = {
   onOpenSettings: () => void;
   onStartLesson: (id: string) => void;
   onOpenLessons: () => void;
+  // A hand-off from Library's skill view: scroll to that hero, and for "add"
+  // preset the generator to the skill.
+  target: TodayTarget | null;
 };
 
 export function DashboardScreen({
-  focus, tags, onFocusChange, onPractice, onOpenSettings, onStartLesson, onOpenLessons,
+  focus, tags, onFocusChange, onPractice, onOpenSettings, onStartLesson, onOpenLessons, target,
 }: Props) {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [today, setToday] = useState<TodayLessonResponse | null>(null);
@@ -28,6 +34,16 @@ export function DashboardScreen({
   const [tab, setTab] = useState<HeroTab>(loadHeroTab);
   function chooseTab(t: HeroTab) { setTab(t); saveHeroTab(t); }
   const heroRef = useRef<HTMLElement>(null);
+  const addRef = useRef<HTMLElement>(null);
+  // A hand-off asking for Generate opens that tab without remembering it: the
+  // remembered tab is the learner's own choice, not Library's.
+  const [addTab, setAddTab] = useState<AddTab>(() =>
+    target?.section === "add" && target.skill && canGenerate(target.skill) ? "generate" : loadAddTab());
+  function chooseAddTab(t: AddTab) { setAddTab(t); saveAddTab(t); }
+  // Bumped when a card lands from the add hero, so the practice hero's number
+  // takes it in without a trip away and back.
+  const [reloadTick, setReloadTick] = useState(0);
+  const bumpReload = useCallback(() => setReloadTick((n) => n + 1), []);
 
   // A focus on a tag that has since been deleted answers 404; drop the tag and
   // reload rather than showing an error.
@@ -49,8 +65,25 @@ export function DashboardScreen({
       .then((d) => { if (!cancelled) { setData(d); setError(null); } })
       .catch((err) => { if (!cancelled) onLoadError(err); });
     return () => { cancelled = true; };
-  }, [focus.skill, focus.tag, onLoadError]);
+  }, [focus.skill, focus.tag, onLoadError, reloadTick]);
   useEffect(() => { fetchTodayLesson().then(setToday).catch(() => {}); }, []);
+
+  // Apply a hand-off once the screen has content to scroll to. Keyed on the
+  // nonce, so it runs once per hand-off rather than on every refetch.
+  const loaded = data !== null;
+  const targetNonce = target?.nonce;
+  useEffect(() => {
+    if (!loaded || !target) return;
+    if (target.section === "practice") {
+      setTab("daily");
+      saveHeroTab("daily");
+      heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      if (target.skill && canGenerate(target.skill)) setAddTab("generate");
+      addRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    // Only the nonce: `target` itself is a new object on each hand-off.
+  }, [loaded, targetNonce]);
 
   // Unlocks one more full target. The response is a complete dashboard payload,
   // so it replaces state directly instead of triggering a refetch.
@@ -115,7 +148,7 @@ export function DashboardScreen({
       <p className="today__hero-count">0</p>
       <p className="today__hero-done-sub">
         {pool === 0
-          ? <>Nothing in the deck yet. Generate cards in Settings.</>
+          ? <>Nothing in the deck yet. Add some below.</>
           : <>Nothing is due right now, and today's new cards are in. Come back when the schedule brings cards round again.</>}
       </p>
     </>
@@ -156,7 +189,7 @@ export function DashboardScreen({
           which is the one shape where a session would come back empty. The
           number shown is `session_size` in every state, so it always equals
           what "Start mixed practice" will deal. */}
-      <section className="today__hero" ref={heroRef}>
+      <section className="today__hero" ref={heroRef} aria-label="Practice">
         <div className="hero-tabs" role="tablist" aria-label="Practice">
           <button type="button" role="tab" id="hero-tab-daily" aria-controls="hero-panel"
                   aria-selected={tab === "daily"} className={`hero-tabs__tab ${tab === "daily" ? "is-active" : ""}`}
@@ -207,7 +240,7 @@ export function DashboardScreen({
           <>
             <p className="today__hero-label">Ready to review</p>
             <p className="today__hero-count">0</p>
-            <p className="today__hero-empty">全部終わり — all caught up. Generate more in Settings.</p>
+            <p className="today__hero-empty">全部終わり — all caught up. Add more below.</p>
           </>
         ) : data.remaining === 0 ? (
           <>
@@ -255,7 +288,37 @@ export function DashboardScreen({
         </div>
       </section>
 
-      {/* Today's lesson, compact: the hero above it is the day's main action. */}
+      {/* The second of Today's two jobs: putting new cards in. Library's skill
+          view lands here with the generator preset to that skill. */}
+      <section className="today__hero today__add" ref={addRef} aria-label="Add cards">
+        <p className="today__hero-label">Add to your deck</p>
+        <div className="hero-tabs" role="tablist" aria-label="Add cards">
+          <button type="button" role="tab" id="add-tab-word" aria-controls="add-panel"
+                  aria-selected={addTab === "word"} className={`hero-tabs__tab ${addTab === "word" ? "is-active" : ""}`}
+                  onClick={() => chooseAddTab("word")}>
+            Add a word
+          </button>
+          <button type="button" role="tab" id="add-tab-generate" aria-controls="add-panel"
+                  aria-selected={addTab === "generate"} className={`hero-tabs__tab ${addTab === "generate" ? "is-active" : ""}`}
+                  onClick={() => chooseAddTab("generate")}>
+            Generate
+          </button>
+        </div>
+        <div className="hero-panel" id="add-panel" role="tabpanel" aria-labelledby={`add-tab-${addTab}`}>
+          {addTab === "word" ? (
+            <ManualItemForm onSaved={bumpReload} />
+          ) : (
+            <GenerateForm
+              key={target?.nonce ?? 0}
+              mode="full"
+              defaultSkill={target?.section === "add" && target.skill && canGenerate(target.skill) ? target.skill : undefined}
+              onSuccess={bumpReload}
+            />
+          )}
+        </div>
+      </section>
+
+      {/* Today's lesson, compact: the two heroes above are the day's main actions. */}
       {today?.lesson ? (
         <button type="button" className="today-lesson" onClick={() => onStartLesson(today.lesson!.id)}>
           <span className="today-lesson__icon"><IconStudy /></span>
@@ -279,36 +342,6 @@ export function DashboardScreen({
         </button>
       )}
 
-      <h2 className="today__section-title">Skills</h2>
-      <div className="today__skill-list">
-        {SKILL_ORDER.map((s) => {
-          const { due, new: n } = data.by_skill[s];
-          const total = due + n;
-          const meta = SKILL_META[s];
-          return (
-            <button
-              key={s} type="button" className={`today__skill-row skill-card--${s}`}
-              onClick={() => {
-                // A skill row focuses the hero on that skill (keeping any tag);
-                // the session itself starts from the hero.
-                onFocusChange({ ...focus, skill: s });
-                chooseTab("daily");
-                heroRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }}
-            >
-              <span className="today__skill-glyph">{meta.short}</span>
-              <span className="today__skill-meta">
-                <span className="today__skill-name">{meta.label}</span>
-                <span className="today__skill-counts">
-                  {total > 0 ? <>{due} due · {n} new</> : <span className="empty">all caught up</span>}
-                </span>
-              </span>
-              <span className={`today__skill-num ${total === 0 ? "is-zero" : ""}`}>{total}</span>
-              <span className="today__skill-chev"><IconChevron /></span>
-            </button>
-          );
-        })}
-      </div>
     </main>
   );
 }

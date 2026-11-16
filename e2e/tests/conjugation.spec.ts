@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill } from "./helpers";
+import { login, expectSkillCount, generateCards, practiceSkill } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -8,9 +8,9 @@ test.beforeEach(() => {
 
 test("conjugation: generate → type answer → auto-grade + advance", async ({ page }) => {
   await login(page);
-  await generateViaSettings(page, "conjugation");
+  await generateCards(page, "conjugation");
   // CONJUGATION_FAKE has 3 items.
-  await expect(page.locator(".skill-card--conjugation .today__skill-num")).toContainText("3", { timeout: 10_000 });
+  await expectSkillCount(page, "conjugation", 3);
 
   await practiceSkill(page, "conjugation");
   // First fixture item: { base: 食べる, tense: past polite, expected: 食べました }

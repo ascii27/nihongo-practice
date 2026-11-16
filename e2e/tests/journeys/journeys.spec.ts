@@ -133,9 +133,12 @@ test.describe("@readonly views", () => {
     ];
     for (const s of sections) await s.scrollIntoViewIfNeeded();
     await expectFits(page, "Today hero", sections);
-    const lastSkill = page.locator(".today__skill-row").last();
-    await lastSkill.scrollIntoViewIfNeeded();
-    await expectFits(page, "Today, last skill row", [lastSkill]);
+    // The add hero, and the lesson row below it, are the bottom of the page.
+    const addTabs = page.getByRole("region", { name: "Add cards" }).getByRole("tablist");
+    const lesson = page.locator(".today-lesson");
+    for (const s of [addTabs, lesson]) await s.scrollIntoViewIfNeeded();
+    await expectFits(page, "Today, add hero", [addTabs]);
+    await expectFits(page, "Today, lesson row", [lesson]);
 
     await page.getByLabel("Tag").selectOption({ index: 1 });
     const focused = [page.getByRole("button", { name: /^Clear focus/ }), page.locator(".today__hero-label").first()];

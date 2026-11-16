@@ -107,80 +107,6 @@
   margin: 0 0 22px;
 }
 
-.today__section-title {
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--fg-tertiary);
-  margin: 26px 24px 10px;
-}
-
-.today__skill-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0 20px;
-  border-radius: var(--radius-lg);
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  overflow: hidden;
-}
-.today__skill-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  background: var(--bg-raised);
-  transition: background var(--duration-fast) var(--ease-out);
-  border-bottom: 1px solid var(--border);
-  text-align: left;
-  width: 100%;
-}
-.today__skill-row:last-child { border-bottom: none; }
-.today__skill-row:active { background: var(--bg-overlay); }
-.today__skill-glyph {
-  width: 36px; height: 36px;
-  border-radius: var(--radius-sm);
-  display: grid; place-items: center;
-  background: var(--accent-muted);
-  color: var(--accent);
-  font-family: var(--font-jp);
-  font-size: 18px;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-.today__skill-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.today__skill-name {
-  display: block;
-  font-family: var(--font-ui);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--fg);
-  letter-spacing: -0.01em;
-}
-.today__skill-counts {
-  display: block;
-  font-family: var(--font-ui);
-  font-size: 12px;
-  color: var(--fg-secondary);
-  letter-spacing: -0.01em;
-  margin-top: 2px;
-}
-.today__skill-counts .empty { color: var(--fg-tertiary); }
-.today__skill-num {
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 500;
-  color: var(--fg);
-  font-variant-numeric: tabular-nums;
-  min-width: 28px;
-  text-align: right;
-}
-.today__skill-num.is-zero { color: var(--fg-tertiary); }
-.today__skill-chev { color: var(--fg-tertiary); display: grid; place-items: center; width: 16px; height: 16px; }
-.today__skill-chev svg { width: 16px; height: 16px; }
-
 /* ═════════════════════════════════════════════
    PRACTICE — bar, stage, swipe deck, cards, summary
    ═════════════════════════════════════════════ */
@@ -1036,12 +962,12 @@
 .library__pickers { margin-bottom: var(--space-3); }
 .library__tag-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); }
 .library__tag-chips::-webkit-scrollbar { display: none; }
-.tag-chip {
+.tag-chip, .skill-chip {
   flex-shrink: 0; min-height: 44px; padding: 0 var(--space-4);
   border: 1px solid var(--border); border-radius: var(--radius-full);
   background: var(--bg-raised); color: var(--fg); font-family: var(--font-ui); font-size: 14px; white-space: nowrap;
 }
-.tag-chip__count { color: var(--fg-tertiary); }
+.tag-chip__count, .skill-chip__num { color: var(--fg-tertiary); }
 .tag-chip--new { border-style: dashed; color: var(--fg-secondary); background: none; }
 .library__tag-header { display: flex; flex-direction: column; gap: var(--space-2); }
 .library__tag-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
@@ -1064,3 +990,19 @@
 .item-detail__tags { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .tag-pill--removable { min-height: 44px; padding: 0 var(--space-3); border: 0; font-size: 13px; color: var(--fg); }
 .item-detail__add-tag { margin-top: var(--space-3); }
+
+/* ===== Today: add hero (ASC-26) ============================================ */
+/* The add hero shares the practice hero's card; its forms were built for
+   Settings' flat sections, so they drop that padding and sit on the wash. */
+.today__add .settings__gen { position: relative; margin: 0; padding: 0; background: none; border: none; }
+.today__add .hero-tabs { margin-bottom: var(--space-4); }
+
+/* ===== Library: skills (ASC-26) ============================================ */
+.library__skill-chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; padding-bottom: var(--space-1); margin-bottom: var(--space-2); }
+.library__skill-chips::-webkit-scrollbar { display: none; }
+.skill-chip { display: inline-flex; align-items: center; gap: var(--space-2); }
+.skill-chip__glyph { font-family: var(--font-jp); color: var(--accent); }
+.skill-chip__num.is-zero { opacity: 0.6; }
+.library__skill-header { margin-bottom: var(--space-3); }
+.library__skill-header .library__tag-mastery { margin-left: auto; }
+.library__skill-clear { flex-shrink: 0; align-self: center; }

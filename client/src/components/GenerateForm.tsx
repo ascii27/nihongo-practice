@@ -65,7 +65,7 @@ export function GenerateForm({ mode, defaultCount = 10, defaultSkill = "vocab", 
       <div className="settings__gen-row">
         {!lockedSkill ? (
           <label className="settings__field">
-            <span className="settings__field-label">Skill</span>
+            <span className="settings__field-label">Card type</span>
             <select className="settings__select" value={skill} onChange={(e) => setSkill(e.target.value as Skill)} disabled={submitting}>
               {(Object.keys(SKILL_LABELS) as Skill[]).map((s) => (
                 <option key={s} value={s}>{SKILL_LABELS[s]}</option>
