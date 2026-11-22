@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { auth } from "../auth";
 import { fetchGenerations, fetchSettingsStatus, updateDailyTarget } from "../api-hooks";
-import { GenerateForm } from "../components/GenerateForm";
-import { ManualItemForm } from "../components/ManualItemForm";
 import { IconChevron } from "../components/icons";
 import type { GenerationSummary } from "@nihongo/shared";
 
@@ -14,7 +12,6 @@ type Props = {
 export function SettingsScreen({ onSignOut, onBack }: Props) {
   const [keyConfigured, setKeyConfigured] = useState<boolean | null>(null);
   const [generations, setGenerations] = useState<GenerationSummary[]>([]);
-  const [refreshTick, setRefreshTick] = useState(0);
   const [target, setTarget] = useState<number | null>(null);
   const [targetError, setTargetError] = useState<string | null>(null);
   // Two refs guard `target` against races the optimistic stepper is prone to:
@@ -22,12 +19,9 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
   //    newer step has already superseded it, the old failure must not revert
   //    past the newer value — its catch handler checks it's still the most
   //    recent step before reverting.
-  //  - targetPending counts PATCHes currently in flight. The refreshTick
-  //    effect below (retriggered by unrelated saves elsewhere on the page,
-  //    e.g. ManualItemForm/GenerateForm) refetches settings and would
-  //    otherwise stomp an in-progress optimistic update with the pre-update
-  //    server value; it only applies the fetched target when nothing is
-  //    pending, so it never fights a step that hasn't settled yet.
+  //  - targetPending counts PATCHes currently in flight. The load below only
+  //    applies the fetched target when nothing is pending, so a slow first
+  //    load can't stomp a step the learner already made.
   const targetSeq = useRef(0);
   const targetPending = useRef(0);
 
@@ -42,7 +36,7 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
       })
       .catch(() => { if (!cancelled) setKeyConfigured(false); });
     return () => { cancelled = true; };
-  }, [refreshTick]);
+  }, []);
 
   function signOut() {
     auth.clear();
@@ -128,19 +122,9 @@ export function SettingsScreen({ onSignOut, onBack }: Props) {
       </div>
 
       <div className="settings__section">
-        <h2 className="settings__section-title">Add a word</h2>
-        <ManualItemForm onSaved={() => setRefreshTick((n) => n + 1)} />
-      </div>
-
-      <div className="settings__section">
-        <h2 className="settings__section-title">Generate new cards</h2>
-        <GenerateForm mode="full" onSuccess={() => setRefreshTick((n) => n + 1)} />
-      </div>
-
-      <div className="settings__section">
         <h2 className="settings__section-title">Recent generations</h2>
         {generations.length === 0 ? (
-          <p className="settings__empty">No generations yet.</p>
+          <p className="settings__empty">No generations yet. Generate cards from Today.</p>
         ) : (
           <div className="settings__gens-list">
             {generations.map((g) => {

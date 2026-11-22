@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill } from "./helpers";
+import { login, expectSkillCount, generateCards, practiceSkill } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -8,9 +8,9 @@ test.beforeEach(() => {
 
 test("listening skill: generate → answer both MC questions → session summary", async ({ page }) => {
   await login(page);
-  await generateViaSettings(page, "listening");
+  await generateCards(page, "listening");
   // LISTENING_FAKE has 1 dialogue item.
-  await expect(page.locator(".skill-card--listening .today__skill-num")).toContainText("1", { timeout: 10_000 });
+  await expectSkillCount(page, "listening", 1);
 
   await practiceSkill(page, "listening");
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Focus, TagSummary } from "@nihongo/shared";
 import type { PracticeKind } from "./lib/practice";
+import type { TodaySection, TodayTarget } from "./lib/today";
 import { auth } from "./auth";
 import { api } from "./api";
 import { fetchTags } from "./api-hooks";
@@ -29,6 +30,14 @@ export default function App() {
   const [focus, setFocus] = useState<Focus>(loadFocus);
   const [practiceMode, setPracticeMode] = useState<PracticeKind>("scheduled");
   const [tags, setTags] = useState<TagSummary[]>([]);
+  // Set only by a hand-off from Library's skill view and cleared by any other
+  // navigation, so coming back to Today later doesn't scroll again.
+  const [todayTarget, setTodayTarget] = useState<TodayTarget | null>(null);
+  function go(r: Route) { setTodayTarget(null); setRoute(r); }
+  function openToday(section: TodaySection, f: Focus) {
+    setTodayTarget((t) => ({ section, skill: f.skill, tag: f.tag, nonce: (t?.nonce ?? 0) + 1 }));
+    setRoute("today");
+  }
 
   useEffect(() => {
     if (!auth.get()) { setAuthState("needs-auth"); return; }
@@ -58,24 +67,26 @@ export default function App() {
         focus={focus}
         tags={tags}
         onFocusChange={setFocus}
-        onPractice={(mode) => { setPracticeMode(mode); setRoute("practice"); }}
-        onOpenSettings={() => setRoute("settings")}
-        onStartLesson={(id) => { setLessonId(id); setRoute("lesson"); }}
-        onOpenLessons={() => setRoute("lessons")}
+        onPractice={(mode) => { setPracticeMode(mode); go("practice"); }}
+        onOpenSettings={() => go("settings")}
+        onStartLesson={(id) => { setLessonId(id); go("lesson"); }}
+        onOpenLessons={() => go("lessons")}
+        onTagsChanged={refreshTags}
+        target={todayTarget}
       />
     );
   } else if (route === "lessons") {
     active = <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "lesson") {
     active = lessonId
-      ? <LessonWalkthroughScreen lessonId={lessonId} onExit={() => setRoute("today")} />
+      ? <LessonWalkthroughScreen lessonId={lessonId} onExit={() => go("today")} />
       : <LessonsScreen onOpenLesson={(id) => { setLessonId(id); setRoute("lesson"); }} />;
   } else if (route === "practice") {
     active = (
       <PracticeScreen
         focus={focus}
         mode={practiceMode}
-        onDone={() => { refreshTags(); setRoute("today"); }}
+        onDone={() => { refreshTags(); go("today"); }}
       />
     );
   } else if (route === "library") {
@@ -83,7 +94,9 @@ export default function App() {
       <LibraryScreen
         tags={tags}
         onTagsChanged={refreshTags}
-        onReviewTag={(id) => { setFocus({ tag: id }); setRoute("today"); }}
+        onReviewTag={(id) => { setFocus({ tag: id }); openToday("practice", {}); }}
+        onStudy={(f) => { setFocus(f); openToday("practice", f); }}
+        onAdd={(f) => openToday("add", f)}
       />
     );
   } else if (route === "stats") {
@@ -92,7 +105,7 @@ export default function App() {
     active = (
       <SettingsScreen
         onSignOut={() => setAuthState("needs-auth")}
-        onBack={() => setRoute("today")}
+        onBack={() => go("today")}
       />
     );
   }
@@ -104,7 +117,7 @@ export default function App() {
   return (
     <div className="app dir-ink">
       {active}
-      {!fullBleed && <BottomTabs active={tab} onChange={(t) => setRoute(t)} />}
+      {!fullBleed && <BottomTabs active={tab} onChange={(t) => go(t)} />}
     </div>
   );
 }

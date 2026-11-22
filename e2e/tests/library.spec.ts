@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login } from "./helpers";
+import { login, pickLibrarySkill, pickLibraryTag } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-tags");
@@ -15,7 +15,7 @@ test("library: create tag → quick-add → search-add → cards carry the tag",
   await login(page);
   await openLibrary(page);
 
-  await page.getByRole("button", { name: "+ New tag" }).click();
+  await page.getByRole("button", { name: "New tag" }).click();
   const create = page.getByRole("dialog", { name: "New tag" });
   await create.getByLabel("Tag name").fill("Week 5");
   await create.getByRole("button", { name: "Create tag" }).click();
@@ -43,7 +43,7 @@ test("library: create tag → quick-add → search-add → cards carry the tag",
 test("library: a duplicate tag name is refused", async ({ page }) => {
   await login(page);
   await openLibrary(page);
-  await page.getByRole("button", { name: "+ New tag" }).click();
+  await page.getByRole("button", { name: "New tag" }).click();
   const create = page.getByRole("dialog", { name: "New tag" });
   await create.getByLabel("Tag name").fill("  coto academy ");
   await create.getByRole("button", { name: "Create tag" }).click();
@@ -95,7 +95,7 @@ test("library: the card list fits the viewport with the pager always reachable",
 test("library: Review this tag focuses Today on that tag", async ({ page }) => {
   await login(page);
   await openLibrary(page);
-  await page.getByRole("button", { name: /^Long list/ }).click();
+  await pickLibraryTag(page, "Long list");
   await expect(page.getByText("26 cards")).toBeVisible();
   await page.getByRole("button", { name: "Review this tag" }).click();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
@@ -105,7 +105,7 @@ test("library: Review this tag focuses Today on that tag", async ({ page }) => {
 test("library: renaming a tag, and deleting one keeps its cards", async ({ page }) => {
   await login(page);
   await openLibrary(page);
-  await page.getByRole("button", { name: /^Long list/ }).click();
+  await pickLibraryTag(page, "Long list");
 
   await page.getByRole("button", { name: "Manage tag" }).click();
   const manage = page.getByRole("dialog", { name: "Manage tag" });
@@ -123,7 +123,7 @@ test("library: renaming a tag, and deleting one keeps its cards", async ({ page 
   await page.getByRole("button", { name: "Manage tag" }).click();
   await page.getByRole("dialog", { name: "Manage tag" }).getByRole("button", { name: "Delete tag" }).click();
   await page.getByRole("dialog", { name: "Delete this tag" }).getByRole("button", { name: "Delete tag" }).click();
-  await expect(page.getByRole("button", { name: /^Week 1/ })).toBeHidden();
+  await expect(page.locator(".library__pickers").getByLabel("Tag").locator("option", { hasText: "Week 1" })).toHaveCount(0);
   await page.getByLabel("Search library").fill("word 1");
   await expect(page.locator(".study-item__front", { hasText: "語1" }).first()).toBeVisible();
 });
@@ -131,7 +131,7 @@ test("library: renaming a tag, and deleting one keeps its cards", async ({ page 
 test("library: a kanji card offers its mnemonic, and writes one on demand", async ({ page }) => {
   await login(page);
   await openLibrary(page);
-  await page.getByLabel("Skill").selectOption({ label: "Kanji" });
+  await pickLibrarySkill(page, "kanji");
   await page.locator(".study-item__open").first().click();
 
   // Nothing has been written for this kanji yet, so the sheet offers to —
@@ -161,4 +161,40 @@ test("library: a slow earlier search can't overwrite the latest results", async 
   await page.waitForTimeout(2000);
   await expect(page.locator(".study-item__front", { hasText: "水" })).toBeVisible();
   await expect(page.locator(".study-item__front", { hasText: "火" })).toHaveCount(0);
+});
+
+test("library: a skill's Add hands off to Today, preset to that type and the tag on view", async ({ page }) => {
+  await login(page);
+  await openLibrary(page);
+  await pickLibraryTag(page, "Coto Academy");
+  await pickLibrarySkill(page, "kanji");
+  await page.getByRole("button", { name: "Add kanji" }).click();
+
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  const add = page.getByRole("region", { name: "Add cards" });
+  await expect(add).toBeInViewport();
+  await expect(add.getByRole("tab", { name: "Kanji" })).toHaveAttribute("aria-selected", "true");
+  await expect(add.getByLabel("Tag")).toHaveValue(/.+/);
+  await expect(add.getByLabel("Tag").locator("option:checked")).toHaveText("Coto Academy");
+
+  await add.getByPlaceholder(/Kanji/).fill("山");
+  await add.getByRole("button", { name: "Generate" }).click();
+  await add.getByLabel("Meaning").fill("mountain");
+  await add.getByRole("button", { name: "Add to deck" }).click();
+  await expect(add.getByRole("status")).toHaveText("Added 山, tagged Coto Academy.");
+});
+
+test("library: a skill's Generate opens the generator preset to it; kanji has neither", async ({ page }) => {
+  await login(page);
+  await openLibrary(page);
+  await pickLibrarySkill(page, "grammar");
+  await page.getByRole("region", { name: "Skill" }).getByRole("button", { name: "Generate" }).click();
+  await expect(page.getByRole("dialog", { name: "Generate cards" }).getByLabel("Card type")).toHaveValue("grammar");
+  await page.getByRole("button", { name: "Close generate cards" }).click();
+
+  await page.getByRole("button", { name: "Clear skill Grammar" }).click();
+  await pickLibrarySkill(page, "kanji");
+  await expect(page.getByRole("button", { name: "Study this skill" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Skill" }).getByRole("button", { name: "Generate" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Add kanji" })).toBeVisible();
 });

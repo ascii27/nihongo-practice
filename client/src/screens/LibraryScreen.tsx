@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Focus, LibraryItem, TagSummary } from "@nihongo/shared";
-import { fetchLibrary, createTag, updateTag, deleteTag } from "../api-hooks";
+import type { DashboardResponse, Focus, LibraryItem, TagSummary } from "@nihongo/shared";
+import { fetchDashboard, fetchLibrary, createTag, updateTag, deleteTag } from "../api-hooks";
 import { SKILL_META } from "../lib/skills";
+import { canGenerate } from "../lib/today";
 import { FocusPickers } from "../components/FocusPickers";
 import { AddCards } from "../components/AddCards";
+import { GenerateForm } from "../components/GenerateForm";
+import { isQuickKind } from "../components/QuickAddForm";
 import { ConfirmDelete } from "../components/ConfirmDelete";
 import { ItemDetailSheet } from "../components/ItemDetailSheet";
 import { IconClose, IconSearch } from "../components/icons";
@@ -12,17 +15,21 @@ type Props = {
   tags: TagSummary[];
   onTagsChanged: () => void;
   onReviewTag: (tagId: string) => void;
+  // The skill view's two hand-offs back to Today: practise what's being looked
+  // at, or open the add hero preset to the skill.
+  onStudy: (focus: Focus) => void;
+  onAdd: (focus: Focus) => void;
 };
 
 // Matches the server's page size (LIBRARY_PAGE), so one server page is one pager page.
 const PAGE_SIZE = 50;
 
-type Sheet = "new-tag" | "manage" | "confirm-delete" | "add" | null;
+type Sheet = "new-tag" | "manage" | "confirm-delete" | "add" | "generate" | null;
 
 // Everything in the deck, searchable and filterable by skill and tag; tags are
 // created and managed here. Fixed to the viewport like a paged list (ASC-19):
 // the rows scroll inside their own list and the pager stays pinned at the foot.
-export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
+export function LibraryScreen({ tags, onTagsChanged, onReviewTag, onStudy, onAdd }: Props) {
   const [filter, setFilter] = useState<Focus>({});
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
@@ -32,6 +39,12 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const itemsRef = useRef<HTMLUListElement>(null);
+  // Per-skill due/new counts, the same numbers Today's skill list used to show.
+  const [bySkill, setBySkill] = useState<DashboardResponse["by_skill"] | null>(null);
+  const loadCounts = useCallback(() => {
+    fetchDashboard({}).then((d) => setBySkill(d.by_skill)).catch(() => {});
+  }, []);
+  useEffect(() => { loadCounts(); }, [loadCounts]);
 
   // Search waits for typing to pause, so each keystroke isn't a round trip.
   const query = useDebounced(q.trim(), 250);
@@ -68,14 +81,24 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
 
   const refreshAll = useCallback(async () => {
     onTagsChanged();
+    loadCounts();
     await load();
-  }, [onTagsChanged, load]);
+  }, [onTagsChanged, loadCounts, load]);
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <main className="screen library">
-      <h1 className="lessons__title library__title">Library</h1>
+      {/* The two creation actions sit beside the title rather than in chip
+          rows, so filtering is just the two pickers and the list keeps the
+          room. */}
+      <header className="library__head">
+        <h1 className="lessons__title library__title">Library</h1>
+        <div className="library__head-actions">
+          <button type="button" className="topbar__action" onClick={() => setSheet("new-tag")}>New tag</button>
+          <button type="button" className="topbar__action" onClick={() => setSheet("generate")}>Generate</button>
+        </div>
+      </header>
 
       <div className="browse__search library__search">
         <span className="browse__search-icon"><IconSearch /></span>
@@ -85,6 +108,17 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
       <div className="library__pickers">
         <FocusPickers focus={filter} tags={tags} onChange={changeFilter} />
       </div>
+
+      {filter.skill ? (
+        <SkillHeader
+          skill={filter.skill}
+          counts={bySkill?.[filter.skill] ?? null}
+          onClear={() => changeFilter({ ...filter, skill: undefined })}
+          onStudy={() => onStudy(filter)}
+          onAdd={isQuickKind(filter.skill) ? () => onAdd(filter) : null}
+          onGenerate={canGenerate(filter.skill) ? () => setSheet("generate") : null}
+        />
+      ) : null}
 
       {activeTag ? (
         <section className="library__tag-header" aria-label="Tag">
@@ -101,19 +135,7 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
             <button type="button" className="cta" onClick={() => setSheet("manage")}>Manage tag</button>
           </div>
         </section>
-      ) : (
-        <div className="library__tag-chips" aria-label="Your tags">
-          {tags.map((t) => (
-            <button key={t.id} type="button" className="tag-chip"
-                    onClick={() => changeFilter({ ...filter, tag: t.id })}>
-              {t.name} <span className="tag-chip__count">· {t.item_count}</span>
-            </button>
-          ))}
-          <button type="button" className="tag-chip tag-chip--new" onClick={() => setSheet("new-tag")}>
-            + New tag
-          </button>
-        </div>
-      )}
+      ) : null}
 
       <p className="library__count">
         {total} card{total === 1 ? "" : "s"}
@@ -180,10 +202,57 @@ export function LibraryScreen({ tags, onTagsChanged, onReviewTag }: Props) {
       {sheet === "add" && activeTag && (
         <AddCards tagId={activeTag.id} tagName={activeTag.name} onChanged={refreshAll} onClose={() => setSheet(null)} />
       )}
+      {sheet === "generate" && (
+        <SheetFrame label="Generate cards" kicker="Generate cards" onClose={() => setSheet(null)}>
+          <GenerateForm
+            mode="full"
+            defaultSkill={filter.skill && canGenerate(filter.skill) ? filter.skill : undefined}
+            onSuccess={() => { void refreshAll(); }}
+          />
+        </SheetFrame>
+      )}
       {openItemId && (
         <ItemDetailSheet itemId={openItemId} tags={tags} onClose={() => setOpenItemId(null)} onTagsChanged={refreshAll} />
       )}
     </main>
+  );
+}
+
+// A skill picked from the chip row: its counts, the two ways back to Today
+// (study it, or add one card of it), and Generate. Add exists only for the
+// three types Today's add hero makes; Generate only for skills the model can
+// make (not kanji, which come from the seeded dataset).
+function SkillHeader({ skill, counts, onClear, onStudy, onAdd, onGenerate }: {
+  skill: NonNullable<Focus["skill"]>;
+  counts: { due: number; new: number } | null;
+  onClear: () => void;
+  onStudy: () => void;
+  onAdd: (() => void) | null;
+  onGenerate: (() => void) | null;
+}) {
+  const meta = SKILL_META[skill];
+  return (
+    <section className="library__tag-header library__skill-header" aria-label="Skill">
+      <div className="library__tag-title-row">
+        <h2 className="library__tag-name">
+          <span className="skill-chip__glyph" aria-hidden="true">{meta.short}</span> {meta.label}
+        </h2>
+        {counts && (
+          <span className="library__tag-mastery">
+            {counts.due + counts.new > 0 ? `${counts.due} due · ${counts.new} new` : "all caught up"}
+          </span>
+        )}
+        <button type="button" className="practice-bar__close library__skill-clear" onClick={onClear}
+                aria-label={`Clear skill ${meta.label}`}>
+          <IconClose />
+        </button>
+      </div>
+      <div className="library__tag-actions">
+        <button type="button" className="cta cta--primary" onClick={onStudy}>Study this skill</button>
+        {onAdd && <button type="button" className="cta" onClick={onAdd}>Add {meta.label.toLowerCase()}</button>}
+        {onGenerate && <button type="button" className="cta" onClick={onGenerate}>Generate</button>}
+      </div>
+    </section>
   );
 }
 

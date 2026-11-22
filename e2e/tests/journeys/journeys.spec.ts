@@ -43,7 +43,7 @@ test.describe("J2 class review", () => {
   test("focus on the class tag → focused session", async ({ page }) => {
     seed("seed-journeys");
     await login(page);
-    await page.getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     const start = page.getByRole("button", { name: "Start focused practice" });
     await expectFits(page, "focused hero", [start]);
     await start.click();
@@ -56,7 +56,7 @@ test.describe("J3 before class", () => {
     seed("seed-journeys");
     await login(page);
     await page.getByLabel("Skill").selectOption({ label: "Vocab" });
-    await page.getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     await page.getByRole("button", { name: "Start focused practice" }).click();
     await reviewCard(page, "introduce 水");
     await page.getByRole("button", { name: "Back to Today" }).click();
@@ -73,7 +73,7 @@ test.describe("J4 add class material", () => {
     seed("seed-journeys");
     await login(page);
     await page.getByRole("button", { name: "Library", exact: true }).click();
-    await page.getByRole("button", { name: /^Coto Academy/ }).click();
+    await page.locator(".library__pickers").getByLabel("Tag").selectOption({ label: "Coto Academy (3)" });
     await expectFits(page, "tag view", [
       page.getByRole("button", { name: "Review this tag" }),
       page.getByRole("button", { name: "Add cards" }),
@@ -133,11 +133,14 @@ test.describe("@readonly views", () => {
     ];
     for (const s of sections) await s.scrollIntoViewIfNeeded();
     await expectFits(page, "Today hero", sections);
-    const lastSkill = page.locator(".today__skill-row").last();
-    await lastSkill.scrollIntoViewIfNeeded();
-    await expectFits(page, "Today, last skill row", [lastSkill]);
+    // The add hero, and the lesson row below it, are the bottom of the page.
+    const addTabs = page.getByRole("region", { name: "Add cards" }).getByRole("tablist");
+    const lesson = page.locator(".today-lesson");
+    for (const s of [addTabs, lesson]) await s.scrollIntoViewIfNeeded();
+    await expectFits(page, "Today, add hero", [addTabs]);
+    await expectFits(page, "Today, lesson row", [lesson]);
 
-    await page.getByLabel("Tag").selectOption({ index: 1 });
+    await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ index: 1 });
     const focused = [page.getByRole("button", { name: /^Clear focus/ }), page.locator(".today__hero-label").first()];
     for (const s of focused) await s.scrollIntoViewIfNeeded();
     await expectFits(page, "Today, focused", focused);
@@ -148,7 +151,7 @@ test.describe("@readonly views", () => {
     await login(page);
     await page.getByRole("button", { name: "Library", exact: true }).click();
     await expectFits(page, "Library", [page.getByRole("navigation", { name: "Pages" })]);
-    await page.locator(".tag-chip").first().click();
+    await page.locator(".library__pickers").getByLabel("Tag").selectOption({ index: 1 });
     await expectFits(page, "Library, tag", [
       page.getByRole("button", { name: "Review this tag" }),
       page.getByRole("button", { name: "Manage tag" }),

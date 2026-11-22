@@ -209,7 +209,8 @@ export function regenerateKanjiMnemonic(character: string): Promise<KanjiMnemoni
 // ----- Tags -----
 import type {
   TagsResponse, CreateTagRequest, CreateTagResponse, UpdateTagRequest,
-  QuickAddItemRequest, QuickAddItemResponse, TagCandidatesResponse,
+  QuickAddItemRequest,
+  AddItemRequest, QuickAddItemResponse, TagCandidatesResponse,
   QuickAddPreviewRequest, QuickAddPreviewResponse,
 } from "@nihongo/shared";
 
@@ -236,6 +237,10 @@ export function previewQuickAdd(body: QuickAddPreviewRequest): Promise<QuickAddP
 }
 export function quickAddToTag(tagId: string, body: QuickAddItemRequest): Promise<QuickAddItemResponse> {
   return api<QuickAddItemResponse>(`/api/tags/${tagId}/quick-add`, { method: "POST", body: JSON.stringify(body) });
+}
+// Today's add hero: a quick-add card, tagged only when a tag is given.
+export function addItem(body: AddItemRequest): Promise<QuickAddItemResponse> {
+  return api<QuickAddItemResponse>("/api/items/quick-add", { method: "POST", body: JSON.stringify(body) });
 }
 export function searchTagCandidates(tagId: string, q: string, skill?: string): Promise<TagCandidatesResponse> {
   const p = new URLSearchParams({ q });

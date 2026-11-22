@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login, generateViaSettings, practiceSkill, POST_GRADE } from "./helpers";
+import { login, expectSkillCount, generateCards, practiceSkill, POST_GRADE } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-empty");
@@ -8,9 +8,9 @@ test.beforeEach(() => {
 
 test("reading: generate → reveal answer → grade", async ({ page }) => {
   await login(page);
-  await generateViaSettings(page, "reading");
+  await generateCards(page, "reading");
   // READING_FAKE has 2 items.
-  await expect(page.locator(".skill-card--reading .today__skill-num")).toContainText("2", { timeout: 10_000 });
+  await expectSkillCount(page, "reading", 2);
 
   await practiceSkill(page, "reading");
   await expect(page.locator(".flipcard__sentence.is-passage")).toBeVisible();

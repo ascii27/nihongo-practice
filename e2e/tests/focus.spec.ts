@@ -1,7 +1,7 @@
 import { execSync } from "node:child_process";
 import { test, expect } from "@playwright/test";
 import { loadFixture } from "./fixtures";
-import { login } from "./helpers";
+import { login, openLibrary, pickLibrarySkill } from "./helpers";
 
 test.beforeEach(() => {
   loadFixture("seed-test-tags");
@@ -10,7 +10,7 @@ test.beforeEach(() => {
 test("focus: skill × tag narrows the hero and starts a focused session", async ({ page }) => {
   await login(page);
   await page.getByLabel("Skill").selectOption({ label: "Kanji" });
-  await page.getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
   await expect(page.getByText("cards · Kanji × Coto Academy")).toBeVisible();
   await expect(page.locator(".today__hero-count")).toHaveText("1");
   await page.getByRole("button", { name: "Start focused practice" }).click();
@@ -21,7 +21,7 @@ test("focus: empty focus offers drill, and drilling leaves the box unchanged", a
   await login(page);
   // Vocab × Coto Academy is one card (水). Introduce it through a focused session.
   await page.getByLabel("Skill").selectOption({ label: "Vocab" });
-  await page.getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
   await page.getByRole("button", { name: "Start focused practice" }).click();
   await page.getByRole("button", { name: /Tap to reveal/i }).click();
   await page.getByRole("button", { name: /Got it/i }).click();
@@ -42,9 +42,13 @@ test("focus: empty focus offers drill, and drilling leaves the box unchanged", a
   await expect(page.getByRole("dialog", { name: "Card detail" }).getByText(/Box 1 of 5 · 1 review ·/)).toBeVisible();
 });
 
-test("focus: tapping a skill row sets the focus, which survives a reload", async ({ page }) => {
+test("focus: studying a skill from Library sets the focus, which survives a reload", async ({ page }) => {
   await login(page);
-  await page.locator(".skill-card--vocab").click();
+  await openLibrary(page);
+  await pickLibrarySkill(page, "vocab");
+  await expect(page.getByRole("region", { name: "Skill" }).getByRole("heading", { name: "Vocab" })).toBeVisible();
+  await page.getByRole("button", { name: "Study this skill" }).click();
+  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Clear focus Vocab" })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("button", { name: "Clear focus Vocab" })).toBeVisible();
@@ -54,7 +58,7 @@ test("focus: tapping a skill row sets the focus, which survives a reload", async
 
 test("focus: a remembered tag that was deleted falls back to no focus", async ({ page }) => {
   await login(page);
-  await page.getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
   await expect(page.getByRole("button", { name: "Clear focus Coto Academy" })).toBeVisible();
   loadFixture("seed-test-items");          // wipes every tag
   await page.reload();
@@ -71,7 +75,7 @@ test("focus: a slow response for an earlier focus can't overwrite the current on
     await route.continue();
   });
   await page.getByLabel("Skill").selectOption({ label: "Vocab" });
-  await page.getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
   await expect(page.locator(".today__hero-count")).toHaveText("1");
   await page.waitForTimeout(2000);
   await expect(page.getByText("cards · Vocab × Coto Academy")).toBeVisible();
@@ -98,12 +102,12 @@ test("focus: a met target says so, rather than 'nothing due', and a skill-only d
 
   await login(page);
   await page.getByLabel("Skill").selectOption({ label: "Vocab" });
-  await page.getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "Coto Academy (2)" });
   await expect(page.getByText(/Today's target is done/)).toBeVisible();
   await expect(page.getByText(/Nothing due/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Drill all 1 anyway" })).toBeVisible();
 
   // Vocab alone has far more than 50 cards: the drill is a sample, and says so.
-  await page.getByLabel("Tag").selectOption({ label: "All" });
+  await page.getByRole("region", { name: "Practice" }).getByLabel("Tag").selectOption({ label: "All" });
   await expect(page.getByRole("button", { name: "Drill 50 anyway" })).toBeVisible();
 });
